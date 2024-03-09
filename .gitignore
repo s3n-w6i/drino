@@ -1,0 +1,6 @@
+/target
+/data
+/dummy-data
+flamegraph.svg
+massif.*
+*.csv

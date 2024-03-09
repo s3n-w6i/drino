@@ -1,0 +1,39 @@
+version: 1
+datasets:
+#  - id: de:vvs:gtfs
+#    format: gtfs
+#    license: CC-BY-4.0
+#    src:
+#      url: https://download.vvs.de/gtfs_realtime.zip
+#  - id: de:vbn:gtfs-rt
+#    format: gtfs-rt
+#    license: CC-BY-SA-4.0
+#    src:
+#      url: https://gtfsr.vbn.de/gtfsr_connect.bin
+#  - id: eu:flix:gtfs
+#    format: gtfs
+#    src:
+#      url: https://gtfs.gis.flix.tech/gtfs_generic_eu.zip
+#  - id: eu:flix:gtfs
+#    format: gtfs
+#    src:
+#      path: ./dummy-data/gtfs/eu-flix.zip
+#  - id: de:gtfs
+#    format: gtfs
+#    license: CC-BY-4.0
+#    src:
+#      path: ./dummy-data/gtfs/germany.zip
+  - id: no:gtfs
+    format: gtfs
+    src:
+      path: ./dummy-data/gtfs/norway.zip
+#  - id: de:bw:gtfs
+#    format: gtfs
+#    license: DL-DE-BY-2.0
+#    src:
+#      path: ./dummy-data/gtfs/bw.zip
+  - id: de:vvs:gtfs
+    format: gtfs
+    license: CC-BY-4.0
+    src:
+      path: ./dummy-data/gtfs/vvs.zip
