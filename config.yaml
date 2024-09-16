@@ -23,10 +23,10 @@ datasets:
 #    license: CC-BY-4.0
 #    src:
 #      path: ./dummy-data/gtfs/germany.zip
-  - id: no:gtfs
-    format: gtfs
-    src:
-      path: ./dummy-data/gtfs/norway.zip
+#  - id: no:gtfs
+#    format: gtfs
+#    src:
+#      path: ./dummy-data/gtfs/norway.zip
 #  - id: de:bw:gtfs
 #    format: gtfs
 #    license: DL-DE-BY-2.0

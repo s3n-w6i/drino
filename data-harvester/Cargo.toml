@@ -1,0 +1,13 @@
+[package]
+name = "data-harvester"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+common = { path = "../common" }
+polars = { workspace = true }
+tempfile = { workspace = true }
+zip = { version = "2.2.0", default-features = false, features = ["deflate"] }
+thiserror = { workspace = true }
+routing = { path = "../routing" }
+reqwest = "0.12.7"

@@ -3,28 +3,61 @@ name = "drino"
 version = "0.1.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[workspace]
+members = [
+    "data-harvester",
+    "visualization",
+    "routing",
+    "common"
+]
 
 [dependencies]
+data-harvester = { path = "data-harvester" }
+visualization = { path = "visualization" }
+routing = { path = "routing" }
+common = { path = "common" }
 async-trait = "0.1.77"
-reqwest = { version = "0.11.24", features = ["stream"] }
+dashmap = { version = "6.0.1", features = ["rayon"] }
+rayon = "1.9.0"
 serde = { version = "1.0.196", features = ["derive"] }
 serde_yaml = "0.9.31"
 tokio = { version = "1.0.0", features = ["rt", "rt-multi-thread", "macros"] }
 tokio-util = "0.7.10"
-url = { version = "2.5.0", features = ["serde"] }
 futures = { version = "0.3.30", features = [] }
-thiserror = "1.0.56"
-tempfile = "3.10.0"
-itertools = "0.12.1"
+thiserror = { workspace = true }
+itertools = "0.13.0"
 smartstring = "1.0.1"
 log = "0.4"
-env_logger = "0.11.2"
-zip = { version = "0.6.6", default-features = false, features = ["deflate"] }
+env_logger = "0.11.5"
+indicatif = "0.17.8"
+num-traits = "0.2.17"
+hashbrown = "0.14.3"
+polars = { workspace = true }
+tempfile = { workspace = true }
 
-[dependencies.polars]
-version = "0.38.1"
-features = ["parquet", "streaming", "lazy", "decompress", "csv", "semi_anti_join", "list_eval"]
+[workspace.dependencies]
+thiserror = "1.0.56"
+chrono = "0.4.38"
+tempfile = "3.12.0"
 
-[profile.release]
-target-cpu = "native"
+[workspace.dependencies.polars]
+version = "0.43.1"
+features = [
+    "parquet",
+    "streaming",
+    "lazy",
+    "decompress",
+    "csv",
+    "semi_anti_join",
+    "list_eval",
+    "ndarray",
+    "partition_by",
+    "strings",
+    "timezones",
+    "dtype-duration",
+    "dtype-struct",
+    "rows"
+]
+
+[build]
+rustflags = [ "-C target-cpu=native" ]

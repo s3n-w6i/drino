@@ -1,0 +1,30 @@
+[package]
+name = "routing"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+indicatif = "0.17.8"
+log = "0.4.22"
+async-trait = "0.1.82"
+chrono = { workspace = true }
+dashmap = { version = "6.0.1", features = ["rayon"] }
+ordered-float = "4.2.0"
+rayon = "1.9.0"
+hashbrown = "0.14.5"
+common = { path = "../common" }
+itertools = "0.13.0"
+geo = "0.28.0"
+linfa-clustering = { version = "0.7.0", features = ["default"] }
+linfa = { version = "0.7.0", features = ["default"] }
+linfa-nn = "0.7.0"
+ndarray = "0.15.6"
+ndarray-npy = "0.9.1"
+tokio = { version = "1.0.0", features = ["rt", "rt-multi-thread", "macros"] }
+tokio-util = "0.7.10"
+url = { version = "2.5.0", features = ["serde"] }
+futures = { version = "0.3.30", features = [] }
+pathfinding = "4.9.1"
+petgraph = "0.6.4"
+polars = { workspace = true }
+thiserror = { workspace = true }
