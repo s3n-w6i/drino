@@ -11,17 +11,17 @@ mod routing;
 
 #[derive(Clone)]
 pub struct RaptorAlgorithm {
-    pub stops: Vec<StopId>,
-    stops_by_line: HashMap<LineId, Vec<StopId>>,
-    lines_by_stops: HashMap<StopId, HashSet<(LineId, SeqNum)>>,
+    pub(crate) stops: Vec<StopId>,
+    pub(crate) stops_by_line: HashMap<LineId, Vec<StopId>>,
+    pub(crate) lines_by_stops: HashMap<StopId, HashSet<(LineId, SeqNum)>>,
     // <(trip_id, stop_id), departure_time>
-    departures: HashMap<(TripId, StopId), DateTime<Utc>>,
+    pub(crate) departures: HashMap<(TripId, StopId), DateTime<Utc>>,
     // <(trip_id, stop_id), arrival_time>
-    arrivals: HashMap<(TripId, StopId), DateTime<Utc>>,
+    pub(crate) arrivals: HashMap<(TripId, StopId), DateTime<Utc>>,
     // Vec has to be sorted from earliest to latest
     // DateTime is departure
-    trips_by_line_and_stop: HashMap<(LineId, StopId), Vec<(DateTime<Utc>, TripId)>>,
-    transfer_provider: CrowFlyTransferProvider,
+    pub(crate) trips_by_line_and_stop: HashMap<(LineId, StopId), Vec<(DateTime<Utc>, TripId)>>,
+    pub(crate) transfer_provider: CrowFlyTransferProvider,
 }
 
 impl RoutingAlgorithm for RaptorAlgorithm {}

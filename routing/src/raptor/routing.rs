@@ -141,7 +141,7 @@ impl RaptorAlgorithm {
             let tp = &self.transfer_provider;
             // foreach marked stop p
             for start in marked_stops.clone() {
-                // foreach foot-path (p, p') ∈ F
+                // foreach footpath (p, p') ∈ F
                 for end in tp.transfers_from(&start) {
                     // This is the maximum amount of time a transfer will have to take in order to
                     // be faster
@@ -280,6 +280,7 @@ mod tests {
     use super::*;
     use geo::Coord;
     use hashbrown::{HashMap, HashSet};
+    use crate::tests::{duration_stop3_stop4, generate_case_4};
 
     earliest_arrival_tests!(RaptorAlgorithm);
 
@@ -338,5 +339,33 @@ mod tests {
             raptor.earliest_trip(LineId(1), StopId(2), DateTime::<Utc>::from_timestamp(0, 1).unwrap()),
             None
         );
+    }
+
+    #[test]
+    fn test_final_state() {
+        let dep0 = DateTime::<Utc>::from_timestamp(0, 0).unwrap();
+
+        let raptor = generate_case_4();
+
+        let res = raptor.run(StopId(0), None, dep0).unwrap();
+        assert_eq!(
+            res.best_arrivals,
+            vec![
+                // Stop 0: We're already here (it's the starting point) -> should take no time
+                DateTime::<Utc>::from_timestamp(0, 0).unwrap(),
+                // Stop 1: Fastest way is 0 --100--> 2 --101--> 1
+                DateTime::<Utc>::from_timestamp(150, 0).unwrap(),
+                // Stop 2: Fastest way is 0 --100--> 2
+                DateTime::<Utc>::from_timestamp(100, 0).unwrap(),
+                // Stop 3: Fastest way is 0 --130--> 3
+                DateTime::<Utc>::from_timestamp(250, 0).unwrap(),
+                // Stop 4: Fastest way is 0 --130--> 3 --Walk--> 4 (120_2 departs too late. By then, it's faster to walk)
+                DateTime::<Utc>::from_timestamp(250 + duration_stop3_stop4().num_seconds(), 0).unwrap(),
+            ]
+        );
+        // The k value that is reached after finding a way to all other stops
+        assert_eq!(res.k, todo!("determine k"));
+        todo!("Check the state of raptor after execution");
+        raptor.run(StopId(0), Some(StopId(4)), dep0).expect("expected this to work");
     }
 }

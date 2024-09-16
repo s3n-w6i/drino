@@ -11,10 +11,10 @@ type ConnectionIndex = HashMap<StopId, HashMap<usize, Leg>>;
 
 #[derive(Debug)]
 pub struct RaptorState {
-    pub k: usize,
+    pub(super) k: usize,
     k_arrivals: Vec<Vec<DateTime<Utc>>>,
-    best_arrivals: Vec<DateTime<Utc>>,
-    pub connection_index: ConnectionIndex,
+    pub(super) best_arrivals: Vec<DateTime<Utc>>,
+    pub(super) connection_index: ConnectionIndex,
 }
 
 impl RaptorState {
@@ -36,7 +36,7 @@ impl RaptorState {
         let stop_taus: Vec<Vec<DateTime<Utc>>> = vec![initial_taus.clone()];
 
         // called \tau^* in the RAPTOR paper (see section on local pruning)
-        let best_arrivals = vec![DateTime::<Utc>::MAX_UTC; num_stops];
+        let best_arrivals = initial_taus.clone();
 
         Self {
             k: 0,
