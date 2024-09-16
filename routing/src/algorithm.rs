@@ -127,11 +127,6 @@ impl QueryOutput<EarliestArrivalQuery> for EarliestArrivalOutput {}
 
 impl QueryOutput<RangeQuery> for RangeOutput {}
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
-pub struct Trip {
-    pub(crate) id: TripId,
-}
-
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub enum Leg {
     Ride { trip: TripId, start: StopId, end: StopId, departure: DateTime<Utc>, arrival: DateTime<Utc> },
@@ -159,7 +154,7 @@ impl Journey {
     pub(crate) fn departure(&self) -> Option<DateTime<Utc>> {
         let first_ride = self.legs.iter().find(|leg| matches!(leg, Leg::Ride { .. }));
 
-        return if let Some(first_ride) = first_ride {
+        if let Some(first_ride) = first_ride {
             let start_transfers_duration: TimeDelta = self.legs.iter()
                 .take_while(|leg| matches!(leg, Leg::Transfer {..}))
                 .map(|leg| {
@@ -176,7 +171,7 @@ impl Journey {
             }
         } else {
             None
-        };
+        }
     }
 
     // Return the time at which this journey will end at the destination
@@ -188,7 +183,7 @@ impl Journey {
 
         let last_ride = legs_reversed.clone().find(|leg| matches!(leg, Leg::Ride { .. }));
 
-        return if let Some(last_ride) = last_ride {
+        if let Some(last_ride) = last_ride {
             let end_transfers_duration: TimeDelta = legs_reversed.clone()
                 .take_while(|leg| matches!(leg, Leg::Transfer {..}))
                 .map(|leg| {
@@ -205,11 +200,11 @@ impl Journey {
             }
         } else {
             None
-        };
+        }
     }
 
     pub(crate) fn arrival_when_starting_at(&self, departure: DateTime<Utc>) -> Option<DateTime<Utc>> {
-        return if let Some(journey_departure) = self.departure() {
+        if let Some(journey_departure) = self.departure() {
             // This journey has a departure date-time, that we cannot miss. If we do, we will not arrive
             if journey_departure < departure {
                 None
@@ -229,7 +224,7 @@ impl Journey {
                 })
                 .sum();
             Some(departure + duration)
-        };
+        }
     }
 
     pub(crate) fn start(&self) -> &StopId {
