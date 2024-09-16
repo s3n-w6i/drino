@@ -278,6 +278,8 @@ mod tests {
     use crate::earliest_arrival_tests;
     use crate::transfers::CrowFlyTransferProvider;
     use super::*;
+    use geo::Coord;
+    use hashbrown::{HashMap, HashSet};
 
     earliest_arrival_tests!(RaptorAlgorithm);
 
