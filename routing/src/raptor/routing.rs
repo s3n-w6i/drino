@@ -1,15 +1,15 @@
-use std::cmp::min;
-
 use async_trait::async_trait;
 use chrono::{DateTime, Duration, TimeDelta, Utc};
 use hashbrown::HashSet;
 use itertools::Itertools;
+use std::cmp::min;
+use std::iter::Skip;
 
 use crate::algorithm::{AllEarliestArrival, AllRange, EarliestArrival, EarliestArrivalOutput, Journey, MultiQueryResult, QueryError, QueryResult, Range, RangeOutput, Single, SingleEarliestArrival, SingleRange};
 use crate::raptor::state::RaptorState;
+use crate::raptor::RaptorAlgorithm;
 use crate::transfers::TransferProvider;
 use common::types::{LineId, SeqNum, StopId, TripId};
-use crate::raptor::RaptorAlgorithm;
 
 const INFINITY: DateTime<Utc> = DateTime::<Utc>::MAX_UTC;
 
@@ -60,6 +60,22 @@ impl RaptorAlgorithm {
         queue
     }
 
+    fn stops_on_line_after(&self, line: &LineId, stop: &StopId) -> Skip<std::slice::Iter<StopId>> {
+        // Get all stops on that line that comes after stop_id (including stop_id)
+        let stops_on_line = self.stops_by_line.get(line).unwrap();
+        let a_stop_idx_on_line = stops_on_line.iter().position(|x| x == stop)
+            .expect(&format!("Expected Stop with ID {stop:?} to be on line {line:?}"));
+        let stops_on_line_after = stops_on_line.into_iter().skip(a_stop_idx_on_line);
+
+        // stop_id itself is first in line of the stops
+        debug_assert!(
+            &stops_on_line_after.clone().collect::<Vec<&StopId>>()[0] == &stop,
+            "Line {line:?} does not include stop {stop:?} as a stop after {stop:?}",
+        );
+
+        stops_on_line_after.into_iter()
+    }
+
     fn run(
         &self,
         start: StopId,
@@ -86,20 +102,9 @@ impl RaptorAlgorithm {
             // SECOND STAGE
             // Process each line (called "route" in the original paper).
             for (line, a_stop) in queue.iter() {
-                // Get all stops on that line that comes after a_stop_id (including a_stop_id)
-                let stops_on_line = self.stops_by_line.get(line).unwrap();
-                let a_stop_idx_on_line = stops_on_line.iter().position(|x| x == a_stop)
-                    .expect(&format!("Expected Stop with ID {a_stop:?} to be on line {line:?}"));
-                let stops_on_line_after = stops_on_line.into_iter().skip(a_stop_idx_on_line);
-                // a_stop_id itself is first in line of the stops
-                debug_assert!(
-                    &stops_on_line_after.clone().collect::<Vec<&StopId>>()[0] == &a_stop,
-                    "Line {line:?} does not include stop {a_stop:?} as a stop after {a_stop:?}",
-                );
-
                 let mut trip: Option<TripId> = None;
 
-                for b_stop in stops_on_line_after.into_iter() {
+                for b_stop in self.stops_on_line_after(line, a_stop) {
                     // TODO: Fix funky date problems
                     // if t != ⊥ and ...
                     if let Some(trip) = trip {
@@ -275,12 +280,12 @@ impl AllRange for RaptorAlgorithm {
 
 #[cfg(test)]
 mod tests {
-    use crate::earliest_arrival_tests;
-    use crate::transfers::CrowFlyTransferProvider;
     use super::*;
+    use crate::earliest_arrival_tests;
+    use crate::tests::{duration_stop3_stop4, generate_case_4};
+    use crate::transfers::CrowFlyTransferProvider;
     use geo::Coord;
     use hashbrown::{HashMap, HashSet};
-    use crate::tests::{duration_stop3_stop4, generate_case_4};
 
     earliest_arrival_tests!(RaptorAlgorithm);
 
