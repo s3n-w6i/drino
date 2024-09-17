@@ -86,8 +86,9 @@ impl RaptorAlgorithm {
         let mut marked_stops: Vec<StopId> = vec![start];
 
         // Increase the number of legs per round
+        // foreach k <- 1,2,... do
         while !marked_stops.is_empty() {
-            //println!("before new round {:?}", state);
+            // increment k and set up this round
             state.new_round();
 
             // queue is called "Q" in the original paper
@@ -150,15 +151,22 @@ impl RaptorAlgorithm {
                 for end in tp.transfers_from(&start) {
                     // This is the maximum amount of time a transfer will have to take in order to
                     // be faster
-                    let max_duration = *state.tau(&end).unwrap_or(&INFINITY) - *state.tau(&start).unwrap();
+                    let max_duration = *state.tau(&end).unwrap_or(&INFINITY) - *state.tau(&start)
+                        .expect("transfer start was in marked_stops, so it must have a tau value set");
 
                     // This if-clause checks if there is any chance this transfer is faster.
                     // For this approximation, we use a lower bound duration that is cheaper to
                     // calculate than an actual route and duration (at least for large distances)
-                    if tp.lower_bound_duration(start, end)? < max_duration {
+                    let lower_bound_duration = tp.lower_bound_duration(start, end)?;
+                    if lower_bound_duration < max_duration {
                         // Since we found a candidate, calculate the actual, precise duration it
                         // will take.
                         let actual_duration = tp.duration(start, end)?;
+                        debug_assert!(
+                            actual_duration >= lower_bound_duration,
+                            "Actual duration must be greater than the lower bound."
+                        );
+                        
                         if actual_duration < max_duration {
                             state.set_transfer(start, end, actual_duration);
                         }
@@ -353,20 +361,22 @@ mod tests {
         let raptor = generate_case_4();
 
         let res = raptor.run(StopId(0), None, dep0).unwrap();
+        
         assert_eq!(
             res.best_arrivals,
             vec![
                 // Stop 0: We're already here (it's the starting point) -> should take no time
                 DateTime::<Utc>::from_timestamp(0, 0).unwrap(),
-                // Stop 1: Fastest way is 0 --100--> 2 --101--> 1
+                // Stop 1: Fastest way is 0 --100_1--> 2 --101_1--> 1
                 DateTime::<Utc>::from_timestamp(150, 0).unwrap(),
-                // Stop 2: Fastest way is 0 --100--> 2
+                // Stop 2: Fastest way is 0 --100_1--> 2
                 DateTime::<Utc>::from_timestamp(100, 0).unwrap(),
-                // Stop 3: Fastest way is 0 --130--> 3
+                // Stop 3: Fastest way is 0 --130_1--> 3
                 DateTime::<Utc>::from_timestamp(250, 0).unwrap(),
-                // Stop 4: Fastest way is 0 --130--> 3 --Walk--> 4 (120_2 departs too late. By then, it's faster to walk)
+                // Stop 4: Fastest way is 0 --130_1--> 3 --Walk--> 4 (120_2 departs too late. By then, it's faster to walk)
                 DateTime::<Utc>::from_timestamp(250 + duration_stop3_stop4().num_seconds(), 0).unwrap(),
-            ]
+            ],
+            "Best arrivals was not as expected. {res:?}"
         );
         // The k value that is reached after finding a way to all other stops
         assert_eq!(res.k, todo!("determine k"));
