@@ -55,14 +55,17 @@ impl RaptorState {
         self.k_arrivals.push(self.k_arrivals.last().unwrap().clone());
     }
 
+    // τ_k(stop)
     pub fn tau(&self, stop: &StopId) -> Option<&DateTime<Utc>> {
         self.k_arrivals.get(self.k)?.get(stop.0 as usize)
     }
 
+    // τ_k−1(stop)
     pub fn previous_tau(&self, stop: &StopId) -> Option<&DateTime<Utc>> {
         self.k_arrivals.get(self.k - 1)?.get(stop.0 as usize)
     }
 
+    // τ∗(stop)
     pub fn best_arrival(&self, stop: &StopId) -> Option<&DateTime<Utc>> {
         self.best_arrivals.get(stop.0 as usize)
     }
@@ -76,12 +79,11 @@ impl RaptorState {
         trip: TripId,
     ) {
         let end_idx = end.0 as usize;
-        let prev_tau = self.k_arrivals[self.k][end_idx].clone();
 
         // τₖ(pᵢ) ← τₐᵣᵣ(t, pᵢ)
         self.k_arrivals[self.k][end_idx] = new_arrival;
         // τ*(pᵢ) ← τₐᵣᵣ(t, pᵢ)
-        self.best_arrivals[end_idx] = min(new_arrival, prev_tau);
+        self.best_arrivals[end_idx] = new_arrival;
 
         self.connection_index
             .entry(end).or_insert(HashMap::new())
@@ -97,6 +99,12 @@ impl RaptorState {
         let start_idx = start.0 as usize;
         let end_idx = end.0 as usize;
         let time_after_transfer = self.k_arrivals[self.k][start_idx] + duration;
+
+        debug_assert!(
+            self.best_arrivals[end_idx] >= time_after_transfer,
+            "set_tranfer called despite transfer not being faster"
+        );
+        
         self.k_arrivals[self.k][end_idx] = time_after_transfer;
         self.best_arrivals[end_idx] = time_after_transfer;
 
