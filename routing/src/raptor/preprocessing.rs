@@ -1,17 +1,20 @@
+use crate::algorithm::{PreprocessInit, PreprocessingError, PreprocessingInput, PreprocessingResult};
+use crate::direct_connections::DirectConnections;
+use crate::raptor::RaptorAlgorithm;
+use crate::transfers::CrowFlyTransferProvider;
 use chrono::DateTime;
+use common::types::{LineId, SeqNum, StopId, TripId};
 use hashbrown::{HashMap, HashSet};
 use itertools::izip;
 use polars::error::{ErrString, PolarsError};
 use polars::prelude::{col, IntoLazy, SortMultipleOptions};
-use crate::algorithm::{PreprocessingError, PreprocessingInput, PreprocessingResult, PreprocessInit};
-use crate::direct_connections::DirectConnections;
-use crate::transfers::CrowFlyTransferProvider;
-use common::types::{LineId, SeqNum, StopId, TripId};
-use crate::raptor::RaptorAlgorithm;
 
 impl RaptorAlgorithm {
-    pub fn preprocess(input: PreprocessingInput, DirectConnections { lines, .. }: DirectConnections) -> PreprocessingResult<RaptorAlgorithm> {        
-        let stops = input.stops.clone()
+    pub fn preprocess(
+        PreprocessingInput { stops, .. }: PreprocessingInput,
+        DirectConnections { lines, .. }: DirectConnections,
+    ) -> PreprocessingResult<RaptorAlgorithm> {
+        let stops_vec = stops.clone()
             .select(&[col("stop_id")])
             .collect()?.column("stop_id")?
             .u32()?.to_vec()
@@ -21,13 +24,17 @@ impl RaptorAlgorithm {
 
         let lines = lines.clone()
             .select(["line_id", "stop_id", "stop_sequence", "trip_id", "arrival_time", "departure_time"])?
-            .sort(["line_id", "trip_id", "stop_sequence"], SortMultipleOptions::default()
-                .with_maintain_order(false)
-                .with_order_descending(false))?;
+            .sort(
+                ["line_id", "trip_id", "stop_sequence"],
+                SortMultipleOptions::default()
+                    .with_maintain_order(false)
+                    .with_order_descending(false),
+            )?;
 
         let [line_ids, stop_ids, sequence_numbers, trip_ids, arrival_times, departure_times] =
             lines.get_columns()
-            else { return Err(PreprocessingError::Polars(PolarsError::ColumnNotFound(ErrString::from("")))); };
+        else { return Err(PreprocessingError::Polars(PolarsError::ColumnNotFound(ErrString::from("")))); };
+        
         let line_ids = line_ids.u32()?;
         let stop_ids = stop_ids.u32()?;
         let sequence_numbers = sequence_numbers.u32()?;
@@ -38,7 +45,7 @@ impl RaptorAlgorithm {
         let mut stops_by_line = HashMap::new();
         for (idx, line_id) in line_ids.into_iter().enumerate() {
             let line_id = LineId(line_id.unwrap());
-            let stop_id = StopId(idx as u32);
+            let stop_id = StopId(stop_ids.get(idx).unwrap());
 
             stops_by_line.entry(line_id).or_insert(vec![])
                 .push(stop_id);
@@ -77,7 +84,7 @@ impl RaptorAlgorithm {
             .agg(&[col("trip_id"), col("departure_time")])
             .collect()?;
         let [line_ids, stop_ids, trips_ids, departures_times] = trips_by_line_and_stop_df.get_columns()
-            else { return Err(PreprocessingError::Polars(PolarsError::ColumnNotFound(ErrString::from("")))); };
+        else { return Err(PreprocessingError::Polars(PolarsError::ColumnNotFound(ErrString::from("")))); };
         let line_ids = line_ids.u32()?;
         let stop_ids = stop_ids.u32()?;
         let trips_ids = trips_ids.list()?;
@@ -106,24 +113,23 @@ impl RaptorAlgorithm {
         }
 
         Ok(Self {
-            stops,
+            stops: stops_vec,
             stops_by_line,
             lines_by_stops,
             arrivals,
             departures,
             trips_by_line_and_stop,
-            transfer_provider: CrowFlyTransferProvider::from_stops(input.stops.clone())?
+            transfer_provider: Box::new(CrowFlyTransferProvider::from_stops(stops)?),
         })
     }
 }
 
-impl PreprocessInit for RaptorAlgorithm {
+impl<'a> PreprocessInit for RaptorAlgorithm {
     fn preprocess(input: PreprocessingInput) -> PreprocessingResult<RaptorAlgorithm> {
         let direct_connections = DirectConnections::try_from(input.clone())?;
         Self::preprocess(input, direct_connections)
     }
 }
-
 
 
 #[cfg(test)]
@@ -167,8 +173,8 @@ mod tests {
     }
 
     fn list_eq<T>(a: &Vec<T>, b: &Vec<T>) -> bool
-        where
-            T: PartialEq + Ord,
+    where
+        T: PartialEq + Ord,
     {
         a.iter().sorted().collect_vec();
         b.iter().sorted().collect_vec();
