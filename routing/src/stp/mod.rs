@@ -6,8 +6,8 @@ use polars::frame::DataFrame;
 use polars::io::SerWriter;
 use polars::prelude::{CsvWriter, IntoLazy};
 use crate::algorithm::{PreprocessingError, PreprocessingInput, PreprocessingResult, PreprocessInit, RoutingAlgorithm};
-use crate::stp::preprocessing::filter_for_cluster::filter_for_cluster;
-use crate::stp::preprocessing::optics_cluster::cluster;
+use crate::stp::preprocessing::clustering::filter_for_cluster;
+use crate::stp::preprocessing::clustering::optics::cluster;
 use crate::tp::TransferPatternsAlgorithm;
 use common::util::logging::run_with_spinner;
 
