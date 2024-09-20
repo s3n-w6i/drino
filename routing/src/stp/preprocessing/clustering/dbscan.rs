@@ -3,15 +3,15 @@ use std::fmt::Display;
 
 use linfa::traits::Transformer;
 use linfa_clustering::Dbscan;
-use polars::io::SerWriter;
-use polars::prelude::{col, CsvWriter, Float32Type, IndexOrder, LazyFrame, Literal};
+use polars::frame::DataFrame;
+use polars::prelude::{col, Float32Type, IndexOrder, LazyFrame, Literal};
 use polars::series::Series;
 
 const MIN_CLUSTER_SIZE: usize = 500;
 
-pub async fn cluster(
+pub fn cluster(
     stops: &LazyFrame,
-) -> Result<(), DbscanClusterError> {
+) -> Result<DataFrame, DbscanClusterError> {
     let stops_array = stops.clone()
         .select([col("lat"), col("lon")])
         .collect()?
@@ -20,8 +20,7 @@ pub async fn cluster(
 
     let clusters = Dbscan::params(MIN_CLUSTER_SIZE)
         .tolerance(50e-2)
-        .transform(&contiguous_stops_array)
-        .unwrap();
+        .transform(&contiguous_stops_array)?;
 
     let cluster_series: Series = clusters.into_iter()
         .map(|x| match x {
@@ -33,17 +32,11 @@ pub async fn cluster(
 
     println!("{:?}", cluster_series);
 
-    let mut stop_ids_with_clusters = stops.clone()
-        //.select([ col("stop_id") ])
+    let stop_ids_with_clusters = stops.clone()
         .with_column(cluster_series.lit())
         .collect()?;
 
-    let mut file = std::fs::File::create("../../../../stops_clustered.csv").unwrap();
-    CsvWriter::new(&mut file).finish(&mut stop_ids_with_clusters).unwrap();
-
-
-    //Ok(stop_ids_with_clusters)
-    Ok(())
+    Ok(stop_ids_with_clusters)
 }
 
 #[derive(thiserror::Error, Debug)]

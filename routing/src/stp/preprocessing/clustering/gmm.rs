@@ -1,17 +1,16 @@
 use std::fmt;
 use std::fmt::Display;
 
-use linfa::DatasetBase;
 use linfa::traits::{Fit, Predict};
+use linfa::DatasetBase;
 use linfa_clustering::GaussianMixtureModel;
 use polars::frame::DataFrame;
-use polars::io::SerWriter;
-use polars::prelude::{col, CsvWriter, Float32Type, IndexOrder, LazyFrame, Literal};
+use polars::prelude::{col, Float32Type, IndexOrder, LazyFrame, Literal};
 use polars::series::Series;
 
-pub async fn cluster(
+pub fn cluster(
     stops: &LazyFrame,
-) -> Result<(DataFrame, usize), GmmClusterError> {
+) -> Result<(DataFrame, u32), GmmClusterError> {
     let stops_array = stops.clone()
         .select([col("lat"), col("lon")])
         .collect()?
@@ -25,8 +24,7 @@ pub async fn cluster(
         .n_runs(10)
         .max_n_iterations(100)
         .tolerance(1e-4)
-        .fit(&stops_data)
-        .expect("GMM fitting failed");
+        .fit(&stops_data)?;
     let result = model.predict(stops_array);
 
     let target_series: Series = result.targets.into_iter()
@@ -34,16 +32,11 @@ pub async fn cluster(
         .collect::<Series>()
         .with_name("cluster_id".into());
 
-    let mut stop_ids_with_clusters = stops.clone()
-        //.select([ col("stop_id") ])
+    let stop_ids_with_clusters = stops.clone()
         .with_column(target_series.lit())
         .collect()?;
 
-    let mut file = std::fs::File::create("../../../../stops_clustered.csv").unwrap();
-    CsvWriter::new(&mut file).finish(&mut stop_ids_with_clusters).unwrap();
-
-
-    Ok((stop_ids_with_clusters, num_clusters))
+    Ok((stop_ids_with_clusters, num_clusters as u32))
 }
 
 #[derive(thiserror::Error, Debug)]
