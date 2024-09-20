@@ -1,5 +1,6 @@
 use polars::datatypes::{AnyValue, DataType};
 use polars::error::{ErrString, PolarsError};
+use polars::export::chrono::NaiveDateTime;
 use polars::prelude::{Field, StrptimeOptions};
 use polars::series::Series;
 
@@ -102,15 +103,15 @@ pub fn gtfs_schemas() -> GtfsDataset {
             name: "calendar",
             required_fields: vec![
                 Field { name: "service_id".into(), dtype: DataType::String },
-                Field { name: "monday".into(), dtype: DataType::Boolean },
-                Field { name: "tuesday".into(), dtype: DataType::Boolean },
-                Field { name: "wednesday".into(), dtype: DataType::Boolean },
-                Field { name: "thursday".into(), dtype: DataType::Boolean },
-                Field { name: "friday".into(), dtype: DataType::Boolean },
-                Field { name: "saturday".into(), dtype: DataType::Boolean },
-                Field { name: "sunday".into(), dtype: DataType::Boolean },
-                Field { name: "start_date".into(), dtype: DataType::Date },
-                Field { name: "end_date".into(), dtype: DataType::Date },
+                Field { name: "monday".into(), dtype: DataType::UInt32 },
+                Field { name: "tuesday".into(), dtype: DataType::UInt32 },
+                Field { name: "wednesday".into(), dtype: DataType::UInt32 },
+                Field { name: "thursday".into(), dtype: DataType::UInt32 },
+                Field { name: "friday".into(), dtype: DataType::UInt32 },
+                Field { name: "saturday".into(), dtype: DataType::UInt32 },
+                Field { name: "sunday".into(), dtype: DataType::UInt32 },
+                Field { name: "start_date".into(), dtype: DataType::String },
+                Field { name: "end_date".into(), dtype: DataType::String },
             ],
         },
         routes: GtfsFile {
@@ -124,17 +125,17 @@ pub fn gtfs_schemas() -> GtfsDataset {
             name: "stop_times",
             required_fields: vec![
                 Field { name: "trip_id".into(), dtype: DataType::String },
-                Field { name: "arrival_time".into(), dtype: DataType::Time },
-                Field { name: "departure_time".into(), dtype: DataType::Time },
-                Field { name: "stop_sequence".into(), dtype: DataType::UInt16 },
+                Field { name: "arrival_time".into(), dtype: DataType::String },
+                Field { name: "departure_time".into(), dtype: DataType::String },
+                Field { name: "stop_sequence".into(), dtype: DataType::UInt32 },
             ],
         },
         stops: GtfsFile {
             name: "stops",
             required_fields: vec![
                 Field { name: "stop_id".into(), dtype: DataType::String },
-                Field { name: "stop_lat".into(), dtype: DataType::Float32 },
-                Field { name: "stop_lon".into(), dtype: DataType::Float32 },
+                Field { name: "stop_lat".into(), dtype: DataType::Float32 }, // f32 for coordinates might be too little (~2m precision?)
+                Field { name: "stop_lon".into(), dtype: DataType::Float32 }, // f32 for coordinates might be too little (~2m precision?)
             ],
         },
         trips: GtfsFile {
