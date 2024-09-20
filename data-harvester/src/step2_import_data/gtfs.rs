@@ -37,7 +37,7 @@ fn check_files_in_archive(zip_archive: &ZipArchive<&mut File>) -> Result<(), Imp
     missing_files_to_import.retain(|imp_file| !actual_file_names.contains(&imp_file));
 
     if missing_files_to_import.len() > 0 {
-        panic!("Missing a file that we NEED to import"); // TODO: Make this a result error
+        return Err(ImportError::MissingFile);
     }
 
     let mut missing_required_files = Vec::from(GTFS_REQUIRED_FILES);
