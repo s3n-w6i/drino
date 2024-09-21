@@ -1,6 +1,7 @@
 "use client"
 import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from "@/components/ui/table";
 import {Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle} from "@/components/ui/card";
+import {Badge} from "@/components/ui/badge";
 
 export default function DatasetsPage() {
     return (
@@ -16,17 +17,20 @@ export default function DatasetsPage() {
                             <TableHeader>
                                 <TableRow>
                                     <TableHead>
-                                        Head 1
+                                        ID
                                     </TableHead>
                                     <TableHead>
-                                        Head 2
+                                        Format
                                     </TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 <TableRow onClick={() => { alert("clickidoo") }}>
                                     <TableCell>
-                                        Value
+                                        de:vvs:gtfs
+                                    </TableCell>
+                                    <TableCell>
+                                        <Badge variant="secondary">GTFS</Badge>
                                     </TableCell>
                                 </TableRow>
                             </TableBody>
@@ -34,7 +38,7 @@ export default function DatasetsPage() {
                     </CardContent>
                     <CardFooter>
                         <div className="text-xs text-muted-foreground">
-                            Hi
+                            <b>1 dataset</b> imported from config.yaml
                         </div>
                     </CardFooter>
                 </Card>
