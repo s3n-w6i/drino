@@ -8,9 +8,9 @@ export default function Drino() {
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
       >
         <path d="M 11 17.5 C11 19 10.5 19 14.5 19"/>
         <path d="M 14.5 19 C14.5 16 16.5 15 21.5 15"/>
