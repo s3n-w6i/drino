@@ -138,6 +138,12 @@ impl Leg {
             Leg::Ride { boarding_stop: start, .. } | Leg::Transfer { start, .. } => start,
         }
     }
+    
+    pub(crate) fn end(&self) -> &StopId {
+        match self {
+            Leg::Ride { alight_stop: end, .. } | Leg::Transfer { end, .. } => end,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
@@ -228,6 +234,10 @@ impl Journey {
 
     pub(crate) fn start(&self) -> &StopId {
         self.legs.get(0).unwrap().start()
+    }
+
+    pub(crate) fn end(&self) -> &StopId {
+        self.legs.last().unwrap().end()
     }
 }
 
