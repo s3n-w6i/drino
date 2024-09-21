@@ -84,7 +84,7 @@ export default function MapPage() {
             getFilterValue: (s: ClusteredStop) => s.cluster_id,
             extensions: [new DataFilterExtension({filterSize: 1})],
             filterEnabled: clusterId != null,
-            filterRange: clusterId ? [clusterId, clusterId] : []
+            filterRange: clusterId != null ? [clusterId, clusterId] : []
         })
     ];
 
@@ -120,7 +120,7 @@ export default function MapPage() {
 
                 </Map>
 
-                {clusterId && (
+                {(clusterId != null) && (
                     <div className="absolute top-0 left-0 px-4 py-2">
                         <Button size="sm" className="flex-row gap-1"
                                onClick={() => setClusterId(null)}>
