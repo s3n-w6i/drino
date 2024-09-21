@@ -358,9 +358,16 @@ mod tests {
         let dep0 = DateTime::<Utc>::from_timestamp(0, 0).unwrap();
 
         let raptor = generate_case_4();
-
         let res = raptor.run(StopId(0), None, dep0).unwrap();
-        
+
+        // The k value that is reached after finding a way to all other stops
+        // It's 3 since going to 1 or 4 takes two legs, going to 2 or 3 just takes one leg, and we
+        // do an additional round for finding out that nothing changed in the last round
+        // => marked_stops is empty.
+        assert_eq!(res.k, 3);
+
+        assert_eq!(res.k_arrivals.len(), res.k + 1);
+
         assert_eq!(
             res.best_arrivals,
             vec![
@@ -373,13 +380,20 @@ mod tests {
                 // Stop 3: Fastest way is 0 --130_1--> 3
                 DateTime::<Utc>::from_timestamp(250, 0).unwrap(),
                 // Stop 4: Fastest way is 0 --130_1--> 3 --Walk--> 4 (120_2 departs too late. By then, it's faster to walk)
-                DateTime::<Utc>::from_timestamp(250 + duration_stop3_stop4().num_seconds(), 0).unwrap(),
+                DateTime::<Utc>::from_timestamp(250 + 410, 0).unwrap(),
             ],
             "Best arrivals was not as expected. {res:?}"
         );
-        // The k value that is reached after finding a way to all other stops
-        assert_eq!(res.k, todo!("determine k"));
-        todo!("Check the state of raptor after execution");
-        raptor.run(StopId(0), Some(StopId(4)), dep0).expect("expected this to work");
+        
+        // TODO: Test connection index
+        
+        for i in 0u32..3 {
+            let stop_id = StopId(i);
+            let res_single = raptor.run(StopId(0), Some(StopId(4)), dep0).expect("expected this to work");
+            assert_eq!(
+                res.best_arrivals[i as usize], res_single.best_arrivals[i as usize],
+                "Best arrivals were different between one to one and one to all for StopId(0) to {stop_id:?}"
+            );
+        }
     }
 }

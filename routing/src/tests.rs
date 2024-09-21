@@ -62,9 +62,9 @@ pub(crate) fn generate_case_4<'a>() -> RaptorAlgorithm {
             ((TripId(101_2), StopId(2)), dep310),
             // Line 120
             ((TripId(120_1), StopId(1)), dep0),
-            ((TripId(120_1), StopId(2)), dep150),
+            ((TripId(120_1), StopId(2)), dep90),
             ((TripId(120_2), StopId(1)), dep400),
-            ((TripId(120_2), StopId(2)), dep550),
+            ((TripId(120_2), StopId(2)), dep490),
             // Line 130
             ((TripId(130_1), StopId(0)), dep0),
         ]),
@@ -80,9 +80,9 @@ pub(crate) fn generate_case_4<'a>() -> RaptorAlgorithm {
             ((TripId(101_2), StopId(2)), arr300),
             ((TripId(101_2), StopId(1)), arr350),
             // Line 120
-            ((TripId(120_1), StopId(2)), arr200),
+            ((TripId(120_1), StopId(2)), arr80),
             ((TripId(120_1), StopId(4)), arr300),
-            ((TripId(120_2), StopId(2)), arr600),
+            ((TripId(120_2), StopId(2)), arr480),
             ((TripId(120_2), StopId(4)), arr700),
             // Line 130
             ((TripId(130_1), StopId(3)), arr250),
@@ -93,7 +93,7 @@ pub(crate) fn generate_case_4<'a>() -> RaptorAlgorithm {
             ((LineId(101), StopId(3)), vec![(dep20, TripId(101_1)), (dep220, TripId(101_2))]),
             ((LineId(101), StopId(2)), vec![(dep110, TripId(101_1)), (dep310, TripId(101_2))]),
             ((LineId(120), StopId(1)), vec![(dep0, TripId(120_1)), (dep400, TripId(120_2))]),
-            ((LineId(120), StopId(2)), vec![(dep150, TripId(120_1)), (dep550, TripId(120_2))]),
+            ((LineId(120), StopId(2)), vec![(dep90, TripId(120_1)), (dep490, TripId(120_2))]),
             ((LineId(130), StopId(0)), vec![(dep0, TripId(130_1))]),
         ]),
         transfer_provider: Box::new(FixedTimeTransferProvider {
@@ -307,6 +307,7 @@ macro_rules! earliest_arrival_tests {
             let dep310 = DateTime::<Utc>::from_timestamp(310, 0).unwrap();
             let dep0 = DateTime::<Utc>::from_timestamp(0, 0).unwrap();
             let dep400 = DateTime::<Utc>::from_timestamp(400, 0).unwrap();
+            let dep490 = DateTime::<Utc>::from_timestamp(490, 0).unwrap();
             let dep150 = DateTime::<Utc>::from_timestamp(150, 0).unwrap();
             let dep550 = DateTime::<Utc>::from_timestamp(550, 0).unwrap();
 
@@ -322,7 +323,7 @@ macro_rules! earliest_arrival_tests {
             let raptor = generate_case_4();
 
             // 0 ---Ride(130_1)--> 3 ---Transfer--> 4
-            // Takes around ~652s
+            // Takes 250s + 410s = 660s
             let res = raptor.query_ea(
                 EarliestArrival { start: StopId(0), departure: dep0 },
                 Single { target: StopId(4) },
@@ -346,9 +347,12 @@ macro_rules! earliest_arrival_tests {
                 ]}
             );
 
-            // 0@20s   ---Ride(100_1)-->   2@100s, 2@150s   ---Ride(120_1)-->   4@300s
-            // this connection arrives well before the following, which would take ~702s instead of 300s:
-            // 0@20s   ---Ride(100_1)-->   3@300s   ---Transfer-->   4@702s
+            // Start 1s second later than the last case. Now, we can't take 130_1 anymore, since it
+            // departs at 0s. Instead, we have to take this slower connection:
+            // 0@20s   ---Ride(100_1)-->   2@100s, 2@490s   ---Ride(120_2)-->   4@700s
+            // this connection arrives well before the following, which would arrive at 710s instead
+            // of 700s:
+            // 0@20s   ---Ride(100_1)-->   3@300s   ---Transfer-->   4@710s
             let res = raptor.query_ea(
                 EarliestArrival { start: StopId(0), departure: DateTime::<Utc>::from_timestamp(1, 0).unwrap() },
                 Single { target: StopId(4) },
