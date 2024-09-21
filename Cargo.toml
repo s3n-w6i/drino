@@ -12,10 +12,13 @@ members = [
 ]
 
 [dependencies]
-data-harvester = { path = "data-harvester" }
-visualization = { path = "visualization" }
-routing = { path = "routing" }
-common = { path = "common" }
+data-harvester = { path = "data-harvester", package = "drino-data-harvester" }
+visualization = { path = "visualization", package = "drino-visualization" }
+routing = { path = "routing", package = "drino-routing" }
+common = { path = "common", package = "drino-common" }
+polars = { workspace = true }
+tempfile = { workspace = true }
+thiserror = { workspace = true }
 async-trait = "0.1.77"
 dashmap = { version = "6.0.1", features = ["rayon"] }
 rayon = "1.9.0"
@@ -24,7 +27,6 @@ serde_yaml = "0.9.31"
 tokio = { version = "1.0.0", features = ["rt", "rt-multi-thread", "macros"] }
 tokio-util = "0.7.10"
 futures = { version = "0.3.30", features = [] }
-thiserror = { workspace = true }
 itertools = "0.13.0"
 smartstring = "1.0.1"
 log = "0.4"
@@ -32,8 +34,6 @@ env_logger = "0.11.5"
 indicatif = "0.17.8"
 num-traits = "0.2.17"
 hashbrown = "0.14.3"
-polars = { workspace = true }
-tempfile = { workspace = true }
 
 [workspace.dependencies]
 thiserror = "1.0.56"

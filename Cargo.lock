@@ -627,18 +627,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "common"
-version = "0.1.0"
-dependencies = [
- "chrono",
- "indicatif",
- "log",
- "reqwest",
- "serde",
- "url",
-]
-
-[[package]]
 name = "compact_str"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -808,19 +796,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "data-harvester"
-version = "0.1.0"
-dependencies = [
- "common",
- "polars",
- "reqwest",
- "routing",
- "tempfile",
- "thiserror",
- "zip",
-]
-
-[[package]]
 name = "deprecate-until"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -891,9 +866,11 @@ name = "drino"
 version = "0.1.0"
 dependencies = [
  "async-trait",
- "common",
  "dashmap",
- "data-harvester",
+ "drino-common",
+ "drino-data-harvester",
+ "drino-routing",
+ "drino-visualization",
  "env_logger",
  "futures",
  "hashbrown 0.14.5",
@@ -903,7 +880,6 @@ dependencies = [
  "num-traits",
  "polars",
  "rayon",
- "routing",
  "serde",
  "serde_yaml",
  "smartstring",
@@ -911,7 +887,71 @@ dependencies = [
  "thiserror",
  "tokio",
  "tokio-util",
- "visualization",
+]
+
+[[package]]
+name = "drino-common"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "indicatif",
+ "log",
+ "reqwest",
+ "serde",
+ "url",
+]
+
+[[package]]
+name = "drino-data-harvester"
+version = "0.1.0"
+dependencies = [
+ "drino-common",
+ "drino-routing",
+ "polars",
+ "reqwest",
+ "tempfile",
+ "thiserror",
+ "zip",
+]
+
+[[package]]
+name = "drino-routing"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "dashmap",
+ "drino-common",
+ "futures",
+ "geo",
+ "hashbrown 0.14.5",
+ "indicatif",
+ "itertools 0.13.0",
+ "linfa",
+ "linfa-clustering",
+ "linfa-nn",
+ "log",
+ "ndarray 0.15.6",
+ "ndarray-npy",
+ "ordered-float",
+ "pathfinding",
+ "petgraph",
+ "polars",
+ "rayon",
+ "thiserror",
+ "tokio",
+ "tokio-util",
+ "url",
+]
+
+[[package]]
+name = "drino-visualization"
+version = "0.1.0"
+dependencies = [
+ "actix-cors",
+ "actix-files",
+ "actix-web",
+ "serde",
 ]
 
 [[package]]
@@ -3194,36 +3234,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cbf4a6aa5f6d6888f39e980649f3ad6b666acdce1d78e95b8a2cb076e687ae30"
 
 [[package]]
-name = "routing"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "chrono",
- "common",
- "dashmap",
- "futures",
- "geo",
- "hashbrown 0.14.5",
- "indicatif",
- "itertools 0.13.0",
- "linfa",
- "linfa-clustering",
- "linfa-nn",
- "log",
- "ndarray 0.15.6",
- "ndarray-npy",
- "ordered-float",
- "pathfinding",
- "petgraph",
- "polars",
- "rayon",
- "thiserror",
- "tokio",
- "tokio-util",
- "url",
-]
-
-[[package]]
 name = "rstar"
 version = "0.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4044,16 +4054,6 @@ name = "version_check"
 version = "0.9.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "49874b5167b65d7193b8aba1567f5c7d93d001cafc34600cee003eda787e483f"
-
-[[package]]
-name = "visualization"
-version = "0.1.0"
-dependencies = [
- "actix-cors",
- "actix-files",
- "actix-web",
- "serde",
-]
 
 [[package]]
 name = "want"
