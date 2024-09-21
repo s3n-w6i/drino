@@ -6,3 +6,4 @@ massif.*
 *.csv
 *.npy
 *.dot
+perf.data*
