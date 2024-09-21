@@ -1,8 +1,8 @@
+use crate::step4_merge_data::DatasetMergeOutput;
+use polars::prelude::{col, JoinArgs, JoinType};
+use routing::algorithm::PreprocessingInput;
 use std::fmt;
 use std::fmt::Display;
-use polars::prelude::{col, JoinArgs, JoinType};
-use crate::step4_merge_data::DatasetMergeOutput;
-use routing::algorithm::PreprocessingInput;
 
 pub async fn simplify(
     DatasetMergeOutput {
@@ -46,7 +46,7 @@ pub async fn simplify(
             col("service_id").alias("service_id_in_dataset"),
             col("monday"), col("tuesday"), col("wednesday"),
             col("thursday"), col("friday"), col("saturday"),
-            col("sunday")
+            col("sunday"), col("start_date"), col("end_date")
         ])
         .with_row_index("service_id", None);
 
