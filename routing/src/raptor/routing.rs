@@ -11,40 +11,38 @@ use std::iter::Skip;
 
 impl RaptorAlgorithm {
     fn earliest_trip(&self, line: LineId, stop: StopId, after: DateTime<Utc>) -> Option<TripId> {
-        if let Some(trips) = self.trips_by_line_and_stop.get(&(line, stop)) {
-            trips.into_iter().find_map(|(date, trip)| {
-                if *date >= after {
-                    Some(*trip)
-                } else { None }
+        self.trips_by_line_and_stop
+            .get(&(line, stop))
+            .and_then(|trips| {
+                trips.into_iter().find_map(|(departure, trip)| {
+                        if *departure >= after {
+                            Some(*trip)
+                        } else { None }
+                    })
             })
-        } else {
-            None
-        }
     }
 
-    fn build_queue(&self, marked_stops: &Vec<StopId>) -> Vec<(LineId, StopId)> {
-        let empty_line_set = HashSet::new();
-
+    fn build_queue(&self, marked_stops: &HashSet<StopId>) -> Vec<(LineId, StopId)> {
         let mut queue: Vec<(LineId, StopId)> = Vec::new();
 
         for stop_a in marked_stops {
-            let lines_serving_stop = self.lines_by_stops.get(stop_a)
-                .unwrap_or(&empty_line_set);
-            // foreach line serving marked_stop (stop a)
-            for (line, seq_num_a) in lines_serving_stop {
-                let other_stops = self.stops_by_line.get(line)
-                    .expect(&format!("Line {line:?} is in lines_by_stops, so it must also be in stops_by_line."));
-                // for any stop b that is also on the line
-                for (seq_num_b, stop_b) in other_stops.iter().enumerate() {
-                    let queue_position = queue.iter().position(|item| item == &(*line, *stop_b));
-                    if let Some(position) = queue_position {
-                        let seq_num_b = SeqNum(seq_num_b as u32);
-                        // if other_stop comes after marked_stop on that line
-                        if seq_num_a < &seq_num_b {
-                            queue[position] = (*line, *stop_a);
+            if let Some(lines_serving_stop) = self.lines_by_stops.get(stop_a) {
+                // foreach line serving marked_stop (stop a)
+                for (line, seq_num_a) in lines_serving_stop {
+                    let other_stops = self.stops_by_line.get(line)
+                        .expect(&format!("Line {line:?} is in lines_by_stops, so it must also be in stops_by_line."));
+                    // for any stop b that is also on the line
+                    for (seq_num_b, stop_b) in other_stops.iter().enumerate() {
+                        let queue_position = queue.iter().position(|item| item == &(*line, *stop_b));
+                        if let Some(position) = queue_position {
+                            let seq_num_b = SeqNum(seq_num_b as u32);
+                            // if other_stop comes after marked_stop on that line
+                            if seq_num_a < &seq_num_b {
+                                queue[position] = (*line, *stop_a);
+                            }
+                        } else {
+                            queue.push((*line, *stop_a));
                         }
-                    } else {
-                        queue.push((*line, *stop_a));
                     }
                 }
             }
@@ -60,7 +58,9 @@ impl RaptorAlgorithm {
         // Get all stops on that line that comes after stop_id (including stop_id)
         let stops_on_line = self.stops_by_line.get(line).unwrap();
         let a_stop_idx_on_line = stops_on_line.iter().position(|x| x == stop)
-            .expect(&format!("Expected Stop with ID {stop:?} to be on line {line:?}"));
+            .expect(&format!(
+                "Expected Stop with ID {stop:?} to be on line {line:?}. But this line has only these stops: {stops_on_line:?}"
+            ));
         let stops_on_line_after = stops_on_line.into_iter().skip(a_stop_idx_on_line);
 
         // stop_id itself is first in line of the stops
@@ -79,24 +79,27 @@ impl RaptorAlgorithm {
         departure: DateTime<Utc>,
     ) -> QueryResult<RaptorState> {
         let mut state = RaptorState::init(self.stops.len(), start, departure);
-        let mut marked_stops: Vec<StopId> = vec![start];
+        let mut marked_stops: HashSet<StopId> = HashSet::from([start]);
 
         // Increase the number of legs per round
         // foreach k <- 1,2,... do
         while !marked_stops.is_empty() {
             // increment k and set up this round
             state.new_round();
+            debug_assert!(state.k > 0, "k starts at 1");
 
+            // FIRST STAGE: Build queue of lines and stops to scan
             // queue is called "Q" in the original paper
             let queue = self.build_queue(&marked_stops);
+            debug_assert!(!queue.is_empty());
 
             // unmark previously marked stops
             // In the original paper, this is done for each element of marked_stops individually
-            // while iterating over them. This is a simplification (otherwise, it's complicated with
-            // Rust ownership system)
+            // while iterating over them in build_queue. This is a simplification (otherwise, it's
+            // complicated with Rust's ownership system)
             marked_stops.clear();
 
-            // SECOND STAGE
+            // SECOND STAGE: Scan lines
             // Process each line (called "route" in the original paper).
             for (line, a_stop) in queue.iter() {
                 let mut trip: Option<TripId> = None;
@@ -137,9 +140,9 @@ impl RaptorAlgorithm {
                 }
             }
 
-            // THIRD STAGE
+            // THIRD STAGE: Scan transfers
             // Look at individual station-to-station transfers (like footpaths) and update
-            // earliest_arrival when walking to a stop is faster than taking transit
+            // best_arrival when walking to a stop is faster than taking transit
             let tp = &self.transfer_provider;
             // foreach marked stop p
             for start in marked_stops.clone() {
@@ -149,7 +152,7 @@ impl RaptorAlgorithm {
                     // be faster
                     let max_duration = *state.tau(&end).unwrap_or(&INFINITY) - *state.tau(&start)
                         .expect("transfer start was in marked_stops, so it must have a tau value set");
-
+                    
                     // This if-clause checks if there is any chance this transfer is faster.
                     // For this approximation, we use a lower bound duration that is cheaper to
                     // calculate than an actual route and duration (at least for large distances)
@@ -169,7 +172,7 @@ impl RaptorAlgorithm {
                     }
 
                     // mark p'
-                    marked_stops.push(end);
+                    marked_stops.insert(end);
                 }
             }
         }
