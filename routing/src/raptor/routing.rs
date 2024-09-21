@@ -286,10 +286,11 @@ impl AllRange for RaptorAlgorithm {
 mod tests {
     use super::*;
     use crate::earliest_arrival_tests;
-    use crate::tests::{duration_stop3_stop4, generate_case_4};
-    use crate::transfers::CrowFlyTransferProvider;
-    use geo::Coord;
+    use crate::tests::generate_case_4;
+    use crate::transfers::fixed_time::FixedTimeTransferProvider;
+    use common::util::duration;
     use hashbrown::{HashMap, HashSet};
+    use ndarray::array;
 
     earliest_arrival_tests!(RaptorAlgorithm);
 
@@ -318,11 +319,13 @@ mod tests {
                 ((LineId(0), StopId(0)), vec![(DateTime::<Utc>::from_timestamp(100, 0).unwrap(), TripId(0))]),
                 ((LineId(1), StopId(1)), vec![(DateTime::<Utc>::from_timestamp(1000, 0).unwrap(), TripId(1))]),
             ]),
-            transfer_provider: CrowFlyTransferProvider::from(vec![
-                Coord { x: 0.0, y: 0.0 },
-                Coord { x: 40.0, y: 0.0 },
-                Coord { x: -40.0, y: 0.0 },
-            ]),
+            transfer_provider: Box::new(FixedTimeTransferProvider {
+                duration_matrix: array![
+                    [Duration::zero(), duration::INFINITY, duration::INFINITY,],
+                    [duration::INFINITY, Duration::zero(), duration::INFINITY,],
+                    [duration::INFINITY, duration::INFINITY, Duration::zero(),],
+                ]
+            }),
         };
 
         assert_eq!(

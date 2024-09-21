@@ -1,3 +1,5 @@
+pub mod fixed_time;
+
 use std::fmt;
 use std::fmt::Display;
 
@@ -53,13 +55,8 @@ impl TransferProvider for CrowFlyTransferProvider {
     }
 
     fn transfers_between(&self, start: StopId, end: StopId) -> Result<Vec<Leg>, TransferError> {
-        let duration = self.duration(start, end)?;
         Ok(vec![
-            Leg::Transfer {
-                start,
-                end,
-                duration,
-            }
+            Leg::Transfer { start, end, duration: self.duration(start, end)? }
         ])
     }
 }
@@ -119,9 +116,7 @@ mod tests {
         assert!(transfers_from_0.contains(&StopId(1)));
         let transfers_from_1 = provider.transfers_from(&StopId(1));
         assert!(transfers_from_1.contains(&StopId(0)));
-
-        println!("{}",MAX_WALKING_SPEED.time_to_travel_distance(5216815f32).num_seconds());
-
+        
         assert_eq!(
             provider.transfers_between(StopId(0), StopId(1)).unwrap(),
             vec![

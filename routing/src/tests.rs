@@ -1,40 +1,34 @@
-use chrono::{DateTime, Duration, Utc};
 use crate::raptor::RaptorAlgorithm;
-use crate::transfers::CrowFlyTransferProvider;
+use crate::transfers::fixed_time::FixedTimeTransferProvider;
+use chrono::{DateTime, Duration, Utc};
 use common::types::{LineId, SeqNum, StopId, TripId};
-use geo::{Coord, HaversineDistance, Point};
+use common::util::duration::INFINITY;
 use hashbrown::{HashMap, HashSet};
-use common::util::speed::MAX_WALKING_SPEED;
-
-pub(crate) const STOP3_COORD: Coord<f32> = Coord { x: 0.0, y: 0.0 };
-pub(crate) const STOP4_COORD: Coord<f32> = Coord { x: 0.001, y: 0.01 };
-pub(crate) fn duration_stop3_stop4() -> Duration {
-    MAX_WALKING_SPEED.time_to_travel_distance(
-        Point::from(STOP3_COORD).haversine_distance(&Point::from(STOP4_COORD))
-    )
-}
+use ndarray::array;
 
 /// Test case 4 has some specialties:
 /// - Stop 3 and 4 are quite close together, so walking between them is feasible
 /// - Line 101 travel "back", and usually doesn't contribute to reaching a target
-pub(crate) fn generate_case_4() -> RaptorAlgorithm {
+pub(crate) fn generate_case_4<'a>() -> RaptorAlgorithm {
     let dep20 = DateTime::<Utc>::from_timestamp(20, 0).unwrap();
     let dep220 = DateTime::<Utc>::from_timestamp(220, 0).unwrap();
+    let dep90 = DateTime::<Utc>::from_timestamp(90, 0).unwrap();
     let dep110 = DateTime::<Utc>::from_timestamp(110, 0).unwrap();
     let dep310 = DateTime::<Utc>::from_timestamp(310, 0).unwrap();
     let dep0 = DateTime::<Utc>::from_timestamp(0, 0).unwrap();
     let dep400 = DateTime::<Utc>::from_timestamp(400, 0).unwrap();
-    let dep150 = DateTime::<Utc>::from_timestamp(150, 0).unwrap();
-    let dep550 = DateTime::<Utc>::from_timestamp(550, 0).unwrap();
+    let dep490 = DateTime::<Utc>::from_timestamp(490, 0).unwrap();
 
+    let arr80 = DateTime::<Utc>::from_timestamp(80, 0).unwrap();
+    let arr480 = DateTime::<Utc>::from_timestamp(480, 0).unwrap();
     let arr100 = DateTime::<Utc>::from_timestamp(100, 0).unwrap();
     let arr300 = DateTime::<Utc>::from_timestamp(300, 0).unwrap();
     let arr150 = DateTime::<Utc>::from_timestamp(150, 0).unwrap();
     let arr350 = DateTime::<Utc>::from_timestamp(350, 0).unwrap();
-    let arr200 = DateTime::<Utc>::from_timestamp(200, 0).unwrap();
-    let arr600 = DateTime::<Utc>::from_timestamp(600, 0).unwrap();
     let arr700 = DateTime::<Utc>::from_timestamp(700, 0).unwrap();
     let arr250 = DateTime::<Utc>::from_timestamp(250, 0).unwrap();
+    
+    let duration_3_to_4 = Duration::seconds(410);
 
     RaptorAlgorithm {
         stops: vec![0, 1, 2, 3, 4].into_iter().map(|x| StopId(x)).collect(),
@@ -102,13 +96,15 @@ pub(crate) fn generate_case_4() -> RaptorAlgorithm {
             ((LineId(120), StopId(2)), vec![(dep150, TripId(120_1)), (dep550, TripId(120_2))]),
             ((LineId(130), StopId(0)), vec![(dep0, TripId(130_1))]),
         ]),
-        transfer_provider: CrowFlyTransferProvider::from(vec![
-            Coord { x: -10.0, y: -10.0 },
-            Coord { x: 42.0, y: 0.0 },
-            Coord { x: -25.0, y: 10.0 },
-            STOP3_COORD,
-            STOP4_COORD,
-        ]),
+        transfer_provider: Box::new(FixedTimeTransferProvider {
+            duration_matrix: array![
+                [Duration::zero(), INFINITY, INFINITY,  INFINITY, INFINITY],
+                [INFINITY, Duration::zero(), INFINITY,  INFINITY, INFINITY],
+                [INFINITY, INFINITY, Duration::zero(),  INFINITY, INFINITY],
+                [INFINITY, INFINITY, INFINITY, Duration::zero(), duration_3_to_4  ],
+                [INFINITY, INFINITY, INFINITY, duration_3_to_4,  Duration::zero()  ],
+            ]
+        })
     }
 }
 
@@ -116,12 +112,9 @@ pub(crate) fn generate_case_4() -> RaptorAlgorithm {
 macro_rules! earliest_arrival_tests {
     ($t: ty) => {
         use chrono::{DateTime, Utc};
-        use geo::{HaversineDistance, Point};
         
         use crate::algorithm::{ EarliestArrival, Journey, Leg, Single, SingleEarliestArrival};
         use common::types::{LineId, SeqNum, StopId, TripId};
-        use common::util::speed::MAX_WALKING_SPEED;
-        use crate::tests::{STOP3_COORD, STOP4_COORD};
         
         ///  0 ---Ride--> 1
         #[tokio::test]
@@ -145,10 +138,12 @@ macro_rules! earliest_arrival_tests {
                 trips_by_line_and_stop: HashMap::from([
                     ((LineId(0), StopId(0)), vec![(DateTime::<Utc>::from_timestamp(100, 0).unwrap(), TripId(0))]),
                 ]),
-                transfer_provider: CrowFlyTransferProvider::from(vec![
-                    Coord { x: 0.0, y: 0.0 },
-                    Coord { x: 40.0, y: 0.0 },
-                ]),
+                transfer_provider: Box::new(FixedTimeTransferProvider {
+                    duration_matrix: array![
+                        [Duration::zero(), Duration::max_value(),],
+                        [Duration::max_value(), Duration::zero(),],
+                    ]
+                }),
             };
 
             let res = raptor.query_ea(
@@ -201,11 +196,13 @@ macro_rules! earliest_arrival_tests {
                     ((LineId(0), StopId(0)), vec![(DateTime::<Utc>::from_timestamp(100, 0).unwrap(), TripId(0))]),
                     ((LineId(1), StopId(1)), vec![(DateTime::<Utc>::from_timestamp(1000, 0).unwrap(), TripId(1))]),
                 ]),
-                transfer_provider: CrowFlyTransferProvider::from(vec![
-                    Coord { x: 0.0, y: 0.0 },
-                    Coord { x: 40.0, y: 0.0 },
-                    Coord { x: -40.0, y: 0.0 },
-                ]),
+                transfer_provider: Box::new(FixedTimeTransferProvider {
+                    duration_matrix: array![
+                        [Duration::zero(),   duration::INFINITY, duration::INFINITY],
+                        [duration::INFINITY, Duration::zero(),   duration::INFINITY],
+                        [duration::INFINITY, duration::INFINITY, Duration::zero()  ],
+                    ]
+                }),
             };
 
             let res = raptor.query_ea(
@@ -236,8 +233,8 @@ macro_rules! earliest_arrival_tests {
         ///   0 ---Ride--> 1 ---Transfer--> 2 ---Ride--> 3
         #[tokio::test]
         async fn test_query_earliest_3() {
-            let coord_1 = Coord { x: 40.00, y: 0.0 };
-            let coord_2 = Coord { x: 40.01, y: 0.0 };
+            let duration_1_to_2 = Duration::seconds(10);
+            
             let raptor = RaptorAlgorithm {
                 stops: vec![0, 1, 2, 3].into_iter().map(|x| StopId(x)).collect(),
                 stops_by_line: HashMap::from([
@@ -262,12 +259,14 @@ macro_rules! earliest_arrival_tests {
                     ((LineId(0), StopId(0)), vec![(DateTime::<Utc>::from_timestamp(100, 0).unwrap(), TripId(0))]),
                     ((LineId(1), StopId(2)), vec![(DateTime::<Utc>::from_timestamp(1000, 0).unwrap(), TripId(1))]),
                 ]),
-                transfer_provider: CrowFlyTransferProvider::from(vec![
-                    Coord { x: 0.0, y: 0.0 },
-                    coord_1,
-                    coord_2,
-                    Coord { x: -40.0, y: 0.0 },
-                ]),
+                transfer_provider: Box::new(FixedTimeTransferProvider {
+                    duration_matrix: array![
+                        [Duration::zero(),   duration::INFINITY, duration::INFINITY, duration::INFINITY],
+                        [duration::INFINITY, Duration::zero(),   duration_1_to_2,    duration::INFINITY],
+                        [duration::INFINITY, duration_1_to_2,    Duration::zero(),   duration::INFINITY],
+                        [duration::INFINITY, duration::INFINITY, duration::INFINITY, Duration::zero()  ],
+                    ]
+                }),
             };
 
             let res = raptor.query_ea(
@@ -287,9 +286,7 @@ macro_rules! earliest_arrival_tests {
                     Leg::Transfer {
                         start: StopId(1),
                         end: StopId(2),
-                        duration: MAX_WALKING_SPEED.time_to_travel_distance(
-                            Point::from(coord_1).haversine_distance(&Point::from(coord_2))
-                        ),
+                        duration: duration_1_to_2,
                     },
                     Leg::Ride {
                         start: StopId(2),
@@ -344,7 +341,7 @@ macro_rules! earliest_arrival_tests {
                     Leg::Transfer {
                         start: StopId(3),
                         end: StopId(4),
-                        duration: duration_stop3_stop4(),
+                        duration: Duration::seconds(410),
                     },
                 ]}
             );

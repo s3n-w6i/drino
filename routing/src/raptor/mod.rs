@@ -2,14 +2,13 @@ use chrono::{DateTime, Duration, Utc};
 use hashbrown::{HashMap, HashSet};
 
 use crate::algorithm::{Journey, QueryResult, RoutingAlgorithm};
-use crate::transfers::CrowFlyTransferProvider;
+use crate::transfers::{TransferProvider};
 use common::types::{LineId, SeqNum, StopId, TripId};
 
 mod state;
 mod preprocessing;
 mod routing;
 
-#[derive(Clone)]
 pub struct RaptorAlgorithm {
     pub(crate) stops: Vec<StopId>,
     pub(crate) stops_by_line: HashMap<LineId, Vec<StopId>>,
@@ -21,7 +20,7 @@ pub struct RaptorAlgorithm {
     // Vec has to be sorted from earliest to latest
     // DateTime is departure
     pub(crate) trips_by_line_and_stop: HashMap<(LineId, StopId), Vec<(DateTime<Utc>, TripId)>>,
-    pub(crate) transfer_provider: CrowFlyTransferProvider,
+    pub(crate) transfer_provider: Box<dyn TransferProvider + Send + Sync>
 }
 
-impl RoutingAlgorithm for RaptorAlgorithm {}
+impl <'a> RoutingAlgorithm for RaptorAlgorithm {}
