@@ -1,17 +1,13 @@
-use async_trait::async_trait;
+use crate::algorithm::{AllEarliestArrival, AllRange, EarliestArrival, EarliestArrivalOutput, Journey, MultiQueryResult, QueryError, QueryResult, Range, RangeOutput, Single, SingleEarliestArrival, SingleRange};
+use crate::raptor::state::RaptorState;
+use crate::raptor::RaptorAlgorithm;
 use chrono::{DateTime, Duration, TimeDelta, Utc};
+use common::types::{LineId, SeqNum, StopId, TripId};
+use common::util::time::INFINITY;
 use hashbrown::HashSet;
 use itertools::Itertools;
 use std::cmp::min;
 use std::iter::Skip;
-
-use crate::algorithm::{AllEarliestArrival, AllRange, EarliestArrival, EarliestArrivalOutput, Journey, MultiQueryResult, QueryError, QueryResult, Range, RangeOutput, Single, SingleEarliestArrival, SingleRange};
-use crate::raptor::state::RaptorState;
-use crate::raptor::RaptorAlgorithm;
-use crate::transfers::TransferProvider;
-use common::types::{LineId, SeqNum, StopId, TripId};
-
-const INFINITY: DateTime<Utc> = DateTime::<Utc>::MAX_UTC;
 
 impl RaptorAlgorithm {
     fn earliest_trip(&self, line: LineId, stop: StopId, after: DateTime<Utc>) -> Option<TripId> {

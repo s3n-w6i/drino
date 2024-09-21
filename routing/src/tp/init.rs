@@ -1,10 +1,12 @@
-use async_trait::async_trait;
-use chrono::{DateTime, Duration};
 use crate::algorithm::{AllRange, PreprocessInit, PreprocessingInput, PreprocessingResult, Range};
 use crate::direct_connections::DirectConnections;
 use crate::raptor::RaptorAlgorithm;
 use crate::tp::transfer_patterns::{TransferPatternMap, TransferPatterns};
 use crate::tp::TransferPatternsAlgorithm;
+use async_trait::async_trait;
+use chrono::{DateTime, Duration};
+use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
+use std::sync::Arc;
 
 #[async_trait]
 impl PreprocessInit for TransferPatternsAlgorithm {

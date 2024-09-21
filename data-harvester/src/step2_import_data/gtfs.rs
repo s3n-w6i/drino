@@ -8,7 +8,7 @@ use std::sync::Arc;
 use tempfile::NamedTempFile;
 use zip::ZipArchive;
 
-use crate::gtfs_file::{gtfs_date_format, gtfs_schemas, gtfs_time_to_ms, GTFS_FILES_TO_IMPORT, GTFS_OTHER_FILES, GTFS_REQUIRED_FILES};
+use crate::gtfs_file::*;
 use crate::step1_fetch_data::FetchStepOutput;
 use crate::step2_import_data::{ImportError, ImportStepExtra, ImportStepOutput};
 

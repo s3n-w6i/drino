@@ -1,18 +1,17 @@
-use std::cmp::min;
-
 use crate::algorithm::Leg;
 use crate::algorithm::QueryError::NoRouteFound;
 use common::types::StopId;
 
 use super::*;
 
+// A map of how to get to a stop
 // HashMap<Stop_id, HashMap<k, Connection>>
 type ConnectionIndex = HashMap<StopId, HashMap<usize, Leg>>;
 
 #[derive(Debug)]
 pub struct RaptorState {
     pub(super) k: usize,
-    k_arrivals: Vec<Vec<DateTime<Utc>>>,
+    pub(super) k_arrivals: Vec<Vec<DateTime<Utc>>>,
     pub(super) best_arrivals: Vec<DateTime<Utc>>,
     pub(super) connection_index: ConnectionIndex,
 }

@@ -1,13 +1,12 @@
 use std::fmt;
 use std::fmt::{Debug, Display};
 
-use async_trait::async_trait;
 use chrono::{DateTime, Duration, TimeDelta, Utc};
 use hashbrown::HashSet;
 use polars::prelude::LazyFrame;
 
-use common::types::{StopId, TripId};
 use crate::transfers::TransferError;
+use common::types::{StopId, TripId};
 
 pub trait RoutingAlgorithm {}
 
