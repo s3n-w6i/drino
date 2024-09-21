@@ -363,13 +363,13 @@ macro_rules! earliest_arrival_tests {
                 Journey { legs: vec![
                     Leg::Ride {
                         trip: TripId(100_1),
-                        start: StopId(0), end: StopId(2),
-                        departure: dep20, arrival: arr100,
+                        boarding_stop: StopId(0), alight_stop: StopId(2),
+                        boarding_time: dep20, alight_time: arr100,
                     },
                     Leg::Ride {
-                        trip: TripId(120_1),
-                        start: StopId(2), end: StopId(4),
-                        departure: dep150, arrival: arr300,
+                        trip: TripId(120_2),
+                        boarding_stop: StopId(2), alight_stop: StopId(4),
+                        boarding_time: dep490, alight_time: arr700,
                     },
                 ]}
             );
