@@ -23,6 +23,8 @@
       <excludeFolder url="file://$MODULE_DIR$/dummy-data/siri" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
       <excludeFolder url="file://$MODULE_DIR$/visualization/ui/.yarn/unplugged" />
+      <excludeFolder url="file://$MODULE_DIR$/dummy-data" />
+      <excludeFolder url="file://$MODULE_DIR$/dummy-data/gtfs/germany" />
     </content>
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="library" name="Python 3.11 interpreter library" level="application" />
