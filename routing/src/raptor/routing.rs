@@ -102,6 +102,7 @@ impl RaptorAlgorithm {
             // SECOND STAGE: Scan lines
             // Process each line (called "route" in the original paper).
             for (line, a_stop) in queue.iter() {
+                let mut boarding_stop: Option<StopId> = None;
                 let mut trip: Option<TripId> = None;
 
                 for b_stop in self.stops_on_line_after(line, a_stop) {
@@ -109,8 +110,9 @@ impl RaptorAlgorithm {
                     // if t != ⊥ and ...
                     if let Some(trip) = trip {
                         let b_arrival = self.arrivals.get(&(trip, *b_stop))
-                            .expect("trip is not None, so b_stop cannot be the trip's first stop. Therefore, it must have an arrival time.");
-                        let best_b_arrival = state.best_arrival(b_stop).unwrap_or(&INFINITY);
+                            .unwrap_or(&INFINITY);
+                        let best_b_arrival = state.best_arrival(b_stop)
+                            .expect(&format!("{b_stop:?} must be in best arrivals, since best_arrivals was initialized for all stops"));
                         let best_target_arrival = target.and_then(|target| {
                             state.best_arrival(&target)
                         }).unwrap_or(&INFINITY);
@@ -118,10 +120,12 @@ impl RaptorAlgorithm {
                         // taking the trip to b it is faster than not taking it
                         // ...and arr(t, pᵢ) < min{ τ*(pᵢ), τ*(pₜ) }
                         if b_arrival < min(best_b_arrival, best_target_arrival) {
-                            let a_departure = self.departures.get(&(trip, *a_stop))
-                                .expect(&format!("Expected departure for stop {:?} to exist on trip {:?}", a_stop, trip));
-                            state.set_ride(*a_stop, *b_stop, *a_departure, *b_arrival, trip);
-                            marked_stops.push(*b_stop);
+                            let boarding_stop = boarding_stop.expect("Boarding stop must not be None");
+                            let boarding_stop_departure = self.departures.get(&(trip, boarding_stop))
+                                .expect(&format!("Expected departure for stop {a_stop:?} to exist on trip {trip:?}"));
+                            
+                            state.set_ride(boarding_stop, *b_stop, *boarding_stop_departure, *b_arrival, trip);
+                            marked_stops.insert(*b_stop);
                         }
                     }
 
@@ -135,7 +139,12 @@ impl RaptorAlgorithm {
                     // Initialize trip if its None. Also execute when we can catch an earlier trip
                     // of the same line at stop b.
                     if prev_b_arrival <= b_departure {
-                        trip = self.earliest_trip(*line, *b_stop, *prev_b_arrival);
+                        let next_trip = self.earliest_trip(*line, *b_stop, *prev_b_arrival);
+                        
+                        if next_trip.is_some() {
+                            trip = next_trip;
+                            boarding_stop = Some(*b_stop);
+                        }
                     }
                 }
             }

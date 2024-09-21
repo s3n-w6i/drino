@@ -153,10 +153,10 @@ macro_rules! earliest_arrival_tests {
 
             assert_eq!(res.journey, Journey {
                 legs: vec![Leg::Ride {
-                    start: StopId(0),
-                    end: StopId(1),
-                    departure: DateTime::<Utc>::from_timestamp(100, 0).unwrap(),
-                    arrival: DateTime::<Utc>::from_timestamp(500, 0).unwrap(),
+                    boarding_stop: StopId(0),
+                    alight_stop: StopId(1),
+                    boarding_time: DateTime::<Utc>::from_timestamp(100, 0).unwrap(),
+                    alight_time: DateTime::<Utc>::from_timestamp(500, 0).unwrap(),
                     trip: TripId(0),
                 }]
             });
@@ -213,17 +213,17 @@ macro_rules! earliest_arrival_tests {
             assert_eq!(res.journey, Journey {
                 legs: vec![
                     Leg::Ride {
-                        start: StopId(0),
-                        end: StopId(1),
-                        departure: DateTime::<Utc>::from_timestamp(100, 0).unwrap(),
-                        arrival: DateTime::<Utc>::from_timestamp(500, 0).unwrap(),
+                        boarding_stop: StopId(0),
+                        alight_stop: StopId(1),
+                        boarding_time: DateTime::<Utc>::from_timestamp(100, 0).unwrap(),
+                        alight_time: DateTime::<Utc>::from_timestamp(500, 0).unwrap(),
                         trip: TripId(0),
                     },
                     Leg::Ride {
-                        start: StopId(1),
-                        end: StopId(2),
-                        departure: DateTime::<Utc>::from_timestamp(1000, 0).unwrap(),
-                        arrival: DateTime::<Utc>::from_timestamp(1500, 0).unwrap(),
+                        boarding_stop: StopId(1),
+                        alight_stop: StopId(2),
+                        boarding_time: DateTime::<Utc>::from_timestamp(1000, 0).unwrap(),
+                        alight_time: DateTime::<Utc>::from_timestamp(1500, 0).unwrap(),
                         trip: TripId(1),
                     },
                 ]
@@ -277,10 +277,10 @@ macro_rules! earliest_arrival_tests {
             assert_eq!(res.journey, Journey {
                 legs: vec![
                     Leg::Ride {
-                        start: StopId(0),
-                        end: StopId(1),
-                        departure: DateTime::<Utc>::from_timestamp(100, 0).unwrap(),
-                        arrival: DateTime::<Utc>::from_timestamp(500, 0).unwrap(),
+                        boarding_stop: StopId(0),
+                        alight_stop: StopId(1),
+                        boarding_time: DateTime::<Utc>::from_timestamp(100, 0).unwrap(),
+                        alight_time: DateTime::<Utc>::from_timestamp(500, 0).unwrap(),
                         trip: TripId(0),
                     },
                     Leg::Transfer {
@@ -289,10 +289,10 @@ macro_rules! earliest_arrival_tests {
                         duration: duration_1_to_2,
                     },
                     Leg::Ride {
-                        start: StopId(2),
-                        end: StopId(3),
-                        departure: DateTime::<Utc>::from_timestamp(1000, 0).unwrap(),
-                        arrival: DateTime::<Utc>::from_timestamp(1500, 0).unwrap(),
+                        boarding_stop: StopId(2),
+                        alight_stop: StopId(3),
+                        boarding_time: DateTime::<Utc>::from_timestamp(1000, 0).unwrap(),
+                        alight_time: DateTime::<Utc>::from_timestamp(1500, 0).unwrap(),
                         trip: TripId(1),
                     },
                 ]
@@ -334,10 +334,10 @@ macro_rules! earliest_arrival_tests {
                 Journey { legs: vec![
                     Leg::Ride {
                         trip: TripId(130_1),
-                        start: StopId(0),
-                        end: StopId(3),
-                        departure: dep0,
-                        arrival: arr250,
+                        boarding_stop: StopId(0),
+                        alight_stop: StopId(3),
+                        boarding_time: dep0,
+                        alight_time: arr250,
                     },
                     Leg::Transfer {
                         start: StopId(3),

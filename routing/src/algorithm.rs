@@ -128,14 +128,14 @@ impl QueryOutput<RangeQuery> for RangeOutput {}
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub enum Leg {
-    Ride { trip: TripId, start: StopId, end: StopId, departure: DateTime<Utc>, arrival: DateTime<Utc> },
+    Ride { trip: TripId, boarding_stop: StopId, alight_stop: StopId, boarding_time: DateTime<Utc>, alight_time: DateTime<Utc> },
     Transfer { start: StopId, end: StopId, duration: Duration },
 }
 
 impl Leg {
     pub(crate) fn start(&self) -> &StopId {
         match self {
-            Leg::Ride { start, .. } | Leg::Transfer { start, .. } => start,
+            Leg::Ride { boarding_stop: start, .. } | Leg::Transfer { start, .. } => start,
         }
     }
 }
@@ -163,8 +163,8 @@ impl Journey {
                     }
                 })
                 .sum();
-            if let Leg::Ride { departure, .. } = first_ride {
-                Some(*departure - start_transfers_duration)
+            if let Leg::Ride { boarding_time, .. } = first_ride {
+                Some(*boarding_time - start_transfers_duration)
             } else {
                 panic!("The first_ride leg cannot not be a ride!");
             }
@@ -192,8 +192,8 @@ impl Journey {
                     }
                 })
                 .sum();
-            if let Leg::Ride { arrival, .. } = last_ride {
-                Some(*arrival + end_transfers_duration)
+            if let Leg::Ride { alight_time, .. } = last_ride {
+                Some(*alight_time + end_transfers_duration)
             } else {
                 panic!("The last_ride leg cannot not be a ride!");
             }
