@@ -12,18 +12,19 @@ use std::sync::Arc;
 impl PreprocessInit for TransferPatternsAlgorithm {
     fn preprocess(input: PreprocessingInput) -> PreprocessingResult<Self> {
         let direct_connections = DirectConnections::try_from(input.clone())?;
-        let raptor = RaptorAlgorithm::preprocess(input, direct_connections.clone())?;
+        let raptor = Arc::new(RaptorAlgorithm::preprocess(input, direct_connections.clone())?);
 
-        for stop in &raptor.stops {
-            let res  = raptor.query_range_all(
-                Range {
-                    earliest_departure: DateTime::from_timestamp_millis(0).unwrap(),
-                    start: *stop,
-                    range: Duration::weeks(1),
-                }
-            );
-            //dbg!(&res);
-        }
+        &raptor.stops.par_iter()
+            .for_each(|stop| {
+                let raptor = Arc::clone(&raptor);
+                let res  = &raptor.query_range_all(
+                    Range {
+                        earliest_departure: DateTime::from_timestamp_millis(0).unwrap(),
+                        start: *stop,
+                        range: Duration::weeks(1),
+                    }
+                );
+            });
 
         /*let direct_connections = DirectConnections::try_from(input)?;
         let network = TransitNetwork::try_from(direct_connections.clone())?;

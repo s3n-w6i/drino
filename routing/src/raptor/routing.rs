@@ -191,7 +191,7 @@ impl RaptorAlgorithm {
         Ok(state)
     }
 
-    async fn run_range(
+    fn run_range(
         &self,
         start: StopId,
         target: Option<StopId>,
@@ -253,9 +253,8 @@ impl RaptorAlgorithm {
     }
 }
 
-#[async_trait]
 impl SingleEarliestArrival for RaptorAlgorithm {
-    async fn query_ea(
+    fn query_ea(
         &self,
         EarliestArrival { start, departure }: EarliestArrival,
         Single { target }: Single,
@@ -266,17 +265,15 @@ impl SingleEarliestArrival for RaptorAlgorithm {
     }
 }
 
-#[async_trait]
 impl SingleRange for RaptorAlgorithm {
-    async fn query_range(&self, Range { start, earliest_departure, range }: Range, Single { target }: Single) -> QueryResult<RangeOutput> {
-        let range_result = self.run_range(start, Some(target), earliest_departure, range).await?;
+    fn query_range(&self, Range { start, earliest_departure, range }: Range, Single { target }: Single) -> QueryResult<RangeOutput> {
+        let range_result = self.run_range(start, Some(target), earliest_departure, range)?;
         Ok(range_result)
     }
 }
 
-#[async_trait]
 impl AllEarliestArrival for RaptorAlgorithm {
-    async fn query_ea_all(&self, EarliestArrival { start, departure }: EarliestArrival) -> MultiQueryResult<EarliestArrivalOutput> {
+    fn query_ea_all(&self, EarliestArrival { start, departure }: EarliestArrival) -> MultiQueryResult<EarliestArrivalOutput> {
         let res_state = self.run(start, None, departure)?;
         let journeys = self.backtrace_all(res_state, departure)?;
         let result = journeys.into_iter()
@@ -286,10 +283,9 @@ impl AllEarliestArrival for RaptorAlgorithm {
     }
 }
 
-#[async_trait]
 impl AllRange for RaptorAlgorithm {
-    async fn query_range_all(&self, Range { earliest_departure, range, start }: Range) -> QueryResult<RangeOutput> {
-        self.run_range(start, None, earliest_departure, range).await
+    fn query_range_all(&self, Range { earliest_departure, range, start }: Range) -> QueryResult<RangeOutput> {
+        self.run_range(start, None, earliest_departure, range)
     }
 }
 

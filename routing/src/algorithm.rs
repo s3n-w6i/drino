@@ -238,34 +238,28 @@ impl From<Vec<Leg>> for Journey {
 }
 
 
-#[async_trait]
 pub trait SingleEarliestArrival: RoutingAlgorithm {
-    async fn query_ea(&self, input: EarliestArrival, cardinality: Single) -> QueryResult<EarliestArrivalOutput>;
+    fn query_ea(&self, input: EarliestArrival, cardinality: Single) -> QueryResult<EarliestArrivalOutput>;
 }
 
-#[async_trait]
 pub trait SingleRange: RoutingAlgorithm {
-    async fn query_range(&self, input: Range, cardinality: Single) -> QueryResult<RangeOutput>;
+    fn query_range(&self, input: Range, cardinality: Single) -> QueryResult<RangeOutput>;
 }
 
-#[async_trait]
 pub trait MultiEarliestArrival: RoutingAlgorithm {
-    async fn query_ea_multi<'a>(&self, input: EarliestArrival, cardinality: Multiple<'a>) -> MultiQueryResult<EarliestArrivalOutput>;
+    fn query_ea_multi(&self, input: EarliestArrival, cardinality: Multiple) -> MultiQueryResult<EarliestArrivalOutput>;
 }
 
-#[async_trait]
 pub trait MultiRange: RoutingAlgorithm {
-    async fn query_range_multi<'a>(&self, input: Range, cardinality: Multiple<'a>) -> QueryResult<RangeOutput>;
+    fn query_range_multi(&self, input: Range, cardinality: Multiple) -> QueryResult<RangeOutput>;
 }
 
-#[async_trait]
 pub trait AllEarliestArrival: RoutingAlgorithm {
-    async fn query_ea_all(&self, input: EarliestArrival) -> MultiQueryResult<EarliestArrivalOutput>;
+    fn query_ea_all(&self, input: EarliestArrival) -> MultiQueryResult<EarliestArrivalOutput>;
 }
 
-#[async_trait]
 pub trait AllRange: RoutingAlgorithm {
-    async fn query_range_all(&self, input: Range) -> QueryResult<RangeOutput>;
+    fn query_range_all(&self, input: Range) -> QueryResult<RangeOutput>;
 }
 
 

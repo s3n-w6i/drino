@@ -149,7 +149,7 @@ macro_rules! earliest_arrival_tests {
             let res = raptor.query_ea(
                 EarliestArrival { start: StopId(0), departure: DateTime::UNIX_EPOCH },
                 Single { target: StopId(1) },
-            ).await.unwrap();
+            ).unwrap();
 
             assert_eq!(res.journey, Journey {
                 legs: vec![Leg::Ride {
@@ -165,7 +165,7 @@ macro_rules! earliest_arrival_tests {
             let res = raptor.query_ea(
                 EarliestArrival { start: StopId(0), departure: DateTime::<Utc>::from_timestamp(300, 0).unwrap() },
                 Single { target: StopId(1) },
-            ).await;
+            );
 
             assert!(res.is_err());
         }
@@ -208,7 +208,7 @@ macro_rules! earliest_arrival_tests {
             let res = raptor.query_ea(
                 EarliestArrival { start: StopId(0), departure: DateTime::UNIX_EPOCH },
                 Single { target: StopId(2) },
-            ).await.unwrap();
+            ).unwrap();
 
             assert_eq!(res.journey, Journey {
                 legs: vec![
@@ -272,7 +272,7 @@ macro_rules! earliest_arrival_tests {
             let res = raptor.query_ea(
                 EarliestArrival { start: StopId(0), departure: DateTime::UNIX_EPOCH },
                 Single { target: StopId(3) },
-            ).await.unwrap();
+            ).unwrap();
 
             assert_eq!(res.journey, Journey {
                 legs: vec![
@@ -327,7 +327,7 @@ macro_rules! earliest_arrival_tests {
             let res = raptor.query_ea(
                 EarliestArrival { start: StopId(0), departure: dep0 },
                 Single { target: StopId(4) },
-            ).await.unwrap();
+            ).unwrap();
 
             assert_eq!(
                 res.journey,
@@ -356,7 +356,7 @@ macro_rules! earliest_arrival_tests {
             let res = raptor.query_ea(
                 EarliestArrival { start: StopId(0), departure: DateTime::<Utc>::from_timestamp(1, 0).unwrap() },
                 Single { target: StopId(4) },
-            ).await.unwrap();
+            ).unwrap();
 
             assert_eq!(
                 res.journey,
