@@ -203,27 +203,27 @@ impl RaptorAlgorithm {
         // List of all journeys to all targets in the given time range
         let mut journeys = HashSet::new();
 
-        let mut time = earliest_departure;
-        while time <= last_departure {
-            match self.run(start, target, time) {
+        let mut departure = earliest_departure;
+        while departure <= last_departure {
+            match self.run(start, target, departure) {
                 // There is a valid output of the earliest arrival query
                 Ok(state) => {
                     match target {
                         // If we have a target (this is a one-to-one query)
                         Some(target) => {
-                            let journey = state.backtrace(target, time)?;
+                            let journey = state.backtrace(target, departure)?;
                             journeys.insert(journey.clone());
-                            time = journey.departure().unwrap_or(time) + Duration::seconds(1); // TODO: Find a better way than this hack
+                            departure = journey.departure().unwrap_or(departure) + Duration::seconds(1); // TODO: Find a better way than this hack
                         }
                         // We have no target (one-to-all query)
                         None => {
-                            let new_journeys = self.backtrace_all(state, time)?;
+                            let new_journeys = self.backtrace_all(state, departure)?;
                             journeys.extend(new_journeys.clone().into_iter().collect::<Vec<Journey>>());
 
                             let earliest_departing_journey = new_journeys.iter()
                                 .filter_map(|journey| journey.departure())
                                 .min();
-                            time = earliest_departing_journey.unwrap_or(time) + Duration::seconds(1);
+                            departure = earliest_departing_journey.unwrap_or(departure) + Duration::seconds(1);
                         }
                     };
                 }
