@@ -15,7 +15,7 @@ pub fn filter_for_cluster(
         .filter(col("cluster_id").eq(lit(cluster_id)))
         .select([col("stop_id")])
         // We want to reassign new ids, so that they are continuous again
-        .rename(["stop_id"], ["original_stop_id"])
+        .rename(["stop_id"], ["pre_cluster_stop_id"])
         .with_row_index("new_stop_id", None);
 
     // Filter the stops
@@ -23,18 +23,18 @@ pub fn filter_for_cluster(
         .join(
             stop_ids_in_this_cluster.clone(),
             [col("stop_id")],
-            [col("original_stop_id")],
+            [col("pre_cluster_stop_id")],
             JoinArgs::new(
                 JoinType::Inner
             )
         )
-        .rename(["stop_id"], ["original_stop_id"]);
+        .rename(["stop_id"], ["pre_cluster_stop_id"]);
 
     let stop_times = stop_times.clone()
         .inner_join(
             stop_ids_in_this_cluster.clone(),
             col("stop_id"),
-            col("original_stop_id"),
+            col("pre_cluster_stop_id"),
         )
         // don't keep the original stop id...
         .drop(["stop_id"])
