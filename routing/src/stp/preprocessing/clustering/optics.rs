@@ -49,7 +49,6 @@ pub fn cluster(
 
 
     let clusters = extract_clusters(contiguous_stops_array.clone(), &analysis, 300.0)?;
-    println!("{}", clusters);
     let num_clusters = clusters.clone().lazy()
         .unique(Some(vec![String::from("cluster_id")]), UniqueKeepStrategy::Any)
         .select([len()])
