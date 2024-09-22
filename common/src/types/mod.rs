@@ -18,7 +18,7 @@ impl <'a> TryFrom<AnyValue<'a>> for StopId {
     type Error = ();
 
     fn try_from(value: AnyValue<'a>) -> Result<Self, Self::Error> {
-        match value { 
+        match value {
             AnyValue::UInt32(value) => Ok(Self(value)),
             _ => Err(())
         }

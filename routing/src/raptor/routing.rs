@@ -10,6 +10,8 @@ use std::cmp::min;
 use std::iter::Skip;
 
 impl RaptorAlgorithm {
+    
+    /// Selects the earliest trip of a line, that departs at `stop` after a given time
     fn earliest_trip(&self, line: LineId, stop: StopId, after: DateTime<Utc>) -> Option<TripId> {
         self.trips_by_line_and_stop
             .get(&(line, stop))
@@ -140,7 +142,7 @@ impl RaptorAlgorithm {
                     // of the same line at stop b.
                     if prev_b_arrival <= b_departure {
                         let next_trip = self.earliest_trip(*line, *b_stop, *prev_b_arrival);
-                        
+
                         if next_trip.is_some() {
                             trip = next_trip;
                             boarding_stop = Some(*b_stop);
