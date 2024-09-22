@@ -6,7 +6,7 @@ use polars::prelude::{CsvWriter, IntoLazy};
 use common::util::logging::run_with_spinner;
 use crate::algorithm::{PreprocessInit, PreprocessingError, PreprocessingInput, PreprocessingResult};
 use crate::stp::preprocessing::clustering::filter_for_cluster;
-use crate::stp::preprocessing::clustering::optics::cluster;
+use crate::stp::preprocessing::clustering::k_means::cluster;
 use crate::stp::ScalableTransferPatternsAlgorithm;
 use crate::tp::TransferPatternsAlgorithm;
 use crate::write_tmp_file;

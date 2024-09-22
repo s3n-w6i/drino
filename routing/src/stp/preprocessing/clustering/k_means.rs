@@ -1,25 +1,24 @@
-use std::fmt;
-use std::fmt::Display;
-use linfa::DatasetBase;
 use linfa::prelude::{Fit, Predict};
+use linfa::DatasetBase;
 use linfa_clustering::KMeans;
 use polars::frame::DataFrame;
-use polars::io::SerWriter;
-use polars::prelude::{col, CsvWriter, Float32Type, IndexOrder, LazyFrame, Literal};
+use polars::prelude::{col, Float32Type, IndexOrder, LazyFrame, Literal};
 use polars::series::Series;
+use std::fmt;
+use std::fmt::Display;
 
-const NUM_CLUSTERS: usize = 8;
+const NUM_CLUSTERS: u32 = 8;
 
-pub async fn cluster(
+pub fn cluster(
     stops: &LazyFrame,
-) -> Result<DataFrame, KmeansClusterError> {
+) -> Result<(DataFrame, u32), KmeansClusterError> {
     let stops_array = stops.clone()
         .select([ col("lat"), col("lon")])
         .collect()?
         .to_ndarray::<Float32Type>(IndexOrder::default())?;
     let stops_data = DatasetBase::from(stops_array.as_standard_layout().clone());
 
-    let k_means_model = KMeans::params(NUM_CLUSTERS)
+    let k_means_model = KMeans::params(NUM_CLUSTERS as usize)
         .fit(&stops_data)?;
     let result = k_means_model.predict(stops_array);
 
@@ -28,15 +27,12 @@ pub async fn cluster(
         .collect::<Series>()
         .with_name("cluster_id".into());
 
-    let mut stop_ids_with_clusters = stops.clone()
+    let stop_ids_with_clusters = stops.clone()
         //.select([ col("stop_id") ])
         .with_column(target_series.lit())
         .collect()?;
 
-    let mut file = std::fs::File::create("../../../../stops_clustered.csv").unwrap();
-    CsvWriter::new(&mut file).finish(&mut stop_ids_with_clusters).unwrap();
-
-    Ok(stop_ids_with_clusters)
+    Ok((stop_ids_with_clusters, NUM_CLUSTERS))
 }
 
 #[derive(thiserror::Error, Debug)]
