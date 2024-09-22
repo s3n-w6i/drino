@@ -10,7 +10,7 @@ use std::cmp::min;
 use std::iter::Skip;
 
 impl RaptorAlgorithm {
-    
+
     /// Selects the earliest trip of a line, that departs at `stop` after a given time
     fn earliest_trip(&self, line: LineId, stop: StopId, after: DateTime<Utc>) -> Option<TripId> {
         self.trips_by_line_and_stop
@@ -24,8 +24,8 @@ impl RaptorAlgorithm {
             })
     }
 
-    fn build_queue(&self, marked_stops: &HashSet<StopId>) -> Vec<(LineId, StopId)> {
-        let mut queue: Vec<(LineId, StopId)> = Vec::new();
+    fn build_queue(&self, marked_stops: &HashSet<StopId>) -> HashSet<(LineId, StopId)> {
+        let mut queue: HashSet<(LineId, StopId)> = HashSet::new();
 
         for stop_a in marked_stops {
             if let Some(lines_serving_stop) = self.lines_by_stops.get(stop_a) {
@@ -35,23 +35,18 @@ impl RaptorAlgorithm {
                         .expect(&format!("Line {line:?} is in lines_by_stops, so it must also be in stops_by_line."));
                     // for any stop b that is also on the line
                     for (seq_num_b, stop_b) in other_stops.iter().enumerate() {
-                        let queue_position = queue.iter().position(|item| item == &(*line, *stop_b));
-                        if let Some(position) = queue_position {
-                            let seq_num_b = SeqNum(seq_num_b as u32);
-                            // if other_stop comes after marked_stop on that line
-                            if seq_num_a < &seq_num_b {
-                                queue[position] = (*line, *stop_a);
-                            }
+                        let seq_num_b = SeqNum(seq_num_b as u32);
+                        // if other_stop comes after marked_stop on that line
+                        if queue.contains(&(*line, *stop_b)) && seq_num_a < &seq_num_b {
+                            queue.remove(&(*line, *stop_b));
+                            queue.insert((*line, *stop_a));
                         } else {
-                            queue.push((*line, *stop_a));
+                            queue.insert((*line, *stop_a));
                         }
                     }
                 }
             }
         }
-
-        // TODO: Solve this more elegantly
-        queue = queue.into_iter().unique().collect();
 
         queue
     }
@@ -222,10 +217,18 @@ impl RaptorAlgorithm {
                             let new_journeys = self.backtrace_all(state, departure)?;
                             journeys.extend(new_journeys.clone().into_iter().collect::<Vec<Journey>>());
 
-                            let earliest_departing_journey = new_journeys.iter()
+                            let earliest_departure = new_journeys.iter()
                                 .filter_map(|journey| journey.departure())
                                 .min();
-                            departure = earliest_departing_journey.unwrap_or(departure) + Duration::seconds(1);
+
+                            if let Some(earliest_departure) = earliest_departure {
+                                departure = earliest_departure + Duration::seconds(1);
+                                println!("departure: {}", departure);
+                            } else {
+                                // There is no earliest departure, so there is no departure at all
+                                // after this point in time
+                                break;
+                            }
                         }
                     };
                 }
