@@ -19,7 +19,7 @@ impl PreprocessInit for TransferPatternsAlgorithm {
             // Process in chunks, so that inserting into transfer patterns data structure is more
             // efficient (less waiting for Mutexes etc.)
             // TODO: Experiment with this value to see which one is useful
-            .chunks(20)
+            .chunks(5)
             .for_each(|stops| {
                 let raptor = Arc::clone(&raptor);
                 let transfer_patterns = Arc::clone(&transfer_patterns);
