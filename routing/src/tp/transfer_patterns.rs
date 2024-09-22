@@ -14,7 +14,7 @@ pub type TransferPatternDf = DataFrame;
 pub struct TransferPatterns(TransferPatternDf);
 
 impl TransferPatterns {
-    
+
     pub(crate) fn new() -> PolarsResult<Self> {
         let start_series = Series::new_empty("start".into(), &DataType::UInt32);
         let end_series = Series::new_empty("end".into(), &DataType::UInt32);
@@ -25,17 +25,16 @@ impl TransferPatterns {
             // If a leg's value is None, then treat it as a transfer step (walking, cycling etc.).
             &DataType::List(Box::new(DataType::UInt32))
         );
-        
+
         Ok(Self(DataFrame::new(vec![start_series, end_series, pattern_series])?))
     }
-    
+
     pub(crate) fn add_multiple(&mut self, results: Vec<RangeOutput>) -> PolarsResult<()> {
-        dbg!(&results.len());
         
         let all_journeys = results.into_iter()
             .map(|res| { res.journeys })
             .flatten();
-        
+
         let rows = all_journeys
             .map(|journey| {
                 let start = journey.start().clone();
@@ -64,17 +63,17 @@ impl TransferPatterns {
                 Row::new(vec![start.into(), end.into(), pattern_list])
             })
             .collect_vec();
-        
+
         if rows.len() > 0 {
-            // Append new rows to existing 
+            // Append new rows to existing
             self.0.vstack_mut_unchecked(
                 &DataFrame::from_rows(&rows)?
             );
         }
-        
+
         Ok(())
     }
-    
+
     pub(crate) fn align_chunks(&mut self) {
         self.0.align_chunks();
     }
