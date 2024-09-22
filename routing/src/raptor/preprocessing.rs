@@ -6,7 +6,7 @@ use chrono::DateTime;
 use common::types::{LineId, SeqNum, StopId, TripId};
 use hashbrown::{HashMap, HashSet};
 use itertools::izip;
-use polars::error::{ErrString, PolarsError};
+use polars::error::PolarsError;
 use polars::prelude::{col, IntoLazy, SortMultipleOptions};
 
 impl RaptorAlgorithm {
@@ -33,7 +33,7 @@ impl RaptorAlgorithm {
 
         let [line_ids, stop_ids, sequence_numbers, trip_ids, arrival_times, departure_times] =
             lines.get_columns()
-        else { return Err(PreprocessingError::Polars(PolarsError::ColumnNotFound(ErrString::from("")))); };
+        else { return Err(PreprocessingError::Polars(PolarsError::ColumnNotFound("".into()))); };
         
         let line_ids = line_ids.u32()?;
         let stop_ids = stop_ids.u32()?;
@@ -43,37 +43,34 @@ impl RaptorAlgorithm {
         let departure_times = departure_times.duration()?;
 
         let mut stops_by_line = HashMap::new();
-        for (idx, line_id) in line_ids.into_iter().enumerate() {
+        for (line_id, stop_id) in izip!(line_ids, stop_ids) {
             let line_id = LineId(line_id.unwrap());
-            let stop_id = StopId(stop_ids.get(idx).unwrap());
+            let stop_id = StopId(stop_id.unwrap());
 
             stops_by_line.entry(line_id).or_insert(vec![])
                 .push(stop_id);
         }
 
         let mut lines_by_stops = HashMap::new();
-        for (idx, stop_id) in stop_ids.into_iter().enumerate() {
+        for (stop_id, line_id, seq_num) in izip!(stop_ids, line_ids, sequence_numbers) {
             let stop_id = StopId(stop_id.unwrap());
-            let line_id = LineId(line_ids.get(idx).unwrap());
-            let sequence_number = SeqNum(sequence_numbers.get(idx).unwrap());
-            let value = (line_id, sequence_number);
+            let line_id = LineId(line_id.unwrap());
+            let seq_num = SeqNum(seq_num.unwrap());
 
             lines_by_stops.entry(stop_id).or_insert(HashSet::new())
-                .insert(value);
+                .insert((line_id, seq_num));
         }
 
         let mut arrivals = HashMap::new();
         let mut departures = HashMap::new();
-        for (idx, trip_id) in trip_ids.iter().enumerate() {
+        for (trip_id, stop_id, arrival_time, departure_time) in izip!(trip_ids, stop_ids, arrival_times.iter(), departure_times.iter()) {
             let trip_id = TripId(trip_id.unwrap());
-            let stop_id = StopId(idx as u32);
+            let stop_id = StopId(stop_id.unwrap());
+            let arrival_time = arrival_time.unwrap();
+            let departure_time = departure_time.unwrap();
             // TODO: Fix date time handling
-            let arrival_time = DateTime::from_timestamp_millis(
-                arrival_times.get(idx).unwrap()
-            ).unwrap();
-            let departure_time = DateTime::from_timestamp_millis(
-                departure_times.get(idx).unwrap()
-            ).unwrap();
+            let arrival_time = DateTime::from_timestamp_millis(arrival_time).unwrap();
+            let departure_time = DateTime::from_timestamp_millis(departure_time).unwrap();
             arrivals.insert((trip_id, stop_id), arrival_time);
             departures.insert((trip_id, stop_id), departure_time);
         }
@@ -84,7 +81,7 @@ impl RaptorAlgorithm {
             .agg(&[col("trip_id"), col("departure_time")])
             .collect()?;
         let [line_ids, stop_ids, trips_ids, departures_times] = trips_by_line_and_stop_df.get_columns()
-        else { return Err(PreprocessingError::Polars(PolarsError::ColumnNotFound(ErrString::from("")))); };
+        else { return Err(PreprocessingError::Polars(PolarsError::ColumnNotFound("".into()))); };
         let line_ids = line_ids.u32()?;
         let stop_ids = stop_ids.u32()?;
         let trips_ids = trips_ids.list()?;
@@ -181,4 +178,6 @@ mod tests {
 
         a == b
     }
+    
+    // TODO: More test cases. This one test passed, despite the function being wrong!
 }
