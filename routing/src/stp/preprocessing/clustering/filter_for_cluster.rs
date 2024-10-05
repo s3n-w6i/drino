@@ -30,7 +30,12 @@ pub fn filter_for_cluster(
         )
         .rename(["stop_id"], ["pre_cluster_stop_id"]);
 
+    // Only include stop times that are within the cluster
+    // Since lines (in RAPTOR) will be calculated based only on the stop_times-table, resulting
+    // lines will "skip over" the parts of a line that are outside the cluster. This is fine, since
+    // we don't care about what happens outside of this cluster.
     let stop_times = stop_times.clone()
+        // Only keep stops that are in the cluster
         .inner_join(
             stop_ids_in_this_cluster.clone(),
             col("stop_id"),

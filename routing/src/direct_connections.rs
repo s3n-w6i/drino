@@ -54,6 +54,7 @@ fn create_line_table(PreprocessingInput { stop_times, .. }: &PreprocessingInput)
         // Turn the stop_ids into a list per each trip
         .group_by([col("trip_id")])
         .agg([col("stop_id").alias("stop_ids"), col("arrival_time"), col("departure_time"), col("stop_sequence")])
+        // Group by the sequence of stop_ids, to identify lines (aka unique sequences of stops)
         .group_by([col("stop_ids")])
         .agg([col("trip_id").alias("trip_ids"), col("arrival_time"), col("departure_time"), col("stop_sequence")])
         // Assign line ids
