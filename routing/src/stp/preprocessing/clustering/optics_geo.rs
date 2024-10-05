@@ -23,8 +23,8 @@ impl<F: Float> Distance<F> for HaversineDist {
     fn distance<D: Dimension>(&self, a: ArrayView<F, D>, b: ArrayView<F, D>) -> F {
         let mut a_iter = a.into_iter();
         let mut b_iter = b.into_iter();
-        let point_a = point!(x: a_iter.next().unwrap().clone(), y: a_iter.next().unwrap().clone());
-        let point_b = point!(x: b_iter.next().unwrap().clone(), y: b_iter.next().unwrap().clone());
+        let point_a = point!(x: *a_iter.next().unwrap(), y: *a_iter.next().unwrap());
+        let point_b = point!(x: *b_iter.next().unwrap(), y: *b_iter.next().unwrap());
         let distance = point_a.haversine_distance(&point_b);
         F::from(distance).unwrap()
     }

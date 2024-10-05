@@ -15,7 +15,7 @@ impl RaptorAlgorithm {
         self.trips_by_line_and_stop
             .get(&(line, stop))
             .and_then(|trips| {
-                trips.into_iter().find_map(|(departure, trip)| {
+                trips.iter().find_map(|(departure, trip)| {
                         if *departure >= after {
                             Some(*trip)
                         } else { None }
@@ -57,11 +57,11 @@ impl RaptorAlgorithm {
             .expect(&format!(
                 "Expected Stop with ID {stop:?} to be on line {line:?}. But this line has only these stops: {stops_on_line:?}"
             ));
-        let stops_on_line_after = stops_on_line.into_iter().skip(a_stop_idx_on_line);
+        let stops_on_line_after = stops_on_line.iter().skip(a_stop_idx_on_line);
 
         // stop_id itself is first in line of the stops
         debug_assert!(
-            &stops_on_line_after.clone().collect::<Vec<&StopId>>()[0] == &stop,
+            stops_on_line_after.clone().collect::<Vec<&StopId>>()[0] == stop,
             "Line {line:?} does not include stop {stop:?} as a stop after {stop:?}",
         );
 
@@ -248,11 +248,9 @@ impl RaptorAlgorithm {
     }
 
     fn backtrace_all(&self, state: RaptorState, departure: DateTime<Utc>) -> QueryResult<Vec<Journey>> {
-        Ok(
-            self.stops.iter()
-                .map(|stop| state.backtrace(*stop, departure))
-                .collect::<QueryResult<Vec<Journey>>>()?
-        )
+        self.stops.iter()
+            .map(|stop| state.backtrace(*stop, departure))
+            .collect::<QueryResult<Vec<Journey>>>()
     }
 }
 

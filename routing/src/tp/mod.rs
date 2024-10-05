@@ -1,6 +1,6 @@
-use crate::algorithm::{AllRange, PreprocessInit, RoutingAlgorithm};
+use crate::algorithm::RoutingAlgorithm;
 use crate::direct_connections::DirectConnections;
-use crate::tp::transfer_patterns::{TransferPatternsGraph, TransferPatternsTable};
+use crate::tp::transfer_patterns::TransferPatternsTable;
 
 /// https://ad.informatik.uni-freiburg.de/files/transferpatterns.pdf
 

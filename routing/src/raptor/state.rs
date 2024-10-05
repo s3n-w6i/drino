@@ -91,7 +91,7 @@ impl RaptorState {
         self.best_arrivals[end_idx] = new_arrival;
 
         self.connection_index
-            .entry(alight_stop).or_insert(HashMap::new())
+            .entry(alight_stop).or_default()
             .insert(self.k, Leg::Ride { trip, boarding_stop, alight_stop, boarding_time, alight_time: new_arrival });
     }
 
@@ -114,7 +114,7 @@ impl RaptorState {
         self.best_arrivals[end_idx] = time_after_transfer;
 
         self.connection_index
-            .entry(end).or_insert(HashMap::new())
+            .entry(end).or_default()
             .insert(self.k, Leg::Transfer { start, end, duration });
     }
 

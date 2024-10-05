@@ -234,7 +234,7 @@ impl Journey {
     }
 
     pub(crate) fn start(&self) -> &StopId {
-        self.legs.get(0).unwrap().start()
+        self.legs.first().unwrap().start()
     }
 
     pub(crate) fn end(&self) -> &StopId {

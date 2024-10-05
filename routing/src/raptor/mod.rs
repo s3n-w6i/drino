@@ -23,4 +23,4 @@ pub struct RaptorAlgorithm {
     pub(crate) transfer_provider: Box<dyn TransferProvider + Send + Sync>
 }
 
-impl <'a> RoutingAlgorithm for RaptorAlgorithm {}
+impl RoutingAlgorithm for RaptorAlgorithm {}

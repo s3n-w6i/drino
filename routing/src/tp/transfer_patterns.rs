@@ -24,8 +24,7 @@ impl TransferPatternsGraph {
         let graph = &mut self.0;
         
         let all_journeys = results.into_iter()
-            .map(|res| { res.journeys })
-            .flatten();
+            .flat_map(|res| { res.journeys });
         
         for journey in all_journeys {
             for leg in journey.legs {

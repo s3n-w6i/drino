@@ -19,8 +19,7 @@ impl RaptorAlgorithm {
             .select(&[col("stop_id")])
             .collect()?.column("stop_id")?
             .u32()?.to_vec()
-            .into_iter().filter_map(|x| x)
-            .map(|x| StopId(x))
+            .into_iter().filter_map(|x| x.map(StopId))
             .collect();
 
         let lines = lines.clone()
@@ -35,7 +34,7 @@ impl RaptorAlgorithm {
         let [line_ids, stop_ids, sequence_numbers, trip_ids, arrival_times, departure_times] =
             lines.get_columns()
         else { return Err(PreprocessingError::Polars(PolarsError::ColumnNotFound("".into()))); };
-        
+
         let line_ids = line_ids.u32()?;
         let stop_ids = stop_ids.u32()?;
         let sequence_numbers = sequence_numbers.u32()?;
@@ -95,13 +94,10 @@ impl RaptorAlgorithm {
             let departures = departures.unwrap();
             let departures_trips = departures.duration()?.iter().zip(trips.u32()?)
                 .filter_map(|(departure, trip)| {
-                    if let Some(departure) = departure {
+                    departure.map(|departure| {
                         // TODO: Fix date conversion
-                        Some((
-                            DateTime::from_timestamp_millis(departure).unwrap(),
-                            TripId(trip.unwrap())
-                        ))
-                    } else { None }
+                        (DateTime::from_timestamp_millis(departure).unwrap(), TripId(trip.unwrap()))
+                    })
                 });
 
             trips_by_line_and_stop.insert(
@@ -122,7 +118,7 @@ impl RaptorAlgorithm {
     }
 }
 
-impl<'a> PreprocessInit for RaptorAlgorithm {
+impl PreprocessInit for RaptorAlgorithm {
     fn preprocess(input: PreprocessingInput, _: Option<&MultiProgress>) -> PreprocessingResult<RaptorAlgorithm> {
         let direct_connections = DirectConnections::try_from(input.clone())?;
         Self::preprocess(input, direct_connections)
@@ -179,6 +175,6 @@ mod tests {
 
         a == b
     }
-    
+
     // TODO: More test cases. This one test passed, despite the function being wrong!
 }

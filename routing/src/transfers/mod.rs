@@ -48,7 +48,7 @@ impl TransferProvider for CrowFlyTransferProvider {
     fn transfers_from(&self, start: &StopId) -> Vec<StopId> {
         (0u32..self.stop_coords.len() as u32)
             // Return as Stop Ids, not as u32
-            .map(|x| StopId(x))
+            .map(StopId)
             // Don't return the starting station itself
             .filter(|x| x != start)
             .collect()

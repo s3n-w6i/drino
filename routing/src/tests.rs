@@ -9,7 +9,7 @@ use ndarray::array;
 /// Test case 4 has some specialties:
 /// - Stop 3 and 4 are quite close together, so walking between them is feasible
 /// - Line 101 travel "back", and usually doesn't contribute to reaching a target
-pub(crate) fn generate_case_4<'a>() -> RaptorAlgorithm {
+pub(crate) fn generate_case_4() -> RaptorAlgorithm {
     let dep20 = DateTime::<Utc>::from_timestamp(20, 0).unwrap();
     let dep220 = DateTime::<Utc>::from_timestamp(220, 0).unwrap();
     let dep90 = DateTime::<Utc>::from_timestamp(90, 0).unwrap();
@@ -31,7 +31,7 @@ pub(crate) fn generate_case_4<'a>() -> RaptorAlgorithm {
     let duration_3_to_4 = Duration::seconds(410);
 
     RaptorAlgorithm {
-        stops: vec![0, 1, 2, 3, 4].into_iter().map(|x| StopId(x)).collect(),
+        stops: vec![0, 1, 2, 3, 4].into_iter().map(StopId).collect(),
         stops_by_line: HashMap::from([
             // Line 100: 0 --> 2 --> 3
             (LineId(100), vec![StopId(0), StopId(2), StopId(3)]),

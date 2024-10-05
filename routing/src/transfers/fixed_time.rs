@@ -22,7 +22,7 @@ impl TransferProvider for FixedTimeTransferProvider {
 
     fn transfers_from(&self, start: &StopId) -> Vec<StopId> {
         debug_assert!(self.duration_matrix.is_square());
-        (0..self.duration_matrix.ncols()).into_iter()
+        (0..self.duration_matrix.ncols())
             .map(|id| StopId(id as u32))
             // Don't return the starting station itself
             .filter(|x| x != start)

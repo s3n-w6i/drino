@@ -120,18 +120,12 @@ impl PartialOrd for NodeHeapItem {
                 match ord {
                     Ordering::Less | Ordering::Greater => Some(ord),
                     Ordering::Equal => {
-                        match self.time.partial_cmp(&other.time) {
-                            Some(ord) => Some(ord),
-                            None => None
-                        }
+                        self.time.partial_cmp(&other.time).map(|ord| ord)
                     }
                 }
             }
             None => {
-                match self.time.partial_cmp(&other.time) {
-                    Some(ord) => Some(ord),
-                    None => None
-                }
+                self.time.partial_cmp(&other.time).map(|ord| ord)
             }
         }
     }
@@ -238,7 +232,7 @@ impl TryFrom<DirectConnections> for TransitNetwork {
                     if previous_node.stop_id == current_node.stop_id {
                         graph.add_edge(
                             previous_node.id,
-                            current_node.id.clone(),
+                            current_node.id,
                             Waiting { duration: current_node.time - previous_node.time },
                         );
                     }
