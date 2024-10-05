@@ -5,7 +5,6 @@ use chrono::{DateTime, Duration, TimeDelta, Utc};
 use common::types::{LineId, SeqNum, StopId, TripId};
 use common::util::time::INFINITY;
 use hashbrown::HashSet;
-use itertools::Itertools;
 use std::cmp::min;
 use std::iter::Skip;
 
