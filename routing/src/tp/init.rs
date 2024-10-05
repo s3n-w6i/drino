@@ -1,7 +1,7 @@
 use crate::algorithm::{AllRange, PreprocessInit, PreprocessingInput, PreprocessingResult, Range};
 use crate::direct_connections::DirectConnections;
 use crate::raptor::RaptorAlgorithm;
-use crate::tp::transfer_patterns::TransferPatterns;
+use crate::tp::transfer_patterns::{TransferPatternsGraph, TransferPatternsTable};
 use crate::tp::TransferPatternsAlgorithm;
 use async_trait::async_trait;
 use chrono::{DateTime, Duration};
@@ -17,7 +17,7 @@ impl PreprocessInit for TransferPatternsAlgorithm {
     fn preprocess(input: PreprocessingInput, progress_bars: Option<&MultiProgress>) -> PreprocessingResult<Self> {
         let direct_connections = DirectConnections::try_from(input.clone())?;
         let raptor = Arc::new(RaptorAlgorithm::preprocess(input, direct_connections.clone())?);
-        let transfer_patterns = Arc::new(Mutex::new(TransferPatterns::new()?));
+        let tp_graph = Arc::new(Mutex::new(TransferPatternsGraph::new()?));
         
         let pb = progress_bars.map(|pbs| {
             pbs.add(
@@ -37,7 +37,7 @@ impl PreprocessInit for TransferPatternsAlgorithm {
             .for_each(|stops| {
                 
                 let raptor = Arc::clone(&raptor);
-                let transfer_patterns = Arc::clone(&transfer_patterns);
+                let tp_graph = Arc::clone(&tp_graph);
 
                 let results = stops.into_iter()
                     .map(|stop| {
@@ -49,6 +49,10 @@ impl PreprocessInit for TransferPatternsAlgorithm {
                             }
                         )
                     })
+                    .map(|a| {
+                        println!("{a:?}");
+                        a
+                    })
                     .filter_map(|result| {
                         match result {
                             Ok(res) => { Some(res) }
@@ -58,21 +62,24 @@ impl PreprocessInit for TransferPatternsAlgorithm {
                     .collect();
 
                 // Add this chunk to our existing transfer patterns
-                let mut transfer_patterns = transfer_patterns.lock().unwrap();
-                transfer_patterns.add_multiple(results).unwrap();
+                let mut tp_graph = tp_graph.lock().unwrap();
+                tp_graph.add_multiple(results).unwrap();
 
                 pb.clone().map(|pb| pb.inc(CHUNK_SIZE));
             });
         
         pb.map(|pb| { pb.finish_with_message("All stops in cluster finished") });
 
-        let transfer_patterns = Arc::try_unwrap(transfer_patterns)
+        let tp_graph = Arc::try_unwrap(tp_graph)
             .expect("Lock is still owned by others").into_inner().unwrap();
 
+        let tp_table: TransferPatternsTable = tp_graph.try_into()?;
+        
+        println!("{:?}", &tp_table.0);
 
         Ok(Self {
             direct_connections,
-            transfer_patterns,
+            transfer_patterns: tp_table,
         })
     }
 }
