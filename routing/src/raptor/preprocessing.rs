@@ -5,6 +5,7 @@ use crate::transfers::CrowFlyTransferProvider;
 use chrono::DateTime;
 use common::types::{LineId, SeqNum, StopId, TripId};
 use hashbrown::{HashMap, HashSet};
+use indicatif::MultiProgress;
 use itertools::izip;
 use polars::error::PolarsError;
 use polars::prelude::{col, IntoLazy, SortMultipleOptions};
@@ -122,7 +123,7 @@ impl RaptorAlgorithm {
 }
 
 impl<'a> PreprocessInit for RaptorAlgorithm {
-    fn preprocess(input: PreprocessingInput) -> PreprocessingResult<RaptorAlgorithm> {
+    fn preprocess(input: PreprocessingInput, _: Option<&MultiProgress>) -> PreprocessingResult<RaptorAlgorithm> {
         let direct_connections = DirectConnections::try_from(input.clone())?;
         Self::preprocess(input, direct_connections)
     }

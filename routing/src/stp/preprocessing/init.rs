@@ -1,4 +1,4 @@
-use indicatif::{ProgressBar, ProgressIterator, ProgressStyle};
+use indicatif::MultiProgress;
 use log::info;
 use polars::frame::DataFrame;
 use polars::io::SerWriter;
@@ -12,7 +12,7 @@ use crate::tp::TransferPatternsAlgorithm;
 use crate::write_tmp_file;
 
 impl PreprocessInit for ScalableTransferPatternsAlgorithm {
-    fn preprocess(input: PreprocessingInput) -> PreprocessingResult<Self> {
+    fn preprocess(input: PreprocessingInput, _: Option<&MultiProgress>) -> PreprocessingResult<Self> {
         let (stop_ids_with_clusters, num_clusters) = run_with_spinner("preprocessing", "Clustering stops", || {
             let (stop_ids_with_clusters, num_clusters) = cluster(&input.stops)
                 .expect("Clustering failed");
@@ -28,14 +28,14 @@ impl PreprocessInit for ScalableTransferPatternsAlgorithm {
             Ok::<(DataFrame, u32), PreprocessingError>((stop_ids_with_clusters, num_clusters))
         })?;
 
-        let cluster_processing_pb = ProgressBar::new(num_clusters as u64)
-            .with_message("Processing clusters...")
-            .with_style(ProgressStyle::with_template("[{elapsed}] {msg} {wide_bar} {human_pos}/{human_len} eta: {eta}").unwrap());
+        let clusters_pbs = MultiProgress::new();
+        
+        info!(target: "preprocessing", "Processing {num_clusters} clusters");
 
         // Currently not parallelized, since individual clusters could take very different amounts
         // of time and RAM usage is lower when only looking at a single cluster at a time.
         // Therefore, we parallelize within one cluster.
-        for cluster_id in (0..num_clusters).progress_with(cluster_processing_pb) {
+        for cluster_id in 0..num_clusters {
             let cluster_filtered_input = filter_for_cluster(cluster_id, stop_ids_with_clusters.clone().lazy(), &input)?;
 
             write_tmp_file(
@@ -51,7 +51,7 @@ impl PreprocessInit for ScalableTransferPatternsAlgorithm {
                 &mut cluster_filtered_input.stop_times.clone().collect()?
             )?;
             
-            let cluster_result = TransferPatternsAlgorithm::preprocess(cluster_filtered_input)?;
+            let cluster_result = TransferPatternsAlgorithm::preprocess(cluster_filtered_input, Some(&clusters_pbs))?;
 
             // TODO: Transform stop ids back to original values after transfer pattern calculation
 

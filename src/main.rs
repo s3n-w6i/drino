@@ -96,7 +96,7 @@ fn main() -> Result<(), DrinoError> {
                 })
             })?;
 
-            let preprocessing_result = ALGORITHM::preprocess(cached_input)?;
+            let preprocessing_result = ALGORITHM::preprocess(cached_input, None)?;
 
             info!(target: "preprocessing", "Preprocessing finished in {:?}", preprocessing_start_time.elapsed().unwrap());
             files_to_clean_up.into_iter()

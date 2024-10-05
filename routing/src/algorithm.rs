@@ -3,6 +3,7 @@ use std::fmt::{Debug, Display};
 
 use chrono::{DateTime, Duration, TimeDelta, Utc};
 use hashbrown::HashSet;
+use indicatif::MultiProgress;
 use polars::prelude::LazyFrame;
 
 use crate::transfers::TransferError;
@@ -11,7 +12,7 @@ use common::types::{StopId, TripId};
 pub trait RoutingAlgorithm {}
 
 pub trait PreprocessInit: RoutingAlgorithm + Sized {
-    fn preprocess(input: PreprocessingInput) -> PreprocessingResult<Self>;
+    fn preprocess(input: PreprocessingInput, progress_bars: Option<&MultiProgress>) -> PreprocessingResult<Self>;
 }
 
 
