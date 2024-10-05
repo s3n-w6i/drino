@@ -1,6 +1,5 @@
 use polars::datatypes::{AnyValue, DataType};
 use polars::error::{ErrString, PolarsError};
-use polars::export::chrono::NaiveDateTime;
 use polars::prelude::{Field, StrptimeOptions};
 use polars::series::Series;
 

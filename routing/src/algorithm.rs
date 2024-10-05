@@ -50,18 +50,12 @@ impl Display for PreprocessingError {
 }
 
 
-trait QueryType: Sized {}
-
 // The earliest arrival query asks for the one optimal journey when departing at or after a
 // specified point in time
 pub struct EarliestArrivalQuery {}
 
 // A range query asks for all optimal journeys between stations in a specified time range
 pub struct RangeQuery {}
-
-impl QueryType for EarliestArrivalQuery {}
-
-impl QueryType for RangeQuery {}
 
 pub trait QueryTargetCardinality: Sized + Clone {}
 
@@ -106,8 +100,6 @@ impl Range {
 }
 
 
-trait QueryOutput<T: QueryType>: Sized + Debug {}
-
 #[derive(Debug)]
 pub struct EarliestArrivalOutput {
     pub(crate) journey: Journey,
@@ -118,9 +110,6 @@ pub struct RangeOutput {
     pub(crate) journeys: HashSet<Journey>,
 }
 
-impl QueryOutput<EarliestArrivalQuery> for EarliestArrivalOutput {}
-
-impl QueryOutput<RangeQuery> for RangeOutput {}
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub enum Leg {
