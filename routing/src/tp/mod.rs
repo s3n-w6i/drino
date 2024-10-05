@@ -4,7 +4,6 @@ use crate::tp::transfer_patterns::TransferPatternsTable;
 
 /// https://ad.informatik.uni-freiburg.de/files/transferpatterns.pdf
 
-mod transit_network;
 mod transfer_patterns;
 mod init;
 
