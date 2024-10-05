@@ -8,9 +8,9 @@ pub mod dataset;
 #[derive(Debug, Clone, Copy, Hash, Eq, PartialEq, Ord, PartialOrd)]
 pub struct StopId(pub u32);
 
-impl <'a> Into<AnyValue<'a>> for StopId {
-    fn into(self) -> AnyValue<'a> {
-        AnyValue::UInt32(self.0)
+impl <'a> From<StopId> for AnyValue<'a> {
+    fn from(value: StopId) -> AnyValue<'a> {
+        AnyValue::UInt32(value.0)
     }
 }
 
@@ -28,9 +28,9 @@ impl <'a> TryFrom<AnyValue<'a>> for StopId {
 #[derive(Debug, Clone, Copy, Hash, Eq, PartialEq)]
 pub struct LineId(pub u32);
 
-impl <'a> Into<AnyValue<'a>> for LineId {
-    fn into(self) -> AnyValue<'a> {
-        AnyValue::UInt32(self.0)
+impl <'a> From<LineId> for AnyValue<'a> {
+    fn from(value: LineId) -> AnyValue<'a> {
+        AnyValue::UInt32(value.0)
     }
 }
 
@@ -48,9 +48,9 @@ impl <'a> TryFrom<AnyValue<'a>> for LineId {
 #[derive(Debug, Clone, Copy, Hash, Eq, PartialEq)]
 pub struct TripId(pub u32);
 
-impl <'a> Into<AnyValue<'a>> for TripId {
-    fn into(self) -> AnyValue<'a> {
-        AnyValue::UInt32(self.0)
+impl <'a> From<TripId> for AnyValue<'a> {
+    fn from(value: TripId) -> AnyValue<'a> {
+        AnyValue::UInt32(value.0)
     }
 }
 
@@ -69,9 +69,9 @@ impl <'a> TryFrom<AnyValue<'a>> for TripId {
 #[derive(Debug, Clone, Copy, Hash, Eq, PartialEq, Ord, PartialOrd)]
 pub struct SeqNum(pub u32);
 
-impl <'a> Into<AnyValue<'a>> for SeqNum {
-    fn into(self) -> AnyValue<'a> {
-        AnyValue::UInt32(self.0)
+impl <'a> From<SeqNum> for AnyValue<'a> {
+    fn from(value: SeqNum) -> AnyValue<'a> {
+        AnyValue::UInt32(value.0)
     }
 }
 

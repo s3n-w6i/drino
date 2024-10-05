@@ -18,7 +18,7 @@ pub trait PreprocessInit: RoutingAlgorithm + Sized {
 
 pub trait FromDiskInit: RoutingAlgorithm + Sized {
     fn load_from_disk() -> PreprocessingResult<Self>;
-    fn save_to_disk() -> ();
+    fn save_to_disk();
 }
 
 
@@ -84,8 +84,6 @@ impl QueryTargetCardinality for Multiple<'static> {}
 
 impl QueryTargetCardinality for All {}
 
-trait QueryInput<T: QueryType>: Sized {}
-
 pub struct EarliestArrival {
     pub(crate) departure: DateTime<Utc>,
     pub(crate) start: StopId,
@@ -107,9 +105,6 @@ impl Range {
     }
 }
 
-impl QueryInput<EarliestArrivalQuery> for EarliestArrival {}
-
-impl QueryInput<RangeQuery> for Range {}
 
 trait QueryOutput<T: QueryType>: Sized + Debug {}
 

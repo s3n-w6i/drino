@@ -6,6 +6,7 @@ use common::util::duration::INFINITY;
 use hashbrown::{HashMap, HashSet};
 use ndarray::array;
 
+#[allow(clippy::inconsistent_digit_grouping)]
 /// Test case 4 has some specialties:
 /// - Stop 3 and 4 are quite close together, so walking between them is feasible
 /// - Line 101 travel "back", and usually doesn't contribute to reaching a target

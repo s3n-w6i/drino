@@ -1,8 +1,8 @@
-use std::fs::{create_dir_all, File};
-use std::path::{Path, PathBuf};
 use polars::error::PolarsError;
 use polars::frame::DataFrame;
 use polars::prelude::ParquetWriter;
+use std::fs::{create_dir_all, File};
+use std::path::PathBuf;
 
 pub(crate) fn write_tmp_file(
     path: PathBuf,
