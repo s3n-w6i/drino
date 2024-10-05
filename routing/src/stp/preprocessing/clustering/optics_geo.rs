@@ -13,7 +13,7 @@ use polars::prelude::{col, len, Float32Type, IndexOrder, IntoLazy, LazyFrame, Na
 use polars::series::Series;
 
 const MIN_POINTS: usize = 8;
-const MIN_CLUSTER_SIZE: u32 = 600;
+const MIN_CLUSTER_SIZE: u32 = 300;
 const MAX_CLUSTER_SIZE: u32 = 1_500;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
