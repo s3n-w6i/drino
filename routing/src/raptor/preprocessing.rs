@@ -1,7 +1,7 @@
 use crate::algorithm::{PreprocessInit, PreprocessingError, PreprocessingInput, PreprocessingResult};
 use crate::direct_connections::DirectConnections;
 use crate::raptor::RaptorAlgorithm;
-use crate::transfers::CrowFlyTransferProvider;
+use crate::transfers::crow_fly::CrowFlyTransferProvider;
 use chrono::DateTime;
 use common::types::{LineId, SeqNum, StopId, TripId};
 use hashbrown::{HashMap, HashSet};
