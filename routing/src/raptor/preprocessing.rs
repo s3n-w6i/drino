@@ -164,7 +164,7 @@ mod tests {
             ).unwrap().lazy(),
         };
 
-        let preprocessing_out = <RaptorAlgorithm as PreprocessInit>::preprocess(preprocessing_in).unwrap();
+        let preprocessing_out = <RaptorAlgorithm as PreprocessInit>::preprocess(preprocessing_in, None).unwrap();
 
         assert!(list_eq(&preprocessing_out.stops, &vec![0u32, 1, 2, 3, 4, 5].into_iter().map(|x| StopId(x)).collect()));
         // TODO: Test all of preprocessing_out
