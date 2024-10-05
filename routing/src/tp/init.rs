@@ -66,11 +66,9 @@ impl PreprocessInit for TransferPatternsAlgorithm {
         
         pb.map(|pb| { pb.finish_with_message("All stops in cluster finished") });
 
-        let mut transfer_patterns = Arc::try_unwrap(transfer_patterns)
+        let transfer_patterns = Arc::try_unwrap(transfer_patterns)
             .expect("Lock is still owned by others").into_inner().unwrap();
 
-        transfer_patterns.align_chunks();
-        transfer_patterns.remove_duplicates()?;
 
         Ok(Self {
             direct_connections,
