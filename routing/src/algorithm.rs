@@ -216,14 +216,6 @@ impl Journey {
             Some(departure + duration)
         }
     }
-
-    pub(crate) fn start(&self) -> &StopId {
-        self.legs.first().unwrap().start()
-    }
-
-    pub(crate) fn end(&self) -> &StopId {
-        self.legs.last().unwrap().end()
-    }
 }
 
 impl From<Vec<Leg>> for Journey {
