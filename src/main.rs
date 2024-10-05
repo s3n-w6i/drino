@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use std::time::SystemTime;
 
 use futures::{StreamExt, TryStreamExt};
-use log::{info, LevelFilter};
+use log::{error, info, LevelFilter};
 use polars::error::PolarsError;
 use polars::prelude::IntoLazy;
 use tempfile::TempPath;
@@ -64,7 +64,7 @@ fn main() -> Result<(), DrinoError> {
                             Ok::<ValidateStepOutput, DrinoError>(validated)
                         })
                         .inspect_err(|err| {
-                            eprintln!("{}", err);
+                            error!("{}", err);
                         })
                         .collect::<Vec<Result<ValidateStepOutput, DrinoError>>>()
                         .await.into_iter()

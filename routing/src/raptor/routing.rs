@@ -222,7 +222,6 @@ impl RaptorAlgorithm {
 
                             if let Some(earliest_departure) = earliest_departure {
                                 departure = earliest_departure + Duration::seconds(1);
-                                println!("departure: {}", departure);
                             } else {
                                 // There is no earliest departure, so there is no departure at all
                                 // after this point in time

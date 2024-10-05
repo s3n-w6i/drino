@@ -29,9 +29,7 @@ pub fn cluster(
         })
         .collect::<Series>()
         .with_name("cluster_id".into());
-
-    println!("{:?}", cluster_series);
-
+    
     let stop_ids_with_clusters = stops.clone()
         .with_column(cluster_series.lit())
         .collect()?;

@@ -1,6 +1,7 @@
 use std::collections::hash_map::RandomState;
 use std::time::SystemTime;
 use dashmap::{DashMap, DashSet};
+use log::debug;
 use ordered_float::OrderedFloat;
 use polars::prelude::*;
 use rayon::iter::{IntoParallelIterator, IntoParallelRefIterator, ParallelIterator};
@@ -192,7 +193,7 @@ pub async fn cluster(
             }*/
             // TODO: Further updates that are needed: Remove too large adjacencies (> MAX_CLUSTER_SIZE)
 
-            println!("Merge took {:?}", time.elapsed().unwrap());
+            debug!("Merge took {:?}", time.elapsed().unwrap());
         } else {
             break;
         }
