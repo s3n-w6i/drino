@@ -63,7 +63,7 @@ impl PreprocessInit for TransferPatternsAlgorithm {
 
                 // Add this chunk to our existing transfer patterns
                 let mut tp_graph = tp_graph.lock().unwrap();
-                tp_graph.add_multiple(results).unwrap();
+                tp_graph.add(results).unwrap();
 
                 pb.clone().map(|pb| pb.inc(CHUNK_SIZE));
             });

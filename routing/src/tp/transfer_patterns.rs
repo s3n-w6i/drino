@@ -20,7 +20,7 @@ impl TransferPatternsGraph {
         Ok(Self(GraphMap::new()))
     }
 
-    pub(crate) fn add_multiple(&mut self, results: Vec<RangeOutput>) -> PolarsResult<()> {
+    pub(crate) fn add(&mut self, results: Vec<RangeOutput>) -> PolarsResult<()> {
         let graph = &mut self.0;
         
         let all_journeys = results.into_iter()
