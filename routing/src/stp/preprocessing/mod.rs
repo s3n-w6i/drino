@@ -1,2 +1,2 @@
-mod clustering;
+pub mod clustering;
 mod init;

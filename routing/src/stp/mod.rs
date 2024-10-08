@@ -1,4 +1,4 @@
-mod preprocessing;
+pub(crate) mod preprocessing;
 
 use crate::algorithm::RoutingAlgorithm;
 

@@ -38,6 +38,10 @@ impl TransferPatternsGraph {
 
         Ok(())
     }
+    
+    pub(crate) fn rename_stops(&mut self, from: &Vec<StopId>, to: &Vec<StopId>) {
+        todo!()
+    }
 }
 
 #[derive(Debug)]

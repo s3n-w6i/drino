@@ -1,34 +1,39 @@
+use crate::algorithm::{PreprocessingError, PreprocessingInput};
 use polars::frame::UniqueKeepStrategy;
 use polars::prelude::*;
 
-use crate::algorithm::{PreprocessingError, PreprocessingInput};
+// columns: "stop_id_in_cluster", "original_stop_id"
+pub(crate) type StopIdMapping = LazyFrame;
 
 pub fn filter_for_cluster(
     cluster_id: u32,
     // columns: "stop_id", "cluster_id"
-    stop_ids_with_cluster_ids: LazyFrame,
+    stop_ids_with_cluster_ids: &LazyFrame,
     PreprocessingInput {
         stops, stop_times, trips, services
     }: &PreprocessingInput,
-) -> Result<PreprocessingInput, PreprocessingError> {
-    let stop_ids_in_this_cluster = stop_ids_with_cluster_ids
+) -> Result<(PreprocessingInput, StopIdMapping), PreprocessingError> {
+    let stop_ids_in_this_cluster = stop_ids_with_cluster_ids.clone()
         .filter(col("cluster_id").eq(lit(cluster_id)))
         .select([col("stop_id")])
         // We want to reassign new ids, so that they are continuous again
-        .rename(["stop_id"], ["pre_cluster_stop_id"])
-        .with_row_index("new_stop_id", None);
+        .rename(["stop_id"], ["original_stop_id"])
+        .with_row_index("stop_id_in_cluster", None);
 
     // Filter the stops
     let stops = stops.clone()
         .join(
             stop_ids_in_this_cluster.clone(),
             [col("stop_id")],
-            [col("pre_cluster_stop_id")],
+            [col("original_stop_id")],
             JoinArgs::new(
                 JoinType::Inner
             )
         )
-        .rename(["stop_id"], ["pre_cluster_stop_id"]);
+        .rename(["stop_id"], ["original_stop_id"]);
+    
+    let stop_mapping = stops.clone()
+        .select([ col("original_stop_id"), col("stop_id_in_cluster") ]);
 
     // Only include stop times that are within the cluster
     // Since lines (in RAPTOR) will be calculated based only on the stop_times-table, resulting
@@ -39,12 +44,12 @@ pub fn filter_for_cluster(
         .inner_join(
             stop_ids_in_this_cluster.clone(),
             col("stop_id"),
-            col("pre_cluster_stop_id"),
+            col("original_stop_id"),
         )
         // don't keep the original stop id...
         .drop(["stop_id"])
         // ...instead replace it with the new one
-        .rename(["new_stop_id"], ["stop_id"]);
+        .rename(["stop_id_in_cluster"], ["stop_id"]);
     
     let trip_ids_in_this_cluster = stop_times.clone()
         .select([col("trip_id")])
@@ -70,21 +75,25 @@ pub fn filter_for_cluster(
     
     let stops = stops
         // From now on, use the new stop id as the regular stop id
-        .rename(["new_stop_id"], ["stop_id"]);
-
-    Ok(PreprocessingInput {
+        .rename(["stop_id_in_cluster"], ["stop_id"]);
+    
+    let preprocessing_input = PreprocessingInput {
         services: services.clone(),
         stops,
         trips,
         stop_times,
-    })
+    };
+    
+    println!("{:?}", stop_mapping.clone().collect());
+
+    Ok((preprocessing_input, stop_mapping))
 }
 
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_filter_for_cluster() {
         let stop_ids_with_clusters = df!(
@@ -106,12 +115,12 @@ mod tests {
             "service_id" => [0u32, 1, 2, 3, 4, 5, 6, 7, 8],
         ).unwrap().lazy();
 
-        let PreprocessingInput {
+        let (PreprocessingInput {
             stops: filtered_stops,
             stop_times: filtered_stop_times,
             trips: filtered_trips,
             services: filtered_services,
-        } = filter_for_cluster(
+        }, _) = filter_for_cluster(
             1,
             stop_ids_with_clusters,
             &PreprocessingInput { stops, stop_times, trips, services },
