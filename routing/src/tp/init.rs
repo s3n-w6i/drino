@@ -1,7 +1,7 @@
 use crate::algorithm::{AllRange, PreprocessInit, PreprocessingInput, PreprocessingResult, Range};
 use crate::direct_connections::DirectConnections;
 use crate::raptor::RaptorAlgorithm;
-use crate::tp::transfer_patterns::{TransferPatternsGraph, TransferPatternsTable};
+use crate::tp::transfer_patterns::TransferPatternsGraph;
 use crate::tp::TransferPatternsAlgorithm;
 use async_trait::async_trait;
 use chrono::{DateTime, Duration};
@@ -73,13 +73,9 @@ impl PreprocessInit for TransferPatternsAlgorithm {
         let tp_graph = Arc::try_unwrap(tp_graph)
             .expect("Lock is still owned by others").into_inner().unwrap();
 
-        let tp_table: TransferPatternsTable = tp_graph.try_into()?;
-        
-        println!("{:?}", &tp_table.0);
-
         Ok(Self {
             direct_connections,
-            transfer_patterns: tp_table,
+            transfer_patterns: tp_graph,
         })
     }
 }
