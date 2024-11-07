@@ -6,11 +6,8 @@ use crate::tp::TransferPatternsAlgorithm;
 use async_trait::async_trait;
 use chrono::{DateTime, Duration};
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
-use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
+use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use std::sync::{Arc, Mutex};
-
-// TODO: Experiment with this value to see which one is useful
-const CHUNK_SIZE: u64 = 5;
 
 #[async_trait]
 impl PreprocessInit for TransferPatternsAlgorithm {
