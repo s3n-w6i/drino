@@ -5,6 +5,7 @@ use chrono::{DateTime, Duration, TimeDelta, Utc};
 use common::types::{LineId, SeqNum, StopId, TripId};
 use common::util::time::INFINITY;
 use hashbrown::HashSet;
+use itertools::Itertools;
 use std::cmp::min;
 use std::iter::Skip;
 
@@ -208,16 +209,25 @@ impl RaptorAlgorithm {
                     match target {
                         // If we have a target (this is a one-to-one query)
                         Some(target) => {
-                            let journey = state.backtrace(target, departure)?;
-                            journeys.insert(journey.clone());
-                            departure = journey.departure().unwrap_or(departure) + Duration::seconds(1); // TODO: Find a better way than this hack
-                        }
-                        // We have no target (one-to-all query)
-                        None => {
-                            let new_journeys = self.backtrace_all(state, departure)?;
-                            journeys.extend(new_journeys.clone().into_iter().collect::<Vec<Journey>>());
+                            if let Ok(journey) = state.backtrace(target, departure) {
+                                let journey_departure = journey.departure().unwrap_or(departure);
 
-                            let earliest_departure = new_journeys.iter()
+                                if journey_departure <= last_departure {
+                                    journeys.insert(journey.clone());
+                                }
+                                departure = journey_departure + Duration::seconds(1); // TODO: Find a better way than this hack
+                            } else { break; }
+                        }
+                        // We have no specific target (this is a one-to-all query)
+                        None => {
+                            let new_journeys = self.backtrace_all(state, departure)
+                                .unwrap_or(vec![])
+                                .into_iter()
+                                .filter(|j| { j.departure().unwrap_or(departure) <= last_departure });
+
+                            journeys.extend(new_journeys.clone());
+
+                            let earliest_departure = new_journeys
                                 .filter_map(|journey| journey.departure())
                                 .min();
 
@@ -249,9 +259,16 @@ impl RaptorAlgorithm {
     }
 
     fn backtrace_all(&self, state: RaptorState, departure: DateTime<Utc>) -> QueryResult<Vec<Journey>> {
-        self.stops.iter()
+        let journeys = self.stops.iter()
             .map(|stop| state.backtrace(*stop, departure))
-            .collect::<QueryResult<Vec<Journey>>>()
+            .filter_map(|res| res.ok())
+            .collect_vec();
+
+        if journeys.is_empty() {
+            Err(QueryError::NoRouteFound)
+        } else {
+            Ok(journeys)
+        }
     }
 }
 
@@ -294,6 +311,7 @@ impl AllRange for RaptorAlgorithm {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::algorithm::All;
     use crate::earliest_arrival_tests;
     use crate::tests::generate_case_4;
     use crate::transfers::fixed_time::FixedTimeTransferProvider;
