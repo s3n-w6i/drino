@@ -122,7 +122,7 @@ mod tests {
             services: filtered_services,
         }, _) = filter_for_cluster(
             1,
-            stop_ids_with_clusters,
+            &stop_ids_with_clusters,
             &PreprocessingInput { stops, stop_times, trips, services },
         ).unwrap();
 
