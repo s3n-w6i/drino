@@ -303,6 +303,44 @@ mod tests {
 
     earliest_arrival_tests!(RaptorAlgorithm);
 
+    fn case1() -> RaptorAlgorithm {
+        RaptorAlgorithm {
+            stops: vec![0, 1].into_iter().map(|x| StopId(x)).collect(),
+            stops_by_line: HashMap::from([
+                (LineId(0), vec![StopId(0), StopId(1)])
+            ]),
+            lines_by_stops: HashMap::from([
+                (StopId(0), HashSet::from([(LineId(0), SeqNum(0))])),
+                (StopId(1), HashSet::from([(LineId(0), SeqNum(1))])),
+            ]),
+            arrivals: HashMap::from([
+                ((TripId(0), StopId(1)), DateTime::<Utc>::from_timestamp(500, 0).unwrap())
+            ]),
+            departures: HashMap::from([
+                ((TripId(0), StopId(0)), DateTime::<Utc>::from_timestamp(100, 0).unwrap())
+            ]),
+            trips_by_line_and_stop: HashMap::from([
+                ((LineId(0), StopId(0)), vec![(DateTime::<Utc>::from_timestamp(100, 0).unwrap(), TripId(0))]),
+            ]),
+            transfer_provider: Box::new(FixedTimeTransferProvider {
+                duration_matrix: array![
+                    [Duration::zero(), Duration::max_value(),],
+                    [Duration::max_value(), Duration::zero(),],
+                ]
+            }),
+        }
+    }
+
+    fn case1_journey0_leg0() -> Leg {
+        Leg::Ride {
+            trip: TripId(0),
+            boarding_stop: StopId(0),
+            alight_stop: StopId(1),
+            boarding_time: DateTime::<Utc>::from_timestamp(100, 0).unwrap(),
+            alight_time: DateTime::<Utc>::from_timestamp(500, 0).unwrap(),
+        }
+    }
+
     #[test]
     fn test_earliest_trip_function() {
         let raptor = RaptorAlgorithm {
@@ -404,5 +442,99 @@ mod tests {
                 "Best arrivals were different between one to one and one to all for StopId(0) to {stop_id:?}"
             );
         }
+    }
+
+    #[test]
+    fn test_backtrace_all() {
+        let state = RaptorState {
+            k: 2,
+            k_arrivals: vec![
+                vec![
+                    DateTime::UNIX_EPOCH,
+                    INFINITY
+                ],
+                vec![
+                    DateTime::UNIX_EPOCH,
+                    DateTime::<Utc>::from_timestamp(500, 0).unwrap(),
+                ],
+                vec![
+                    DateTime::UNIX_EPOCH,
+                    DateTime::<Utc>::from_timestamp(500, 0).unwrap(),
+                ],
+            ],
+            best_arrivals: vec![
+                DateTime::UNIX_EPOCH,
+                DateTime::<Utc>::from_timestamp(500, 0).unwrap(),
+            ],
+            connection_index: HashMap::from([
+                (
+                    StopId(1),
+                    HashMap::from([
+                        (1, case1_journey0_leg0())
+                    ])
+                )
+            ]),
+        };
+
+        let res = case1().backtrace_all(state, DateTime::UNIX_EPOCH).unwrap();
+
+        assert_eq!(res, vec![Journey { legs: vec![case1_journey0_leg0()] }]);
+    }
+
+    #[test]
+    fn test_query_range_single_1() {
+        let raptor = case1();
+
+        // Query a too short range starting from 0
+        let res = raptor.query_range(
+            Range { earliest_departure: DateTime::UNIX_EPOCH, range: Duration::seconds(98), start: StopId(0) },
+            Single { target: StopId(1) },
+        );
+        assert!(matches!(res, Err(QueryError::NoRouteFound)));
+
+        // Query a longer range starting from 0
+        let res = raptor.query_range(
+            Range { earliest_departure: DateTime::UNIX_EPOCH, range: Duration::seconds(101), start: StopId(0) },
+            Single { target: StopId(1) },
+        ).unwrap();
+        assert_eq!(res.journeys, HashSet::from([Journey { legs: vec![case1_journey0_leg0()] }]));
+
+        // query later, after missing the only connection there is
+        let res = raptor.query_range(
+            Range { earliest_departure: DateTime::<Utc>::from_timestamp(300, 0).unwrap(), range: Duration::weeks(42), start: StopId(0) },
+            Single { target: StopId(1) },
+        );
+        assert!(matches!(res, Err(QueryError::NoRouteFound)));
+    }
+
+    #[test]
+    fn test_query_range_all_1() {
+        let raptor = case1();
+
+        // Query a too short range starting from 0
+        let res = raptor.query_range_all(
+            Range { earliest_departure: DateTime::UNIX_EPOCH, range: Duration::seconds(98), start: StopId(0) },
+        );
+        assert!(matches!(res, Err(QueryError::NoRouteFound)));
+
+        // Query a longer range starting from 0
+        let res = raptor.query_range_all(
+            Range { earliest_departure: DateTime::UNIX_EPOCH, range: Duration::seconds(101), start: StopId(0) },
+        ).unwrap();
+        assert_eq!(res.journeys, HashSet::from([Journey {
+            legs: vec![Leg::Ride {
+                trip: TripId(0),
+                boarding_stop: StopId(0),
+                alight_stop: StopId(1),
+                boarding_time: DateTime::<Utc>::from_timestamp(100, 0).unwrap(),
+                alight_time: DateTime::<Utc>::from_timestamp(500, 0).unwrap(),
+            }]
+        }]));
+
+        // query later, after missing the only connection there is
+        let res = raptor.query_range_all(
+            Range { earliest_departure: DateTime::<Utc>::from_timestamp(300, 0).unwrap(), range: Duration::weeks(42), start: StopId(0) },
+        );
+        assert!(matches!(res, Err(QueryError::NoRouteFound)));
     }
 }

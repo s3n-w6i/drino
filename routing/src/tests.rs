@@ -168,7 +168,7 @@ macro_rules! earliest_arrival_tests {
                 Single { target: StopId(1) },
             );
 
-            assert!(res.is_err());
+            assert!(matches!(res, Err(QueryError::NoRouteFound)));
         }
 
         ///   0 ---Ride--> 1 ---Ride--> 2
