@@ -311,7 +311,6 @@ impl AllRange for RaptorAlgorithm {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::algorithm::All;
     use crate::earliest_arrival_tests;
     use crate::tests::generate_case_4;
     use crate::transfers::fixed_time::FixedTimeTransferProvider;
@@ -539,15 +538,7 @@ mod tests {
         let res = raptor.query_range_all(
             Range { earliest_departure: DateTime::UNIX_EPOCH, range: Duration::seconds(101), start: StopId(0) },
         ).unwrap();
-        assert_eq!(res.journeys, HashSet::from([Journey {
-            legs: vec![Leg::Ride {
-                trip: TripId(0),
-                boarding_stop: StopId(0),
-                alight_stop: StopId(1),
-                boarding_time: DateTime::<Utc>::from_timestamp(100, 0).unwrap(),
-                alight_time: DateTime::<Utc>::from_timestamp(500, 0).unwrap(),
-            }]
-        }]));
+        assert_eq!(res.journeys, HashSet::from([Journey { legs: vec![case1_journey0_leg0()] }]));
 
         // query later, after missing the only connection there is
         let res = raptor.query_range_all(
