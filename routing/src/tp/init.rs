@@ -18,11 +18,11 @@ impl PreprocessInit for TransferPatternsAlgorithm {
         let direct_connections = DirectConnections::try_from(input.clone())?;
         let raptor = Arc::new(RaptorAlgorithm::preprocess(input, direct_connections.clone())?);
         let tp_graph = Arc::new(Mutex::new(TransferPatternsGraph::new()?));
-        
+
         let pb = progress_bars.map(|pbs| {
             pbs.add(
                 ProgressBar::new(raptor.stops.len() as u64)
-                    .with_message("Progressing stops in cluster...")
+                    .with_message("Processing stops in cluster...")
                     .with_style(
                         ProgressStyle::with_template("[{elapsed}] {msg} [{wide_bar}] {human_pos}/{human_len}")
                             .unwrap().progress_chars("=> ")
@@ -31,43 +31,27 @@ impl PreprocessInit for TransferPatternsAlgorithm {
         });
 
         raptor.stops.par_iter()
-            // Process in chunks, so that inserting into transfer patterns data structure is more
-            // efficient (less waiting for Mutexes etc.)
-            .chunks(CHUNK_SIZE as usize)
-            .for_each(|stops| {
-                
+            .for_each(|stop| {
                 let raptor = Arc::clone(&raptor);
                 let tp_graph = Arc::clone(&tp_graph);
 
-                let results = stops.into_iter()
-                    .map(|stop| {
-                        raptor.query_range_all(
-                            Range {
-                                earliest_departure: DateTime::from_timestamp_millis(0).unwrap(),
-                                start: *stop,
-                                range: Duration::weeks(1),
-                            }
-                        )
-                    })
-                    .map(|a| {
-                        println!("{a:?}");
-                        a
-                    })
-                    .filter_map(|result| {
-                        match result {
-                            Ok(res) => { Some(res) }
-                            Err(_) => { None }
-                        }
-                    })
-                    .collect();
+                let result = raptor.query_range_all(
+                    Range {
+                        earliest_departure: DateTime::from_timestamp_millis(0).unwrap(),
+                        start: *stop,
+                        range: Duration::weeks(1),
+                    }
+                );
 
-                // Add this chunk to our existing transfer patterns
-                let mut tp_graph = tp_graph.lock().unwrap();
-                tp_graph.add(results).unwrap();
+                if let Ok(range_out) = result {
+                    // Add this chunk to our existing transfer patterns
+                    let mut tp_graph = tp_graph.lock().unwrap();
+                    tp_graph.add(vec![range_out]).unwrap();
+                }
 
-                pb.clone().map(|pb| pb.inc(CHUNK_SIZE));
+                pb.clone().map(|pb| pb.inc(1));
             });
-        
+
         pb.map(|pb| { pb.finish_with_message("All stops in cluster finished") });
 
         let tp_graph = Arc::try_unwrap(tp_graph)

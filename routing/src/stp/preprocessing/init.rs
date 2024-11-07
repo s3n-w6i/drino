@@ -1,10 +1,8 @@
 use indicatif::MultiProgress;
-use itertools::Itertools;
 use log::info;
 use polars::frame::DataFrame;
 use polars::io::SerWriter;
 use polars::prelude::{CsvWriter, IntoLazy, LazyFrame};
-use common::types::StopId;
 use common::util::logging::run_with_spinner;
 use crate::algorithm::{PreprocessInit, PreprocessingError, PreprocessingInput, PreprocessingResult};
 use crate::stp::preprocessing::clustering::filter_for_cluster;

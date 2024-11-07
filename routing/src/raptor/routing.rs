@@ -9,17 +9,16 @@ use std::cmp::min;
 use std::iter::Skip;
 
 impl RaptorAlgorithm {
-
     /// Selects the earliest trip of a line, that departs at `stop` after a given time
     fn earliest_trip(&self, line: LineId, stop: StopId, after: DateTime<Utc>) -> Option<TripId> {
         self.trips_by_line_and_stop
             .get(&(line, stop))
             .and_then(|trips| {
                 trips.iter().find_map(|(departure, trip)| {
-                        if *departure >= after {
-                            Some(*trip)
-                        } else { None }
-                    })
+                    if *departure >= after {
+                        Some(*trip)
+                    } else { None }
+                })
             })
     }
 
@@ -119,7 +118,7 @@ impl RaptorAlgorithm {
                             let boarding_stop = boarding_stop.expect("Boarding stop must not be None");
                             let boarding_stop_departure = self.departures.get(&(trip, boarding_stop))
                                 .expect(&format!("Expected departure for stop {a_stop:?} to exist on trip {trip:?}"));
-                            
+
                             state.set_ride(boarding_stop, *b_stop, *boarding_stop_departure, *b_arrival, trip);
                             marked_stops.insert(*b_stop);
                         }
@@ -157,7 +156,7 @@ impl RaptorAlgorithm {
                     // be faster
                     let max_duration = *state.tau(&end).unwrap_or(&INFINITY) - *state.tau(&start)
                         .expect("transfer start was in marked_stops, so it must have a tau value set");
-                    
+
                     // This if-clause checks if there is any chance this transfer is faster.
                     // For this approximation, we use a lower bound duration that is cheaper to
                     // calculate than an actual route and duration (at least for large distances)
@@ -170,7 +169,7 @@ impl RaptorAlgorithm {
                             actual_duration >= lower_bound_duration,
                             "Actual duration must be greater than the lower bound."
                         );
-                        
+
                         if actual_duration < max_duration {
                             state.set_transfer(start, end, actual_duration);
                         }
@@ -201,7 +200,9 @@ impl RaptorAlgorithm {
 
         let mut departure = earliest_departure;
         while departure <= last_departure {
-            match self.run(start, target, departure) {
+            let res_after_departure = self.run(start, target, departure);
+
+            match res_after_departure {
                 // There is a valid output of the earliest arrival query
                 Ok(state) => {
                     match target {
@@ -268,8 +269,7 @@ impl SingleEarliestArrival for RaptorAlgorithm {
 
 impl SingleRange for RaptorAlgorithm {
     fn query_range(&self, Range { start, earliest_departure, range }: Range, Single { target }: Single) -> QueryResult<RangeOutput> {
-        let range_result = self.run_range(start, Some(target), earliest_departure, range)?;
-        Ok(range_result)
+        self.run_range(start, Some(target), earliest_departure, range)
     }
 }
 
@@ -393,9 +393,9 @@ mod tests {
             ],
             "Best arrivals was not as expected. {res:?}"
         );
-        
+
         // TODO: Test connection index
-        
+
         for i in 0u32..3 {
             let stop_id = StopId(i);
             let res_single = raptor.run(StopId(0), Some(StopId(4)), dep0).expect("expected this to work");
