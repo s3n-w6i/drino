@@ -42,6 +42,10 @@ impl TransferPatternsGraph {
     pub(crate) fn rename_stops(&mut self, from: &Vec<StopId>, to: &Vec<StopId>) {
         todo!()
     }
+    
+    pub(crate) fn node_count(&self) -> usize {
+        self.0.node_count()
+    }
 }
 
 #[derive(Debug)]

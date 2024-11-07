@@ -56,6 +56,8 @@ impl PreprocessInit for TransferPatternsAlgorithm {
 
         let tp_graph = Arc::try_unwrap(tp_graph)
             .expect("Lock is still owned by others").into_inner().unwrap();
+        
+        dbg!(&tp_graph.node_count());
 
         Ok(Self {
             direct_connections,
