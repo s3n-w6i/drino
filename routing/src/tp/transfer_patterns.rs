@@ -1,50 +1,275 @@
-use itertools::Itertools;
 use crate::algorithm::RangeOutput;
 use common::types::StopId;
-use petgraph::prelude::GraphMap;
-use petgraph::Directed;
+use itertools::Itertools;
+use petgraph::algo::is_cyclic_directed;
+use petgraph::data::DataMap;
+use petgraph::dot::{Config, Dot};
+use petgraph::graph::NodeIndex;
+use petgraph::{Directed, Graph, Incoming};
 use polars::datatypes::DataType;
-use polars::error::{PolarsError, PolarsResult};
+use polars::error::PolarsResult;
 use polars::frame::DataFrame;
-use polars::frame::row::Row;
 use polars::series::Series;
+use std::fmt::Debug;
+use crate::journey::Journey;
 
 /// https://ad.informatik.uni-freiburg.de/files/transferpatterns.pdf
 
 #[derive(Debug)]
-pub struct TransferPatternsGraph(GraphMap<StopId, (), Directed>);
+enum NodeType {
+    TARGET, PREFIX, ROOT
+}
 
-impl TransferPatternsGraph {
+#[derive(Debug)]
+pub struct TransferPatternsGraphs {
+    dags: Vec<Graph<(StopId, NodeType), (), Directed>>,
+}
 
-    pub(crate) fn new() -> PolarsResult<Self> {
-        Ok(Self(GraphMap::new()))
+impl TransferPatternsGraphs {
+    pub(crate) fn new(num_stops: usize) -> Self {
+        // Build a graph for each origin stop
+        let dags = (0..num_stops)
+            .map(|root_node_idx| {
+                // Initialize a graph, where the root node is already present
+                let mut graph = Graph::with_capacity(num_stops, num_stops);
+                graph.add_node((StopId(root_node_idx as u32), NodeType::ROOT));
+                graph
+            })
+            .collect_vec();
+
+        Self { dags }
     }
 
-    pub(crate) fn add(&mut self, results: Vec<RangeOutput>) -> PolarsResult<()> {
-        let graph = &mut self.0;
-        
+    pub(crate) fn add(&mut self, results: Vec<RangeOutput>) {
         let all_journeys = results.into_iter()
             .flat_map(|res| { res.journeys });
-        
+
         for journey in all_journeys {
-            for leg in journey.legs {
-                // Add an edge from the end to start. This is reversed, so that on query time, we
-                // can start at our target station and then find a way to the origin station
-                // efficiently.
-                // GraphMap's add_edge function inserts missing nodes automatically.
-                graph.add_edge(*leg.end(), *leg.start(), ());
+            self.add_journey(journey);
+        }
+    }
+    
+    fn add_journey(&mut self, journey: Journey) {
+        let journey_start_idx = journey.departure_stop().0 as usize;
+        let journey_end = *journey.arrival_stop();
+        // Find the graph to which we want to add this journey
+        let graph = &mut self.dags[journey_start_idx];
+
+        // At least the root node is always in the graph (see Self::new())
+        debug_assert!(graph.node_count() > 0);
+
+        // The node with index 0 is always the root node, from which all transfer patterns go
+        // out from. So, start here, because trip starts here as well
+        let mut current_node_idx = NodeIndex::from(0);
+        debug_assert!(&graph.node_weight(current_node_idx).unwrap().0 == journey.departure_stop());
+        
+        for leg in journey.legs() {
+            let end = leg.end();
+            let start = leg.start();
+            let last_leg = end == &journey_end;
+
+            debug_assert!(
+                start == &graph.node_weight(current_node_idx).unwrap().0,
+                "Expected start of leg ({start}) to match the current_node's ({})",
+                &graph.node_weight(current_node_idx).unwrap().0
+            );
+
+            // Distinguish between the last leg (target station nodes) and intermediate legs 
+            // (prefix nodes):
+            // - prefix nodes may occur multiple time in the graph
+            // - target station nodes must only occur once, in order to be able to build the
+            //   query graph more efficiently
+            match last_leg {
+                // Insert prefix node
+                false => {
+                    // Find a node on the path we've gone whose stop ID is the end of this leg.
+                    // Direction is `Incoming`, since edges are in the opposite direction of
+                    // travel.
+                    let end_node_idx = graph.neighbors_directed(current_node_idx.into(), Incoming)
+                        .find(|n| {
+                            let (stop_id, node_type) = graph.node_weight(*n).unwrap();
+                            stop_id == end && matches!(node_type, NodeType::PREFIX)
+                        });
+
+                    match end_node_idx {
+                        None => {
+                            let end_node_idx = graph.add_node((*end, NodeType::PREFIX));
+
+                            // Add an edge from the end to start. This is reversed, so that on query time, we
+                            // can start at our target station and then find a way to the origin station
+                            // efficiently.
+                            let start_node_idx = current_node_idx;
+                            graph.add_edge(end_node_idx, start_node_idx, ());
+
+                            current_node_idx = end_node_idx;
+                        }
+                        Some(end_node_idx) => {
+                            current_node_idx = end_node_idx;
+                        }
+                    }
+                }
+                // Insert target station node
+                true => {
+                    let target = end;
+                    // TODO: This is O(n). Make it more efficient if possible.
+                    let candidate_node_idx = graph.node_indices()
+                        .find(|n| graph.node_weight(*n).unwrap().0 == *target);
+                    
+                    fn add_new_target_node(graph: &mut Graph<(StopId, NodeType), ()>, target_stop: StopId, from: NodeIndex) {
+                        let target_node_idx = graph.add_node((target_stop, NodeType::TARGET));
+                        graph.add_edge(target_node_idx, from, ());
+                    }
+
+                    if let Some(target_node_idx) = candidate_node_idx {
+                        // A node with the same value already exists. It might be a prefix node,
+                        // in which case we would need to create a new node.
+                        if matches!(graph.node_weight(target_node_idx).unwrap().1, NodeType::TARGET) {
+                            // The target node already exists, and it is valid (not a prefix node).
+                            // Just add an edge (again, in reverse)
+                            if !graph.contains_edge(target_node_idx, current_node_idx) {
+                                graph.add_edge(target_node_idx, current_node_idx, ());
+                            }
+                        } else {
+                            add_new_target_node(graph, *target, current_node_idx);
+                        }
+                        // No need to set next current_node_idx
+                    } else {
+                        // There is no target node yet
+                        // Create one and an edge to connect to it
+                        add_new_target_node(graph, *target, current_node_idx);
+                    }
+                }
             }
         }
+    }
 
-        Ok(())
-    }
-    
     pub(crate) fn rename_stops(&mut self, from: &Vec<StopId>, to: &Vec<StopId>) {
-        todo!()
+        // todo!()
+    }
+
+    pub(crate) fn print(&self, stop_id: StopId) {
+        let graph = &self.dags[stop_id.0 as usize];
+
+        println!(
+            "{:?}",
+            Dot::with_attr_getters(
+                graph,
+                &[Config::EdgeNoLabel],
+                &|_graph, _e| { "".into() },
+                &|_graph, (n, (s, t))| {
+                    match t {
+                        NodeType::ROOT => { "shape = diamond width = 4 height = 2".into() }
+                        NodeType::TARGET => { "shape = square width = 1 height = 1".into() }
+                        NodeType::PREFIX => { "shape = circle width = 1 height = 1".into() }
+                    }
+                },
+            )
+        );
+    }
+
+    pub(crate) fn validate(&self) {
+        for graph in &self.dags {
+            debug_assert!(
+                !is_cyclic_directed::<&Graph<(StopId, NodeType), (), Directed>>(&graph),
+                "Every transfer pattern graph must be acyclic."
+            );
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use chrono::DateTime;
+    use common::types::{StopId, TripId};
+    use crate::journey::Journey;
+    use crate::journey::Leg::Ride;
+    use crate::tp::transfer_patterns::TransferPatternsGraphs;
+
+    #[test]
+    fn test_tp_adding() {
+        // This the same example as what's in the transfer patterns paper in Fig. 1
+        // A corresponds to Stop ID 0, B to 1 and so on...
+        let mut tp = TransferPatternsGraphs::new(5);
+
+        let a = StopId(0); let b = StopId(1); let c = StopId(2); let d = StopId(3); let e = StopId(4);
+        
+        let ab = Ride {
+            trip: TripId(41), boarding_stop: a, alight_stop: b,
+            boarding_time: DateTime::UNIX_EPOCH, alight_time: DateTime::UNIX_EPOCH,
+        };
+        let bc = Ride {
+            trip: TripId(43), boarding_stop: b, alight_stop: c,
+            boarding_time: DateTime::UNIX_EPOCH, alight_time: DateTime::UNIX_EPOCH,
+        };
+        let de = Ride {
+            trip: TripId(45), boarding_stop: d, alight_stop: e,
+            boarding_time: DateTime::UNIX_EPOCH, alight_time: DateTime::UNIX_EPOCH,
+        };
+
+        // A -> E
+        tp.add_journey(Journey::from(vec![
+            Ride {
+                trip: TripId(42), boarding_stop: a, alight_stop: e,
+                boarding_time: DateTime::UNIX_EPOCH, alight_time: DateTime::UNIX_EPOCH,
+            }
+        ]));
+
+        // A -> B -> E
+        tp.add_journey(Journey::from(vec![
+            ab.clone(),
+            Ride {
+                trip: TripId(42), boarding_stop: b, alight_stop: e,
+                boarding_time: DateTime::UNIX_EPOCH, alight_time: DateTime::UNIX_EPOCH,
+            }
+        ]));
+
+        // A -> B -> C
+        tp.add_journey(Journey::from(vec![
+            ab.clone(),
+            bc.clone()
+        ]));
+
+        // A -> B -> D -> E
+        tp.add_journey(Journey::from(vec![
+            ab.clone(),
+            Ride {
+                trip: TripId(44), boarding_stop: b, alight_stop: d,
+                boarding_time: DateTime::UNIX_EPOCH, alight_time: DateTime::UNIX_EPOCH,
+            },
+            de.clone(),
+        ]));
+
+        // A -> B -> C -> D -> E
+        tp.add_journey(Journey::from(vec![
+            ab.clone(),
+            bc.clone(),
+            Ride {
+                trip: TripId(31), boarding_stop: c, alight_stop: d,
+                boarding_time: DateTime::UNIX_EPOCH, alight_time: DateTime::UNIX_EPOCH,
+            },
+            de.clone()
+        ]));
+        
+        tp.print(a);
+        todo!("assertions");
     }
     
-    pub(crate) fn node_count(&self) -> usize {
-        self.0.node_count()
+    #[test]
+    fn test_tp_double_insert() {
+        let mut tp = TransferPatternsGraphs::new(2);
+        
+        for _ in 0..2 {
+            tp.add_journey(Journey::from(vec![
+                Ride { 
+                    trip: TripId(0), boarding_stop: StopId(0), alight_stop: StopId(1),
+                    boarding_time: DateTime::UNIX_EPOCH, alight_time: DateTime::UNIX_EPOCH
+                }
+            ]));
+        }
+        
+        tp.print(StopId(0));
+        
+        todo!("assertions");
     }
 }
 
@@ -60,10 +285,10 @@ impl TransferPatternsTable {
     }
 }
 
-impl TryFrom<TransferPatternsGraph> for TransferPatternsTable {
+/*TODO: impl TryFrom<TransferPatternsDAGs> for TransferPatternsTable {
     type Error = PolarsError;
 
-    fn try_from(TransferPatternsGraph(graph): TransferPatternsGraph) -> Result<Self, Self::Error> {
+    fn try_from(TransferPatternsDAGs(graph): TransferPatternsDAGs) -> Result<Self, Self::Error> {
         let mut table = Self::new()?;
         
         let rows = graph.all_edges()
@@ -82,4 +307,4 @@ impl TryFrom<TransferPatternsGraph> for TransferPatternsTable {
         
         Ok(table)
     }
-}
+}*/
