@@ -1,20 +1,23 @@
 use crate::algorithm::{AllRange, PreprocessInit, PreprocessingInput, PreprocessingResult, Range};
 use crate::direct_connections::DirectConnections;
 use crate::raptor::RaptorAlgorithm;
-use crate::tp::transfer_patterns::TransferPatternsGraph;
+use crate::tp::transfer_patterns::TransferPatternsGraphs;
 use crate::tp::TransferPatternsAlgorithm;
 use async_trait::async_trait;
 use chrono::{DateTime, Duration};
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use std::sync::{Arc, Mutex};
+use common::types::StopId;
 
 #[async_trait]
 impl PreprocessInit for TransferPatternsAlgorithm {
     fn preprocess(input: PreprocessingInput, progress_bars: Option<&MultiProgress>) -> PreprocessingResult<Self> {
         let direct_connections = DirectConnections::try_from(input.clone())?;
-        let raptor = Arc::new(RaptorAlgorithm::preprocess(input, direct_connections.clone())?);
-        let tp_graph = Arc::new(Mutex::new(TransferPatternsGraph::new()?));
+        let raptor = Arc::new(RaptorAlgorithm::preprocess(input.clone(), direct_connections.clone())?);
+        let tp_graph = Arc::new(Mutex::new(
+            TransferPatternsGraphs::new(raptor.stops.len())
+        ));
 
         let pb = progress_bars.map(|pbs| {
             pbs.add(
@@ -43,7 +46,7 @@ impl PreprocessInit for TransferPatternsAlgorithm {
                 if let Ok(range_out) = result {
                     // Add this chunk to our existing transfer patterns
                     let mut tp_graph = tp_graph.lock().unwrap();
-                    tp_graph.add(vec![range_out]).unwrap();
+                    tp_graph.add(vec![range_out]);
                 }
 
                 pb.clone().map(|pb| pb.inc(1));
@@ -54,7 +57,12 @@ impl PreprocessInit for TransferPatternsAlgorithm {
         let tp_graph = Arc::try_unwrap(tp_graph)
             .expect("Lock is still owned by others").into_inner().unwrap();
         
-        dbg!(&tp_graph.node_count());
+        // Check that graphs are acyclic. Expensive to compute, so only do in debug.
+        if cfg!(debug_assertions) {
+            tp_graph.validate();
+        }
+        
+        tp_graph.print(StopId(0));
 
         Ok(Self {
             direct_connections,

@@ -3,7 +3,7 @@ use common::types::StopId;
 use crate::algorithm::{PreprocessingResult, RoutingAlgorithm};
 use crate::direct_connections::DirectConnections;
 use crate::stp::preprocessing::clustering::filter_for_cluster::StopIdMapping;
-use crate::tp::transfer_patterns::TransferPatternsGraph;
+use crate::tp::transfer_patterns::TransferPatternsGraphs;
 
 /// https://ad.informatik.uni-freiburg.de/files/transferpatterns.pdf
 
@@ -12,7 +12,7 @@ mod init;
 
 pub struct TransferPatternsAlgorithm {
     direct_connections: DirectConnections,
-    pub transfer_patterns: TransferPatternsGraph,
+    pub transfer_patterns: TransferPatternsGraphs,
 }
 
 impl RoutingAlgorithm for TransferPatternsAlgorithm {}
