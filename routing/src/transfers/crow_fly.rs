@@ -5,7 +5,7 @@ use common::util::speed::{Speed, MAX_WALKING_SPEED};
 use polars::prelude::{col, LazyFrame};
 use polars::error::PolarsError;
 use itertools::Itertools;
-use crate::algorithm::Leg;
+use crate::journey::Leg;
 use crate::transfers::{TransferError, TransferProvider};
 
 /// A pretty stupid transfer provider, that calculates the duration by measuring the distance

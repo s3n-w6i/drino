@@ -1,9 +1,10 @@
 use chrono::{DateTime, Duration, Utc};
 use hashbrown::{HashMap, HashSet};
 
-use crate::algorithm::{Journey, QueryResult, RoutingAlgorithm};
-use crate::transfers::{TransferProvider};
+use crate::algorithm::{QueryResult, RoutingAlgorithm};
+use crate::transfers::TransferProvider;
 use common::types::{LineId, SeqNum, StopId, TripId};
+use crate::journey::Journey;
 
 mod state;
 mod preprocessing;

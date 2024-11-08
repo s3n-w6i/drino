@@ -5,7 +5,6 @@ use common::types::{LineId, SeqNum, StopId, TripId};
 use common::util::duration::INFINITY;
 use hashbrown::{HashMap, HashSet};
 use ndarray::array;
-
 #[allow(clippy::inconsistent_digit_grouping)]
 /// Test case 4 has some specialties:
 /// - Stop 3 and 4 are quite close together, so walking between them is feasible
@@ -114,7 +113,7 @@ macro_rules! earliest_arrival_tests {
     ($t: ty) => {
         use chrono::{DateTime, Utc};
         
-        use crate::algorithm::{ EarliestArrival, Journey, Leg, Single, SingleEarliestArrival};
+        use crate::algorithm::{ EarliestArrival,   Single, SingleEarliestArrival};
         use common::types::{LineId, SeqNum, StopId, TripId};
         
         ///  0 ---Ride--> 1
@@ -152,15 +151,14 @@ macro_rules! earliest_arrival_tests {
                 Single { target: StopId(1) },
             ).unwrap();
 
-            assert_eq!(res.journey, Journey {
-                legs: vec![Leg::Ride {
+            assert_eq!(res.journey, Journey::from(vec![Leg::Ride {
                     boarding_stop: StopId(0),
                     alight_stop: StopId(1),
                     boarding_time: DateTime::<Utc>::from_timestamp(100, 0).unwrap(),
                     alight_time: DateTime::<Utc>::from_timestamp(500, 0).unwrap(),
                     trip: TripId(0),
                 }]
-            });
+            ));
 
             // query a little later (missed the only connection there is)
             let res = raptor.query_ea(
@@ -211,8 +209,8 @@ macro_rules! earliest_arrival_tests {
                 Single { target: StopId(2) },
             ).unwrap();
 
-            assert_eq!(res.journey, Journey {
-                legs: vec![
+            assert_eq!(res.journey, Journey::from(
+                vec![
                     Leg::Ride {
                         boarding_stop: StopId(0),
                         alight_stop: StopId(1),
@@ -228,7 +226,7 @@ macro_rules! earliest_arrival_tests {
                         trip: TripId(1),
                     },
                 ]
-            });
+            ));
         }
 
         ///   0 ---Ride--> 1 ---Transfer--> 2 ---Ride--> 3
@@ -275,8 +273,8 @@ macro_rules! earliest_arrival_tests {
                 Single { target: StopId(3) },
             ).unwrap();
 
-            assert_eq!(res.journey, Journey {
-                legs: vec![
+            assert_eq!(res.journey, Journey::from(
+                vec![
                     Leg::Ride {
                         boarding_stop: StopId(0),
                         alight_stop: StopId(1),
@@ -297,7 +295,7 @@ macro_rules! earliest_arrival_tests {
                         trip: TripId(1),
                     },
                 ]
-            });
+            ));
         }
 
         #[tokio::test]
@@ -332,7 +330,7 @@ macro_rules! earliest_arrival_tests {
 
             assert_eq!(
                 res.journey,
-                Journey { legs: vec![
+                Journey::from(vec![
                     Leg::Ride {
                         trip: TripId(130_1),
                         boarding_stop: StopId(0),
@@ -345,7 +343,7 @@ macro_rules! earliest_arrival_tests {
                         end: StopId(4),
                         duration: Duration::seconds(410),
                     },
-                ]}
+                ])
             );
 
             // Start 1s second later than the last case. Now, we can't take 130_1 anymore, since it
@@ -361,7 +359,7 @@ macro_rules! earliest_arrival_tests {
 
             assert_eq!(
                 res.journey,
-                Journey { legs: vec![
+                Journey::from(vec![
                     Leg::Ride {
                         trip: TripId(100_1),
                         boarding_stop: StopId(0), alight_stop: StopId(2),
@@ -372,7 +370,7 @@ macro_rules! earliest_arrival_tests {
                         boarding_stop: StopId(2), alight_stop: StopId(4),
                         boarding_time: dep490, alight_time: arr700,
                     },
-                ]}
+                ])
             );
             
             // TODO: More cases

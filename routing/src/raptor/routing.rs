@@ -1,4 +1,4 @@
-use crate::algorithm::{AllEarliestArrival, AllRange, EarliestArrival, EarliestArrivalOutput, Journey, MultiQueryResult, QueryError, QueryResult, Range, RangeOutput, Single, SingleEarliestArrival, SingleRange};
+use crate::algorithm::*;
 use crate::raptor::state::RaptorState;
 use crate::raptor::RaptorAlgorithm;
 use chrono::{DateTime, Duration, TimeDelta, Utc};
@@ -8,6 +8,7 @@ use hashbrown::HashSet;
 use itertools::Itertools;
 use std::cmp::min;
 use std::iter::Skip;
+use crate::journey::Journey;
 
 impl RaptorAlgorithm {
     /// Selects the earliest trip of a line, that departs at `stop` after a given time
@@ -91,7 +92,7 @@ impl RaptorAlgorithm {
 
             // unmark previously marked stops
             // In the original paper, this is done for each element of marked_stops individually
-            // while iterating over them in build_queue. This is a simplification (otherwise, it's
+            // while iterating over them in `build_queue`. This is a simplification (otherwise, it's
             // complicated with Rust's ownership system)
             marked_stops.clear();
 
@@ -317,6 +318,7 @@ mod tests {
     use common::util::duration;
     use hashbrown::{HashMap, HashSet};
     use ndarray::array;
+    use crate::journey::Leg;
 
     earliest_arrival_tests!(RaptorAlgorithm);
 
@@ -495,7 +497,7 @@ mod tests {
 
         let res = case1().backtrace_all(state, DateTime::UNIX_EPOCH).unwrap();
 
-        assert_eq!(res, vec![Journey { legs: vec![case1_journey0_leg0()] }]);
+        assert_eq!(res, vec![Journey::from(vec![case1_journey0_leg0()])]);
     }
 
     #[test]
@@ -514,7 +516,7 @@ mod tests {
             Range { earliest_departure: DateTime::UNIX_EPOCH, range: Duration::seconds(101), start: StopId(0) },
             Single { target: StopId(1) },
         ).unwrap();
-        assert_eq!(res.journeys, HashSet::from([Journey { legs: vec![case1_journey0_leg0()] }]));
+        assert_eq!(res.journeys, HashSet::from([Journey::from(vec![case1_journey0_leg0()])]));
 
         // query later, after missing the only connection there is
         let res = raptor.query_range(
@@ -538,7 +540,7 @@ mod tests {
         let res = raptor.query_range_all(
             Range { earliest_departure: DateTime::UNIX_EPOCH, range: Duration::seconds(101), start: StopId(0) },
         ).unwrap();
-        assert_eq!(res.journeys, HashSet::from([Journey { legs: vec![case1_journey0_leg0()] }]));
+        assert_eq!(res.journeys, HashSet::from([Journey::from( vec![case1_journey0_leg0()] )]));
 
         // query later, after missing the only connection there is
         let res = raptor.query_range_all(

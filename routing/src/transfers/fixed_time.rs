@@ -1,6 +1,6 @@
 use chrono::Duration;
 use common::types::StopId;
-use crate::algorithm::Leg;
+use crate::journey::Leg;
 use crate::transfers::{TransferError, TransferProvider};
 
 /// Don't calculate any transfer time, instead return precalculated/hard-coded values from lookup table.

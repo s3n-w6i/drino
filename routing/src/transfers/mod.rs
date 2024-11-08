@@ -4,7 +4,7 @@ pub(crate) mod crow_fly;
 use std::fmt;
 use std::fmt::Display;
 
-use crate::algorithm::Leg;
+use crate::journey::Leg;
 use chrono::Duration;
 use common::types::StopId;
 
