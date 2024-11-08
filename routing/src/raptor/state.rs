@@ -1,4 +1,4 @@
-use crate::algorithm::Leg;
+use crate::journey::Leg;
 use crate::algorithm::QueryError::NoRouteFound;
 use common::types::StopId;
 
