@@ -1,21 +1,22 @@
+use std::ops::{BitAnd, BitOr};
 use crate::algorithm::{PreprocessInit, PreprocessingError, PreprocessingInput, PreprocessingResult};
 use crate::direct_connections::DirectConnections;
 use crate::raptor::RaptorAlgorithm;
 use crate::transfers::crow_fly::CrowFlyTransferProvider;
-use chrono::DateTime;
+use chrono::{DateTime, Utc};
 use common::types::{LineId, SeqNum, StopId, TripId};
 use hashbrown::{HashMap, HashSet};
 use indicatif::MultiProgress;
-use itertools::izip;
+use itertools::{izip, Itertools};
 use polars::error::PolarsError;
-use polars::prelude::{col, IntoLazy, SortMultipleOptions};
+use polars::prelude::*;
 
 impl RaptorAlgorithm {
     pub fn preprocess(
         PreprocessingInput { stops, .. }: PreprocessingInput,
         DirectConnections { lines, .. }: DirectConnections,
     ) -> PreprocessingResult<RaptorAlgorithm> {
-        let stops_vec = stops.clone()
+        let stops_vec: Vec<StopId> = stops.clone()
             .select(&[col("stop_id")])
             .collect()?.column("stop_id")?
             .u32()?.to_vec()
@@ -23,16 +24,16 @@ impl RaptorAlgorithm {
             .collect();
 
         let lines = lines.clone()
-            .select(["line_id", "stop_id", "stop_sequence", "trip_id", "arrival_time", "departure_time"])?
-            .sort(
+            .select(["line_id", "stop_id", "stop_sequence", "trip_id", "arrival_time", "departure_time"])?;
+        
+        let sorted_lines = lines.clone().sort(
                 ["line_id", "trip_id", "stop_sequence"],
                 SortMultipleOptions::default()
                     .with_maintain_order(false)
                     .with_order_descending(false),
             )?;
-
         let [line_ids, stop_ids, sequence_numbers, trip_ids, arrival_times, departure_times] =
-            lines.get_columns()
+            sorted_lines.get_columns()
         else { return Err(PreprocessingError::Polars(PolarsError::ColumnNotFound("".into()))); };
 
         let line_ids = line_ids.u32()?;
@@ -60,6 +61,7 @@ impl RaptorAlgorithm {
             lines_by_stops.entry(stop_id).or_insert(HashSet::new())
                 .insert((line_id, seq_num));
         }
+        debug_assert!(stops_vec.len() == lines_by_stops.len());
 
         let mut arrivals = HashMap::new();
         let mut departures = HashMap::new();
@@ -77,6 +79,7 @@ impl RaptorAlgorithm {
 
 
         let trips_by_line_and_stop_df = lines.clone().lazy()
+            .sort(["departure_time"], SortMultipleOptions::default().with_maintain_order(false))
             .group_by(&[col("line_id"), col("stop_id")])
             .agg(&[col("trip_id"), col("departure_time")])
             .collect()?;
@@ -87,7 +90,7 @@ impl RaptorAlgorithm {
         let trips_ids = trips_ids.list()?;
         let departures_times = departures_times.list()?;
 
-        let mut trips_by_line_and_stop = HashMap::new();
+        let mut trips_by_line_and_stop: HashMap<(LineId, StopId), Vec<(DateTime<Utc>, TripId)>> = HashMap::new();
 
         for (line_id, stop_id, trips, departures) in izip!(line_ids, stop_ids, trips_ids, departures_times) {
             let trips = trips.unwrap();
@@ -104,6 +107,32 @@ impl RaptorAlgorithm {
                 (LineId(line_id.unwrap()), StopId(stop_id.unwrap())),
                 departures_trips.collect(),
             );
+        }
+        
+        if cfg!(debug_assertions) {
+            // Assert monotonous increase in departure time within a trip
+            for ((line, _), departures) in trips_by_line_and_stop.iter() {
+                // We can only check increase for trips that have at least two stops
+                if departures.len() >= 2 {
+                    let (last_departure_time, last_trip) = departures.first().unwrap();
+                    for (departure_time, trip) in departures.iter().skip(1) {
+                        debug_assert!(
+                            departure_time >= last_departure_time,
+                            "Expected departure time ({departure_time}) to not be smaller than previous ({last_departure_time}) in trips_by_line_and_stop. Offending Trip: {trip:?} (compared to {last_trip:?}) on line {line:?}. Excerpt from lines DF:\n{}\nExcerpt from trips_by_line_and_stop:\n{:#?}",
+                            lines.clone().filter(
+                                &lines.column("line_id")?.as_materialized_series().equal(line.0)?.bitand(
+                                    lines.column("trip_id")?.as_materialized_series().equal(trip.0)?.bitor(
+                                        lines.column("trip_id")?.as_materialized_series().equal(last_trip.0)?
+                                    )
+                                )
+                            )?,
+                            trips_by_line_and_stop.iter()
+                                .filter(|((l, _), _)| l == line)
+                                .collect_vec()
+                        );
+                    }
+                }
+            }
         }
 
         Ok(Self {
