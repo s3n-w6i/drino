@@ -1,13 +1,18 @@
-use serde::Deserialize;
-use common::types::dataset::{Dataset, DatasetGroup};
+use common::types::config::Config;
+use log::info;
+use std::fs::File;
+use std::path::Path;
+use crate::bootstrap_config::BootstrapConfig;
+use crate::DrinoError;
 
-#[derive(Debug, Deserialize)]
-#[serde(tag = "version")]
-pub enum Config {
-    #[serde(rename = "1")]
-    Version1 {
-        datasets: Vec<Dataset>,
-        #[serde(default)]
-        dataset_groups: Vec<DatasetGroup>,
-    }
+pub(super) fn load_config(bootstrap_config: BootstrapConfig) -> Result<Config, DrinoError> {
+    let path: &Path = &Path::new(&bootstrap_config.config_file);
+    
+    let config_file = File::open(path)?;
+    let config: Config = serde_yaml::from_reader(config_file)
+        .expect(&format!("Could not read Config file '{path:?}'"));
+
+    info!(target: "main", "Config read successfully from '{path:?}'");
+
+    Ok(config)
 }

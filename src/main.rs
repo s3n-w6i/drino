@@ -1,16 +1,20 @@
+mod logging;
+mod config;
+mod bootstrap_config;
+
 use std::fmt::{Display, Formatter};
-use std::fs::File;
+use std::io;
 use std::path::PathBuf;
 use std::time::SystemTime;
 
 use futures::{StreamExt, TryStreamExt};
-use log::{error, info, LevelFilter};
+use log::{error, info};
 use polars::error::PolarsError;
 use polars::prelude::IntoLazy;
 use tempfile::TempPath;
 use tokio::runtime::Runtime;
 
-use crate::config::Config;
+use common::types::config::Config;
 use data_harvester::step1_fetch_data::{fetch_dataset, FetchError};
 use data_harvester::step2_import_data::{import_data, ImportError, ImportStepExtra};
 use data_harvester::step3_validate_data::{validate_data, ValidateError, ValidateStepOutput};
@@ -20,8 +24,9 @@ use routing::algorithm::{PreprocessInit, PreprocessingError, PreprocessingInput}
 use common::util::logging::run_with_spinner;
 use common::util::speed::Speed;
 use routing::stp::ScalableTransferPatternsAlgorithm;
-
-mod config;
+use crate::bootstrap_config::BootstrapConfig;
+use crate::config::load_config;
+use crate::logging::initialize_logging;
 
 type ALGORITHM = ScalableTransferPatternsAlgorithm;
 
@@ -29,19 +34,13 @@ type ALGORITHM = ScalableTransferPatternsAlgorithm;
 // This must be high enough, otherwise wrong routes might be calculated
 pub const MAX_SPEED: Speed = Speed(500.0);
 
-fn main() -> Result<(), DrinoError> {
-    // Initialize the logging system
-    env_logger::builder()
-        .filter_level(LevelFilter::Debug)
-        .parse_default_env() // Allow overriding log level through RUST_LOG env var
-        .init();
+fn run() -> Result<(), DrinoError> {
+    initialize_logging();
 
     info!(target: "main", "Using temporary folder at {}", std::env::temp_dir().to_str().unwrap());
 
-    let config_filename = "config.yaml";
-    let config_file = File::open(config_filename).expect("config.yaml was not provided.");
-    let config: Config = serde_yaml::from_reader(config_file).expect("Could not read config.yaml");
-    info!(target: "main", "Config read successfully from {config_filename}");
+    let bootstrap_config = BootstrapConfig::read();    
+    let config = load_config(bootstrap_config)?;
 
     let result: Result<(), DrinoError> = match config {
         Config::Version1 { datasets, .. } => {
@@ -111,8 +110,21 @@ fn main() -> Result<(), DrinoError> {
     result
 }
 
+fn main() {
+    let _ = run()
+        .map_err(|err| match err {
+            DrinoError::ConfigFile(_) => {
+                error!("Error while reading config file: {}", err);
+            }
+            _ => {
+                error!("{}", err);
+            }
+        });
+}
+
 #[derive(thiserror::Error, Debug)]
 pub enum DrinoError {
+    ConfigFile(#[from] io::Error),
     Fetch(#[from] FetchError),
     Import(#[from] ImportError),
     Validate(#[from] ValidateError),
@@ -125,6 +137,7 @@ pub enum DrinoError {
 impl Display for DrinoError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let err: &dyn Display = match self {
+            DrinoError::ConfigFile(err) => err,
             DrinoError::Fetch(err) => err,
             DrinoError::Import(err) => err,
             DrinoError::Validate(err) => err,
