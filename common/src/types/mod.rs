@@ -4,6 +4,13 @@ use polars::datatypes::AnyValue;
 
 pub mod dataset;
 
+fn u32_from_any_value(value: AnyValue) -> Result<u32, ()> {
+    match value {
+        AnyValue::UInt32(value) => Ok(value),
+        _ => Err(())
+    }
+}
+
 // a continuous stop id
 // "continuous" means that if we have n stops, all ids are from 0,...,n-1 and no number in that range
 // is unused
@@ -32,10 +39,7 @@ impl <'a> TryFrom<AnyValue<'a>> for StopId {
     type Error = ();
 
     fn try_from(value: AnyValue<'a>) -> Result<Self, Self::Error> {
-        match value {
-            AnyValue::UInt32(value) => Ok(Self(value)),
-            _ => Err(())
-        }
+        u32_from_any_value(value).map(|v| Self(v))
     }
 }
 
@@ -52,10 +56,7 @@ impl <'a> TryFrom<AnyValue<'a>> for LineId {
     type Error = ();
 
     fn try_from(value: AnyValue<'a>) -> Result<Self, Self::Error> {
-        match value {
-            AnyValue::UInt32(value) => Ok(Self(value)),
-            _ => Err(())
-        }
+        u32_from_any_value(value).map(|v| Self(v))
     }
 }
 
@@ -72,10 +73,7 @@ impl <'a> TryFrom<AnyValue<'a>> for TripId {
     type Error = ();
 
     fn try_from(value: AnyValue<'a>) -> Result<Self, Self::Error> {
-        match value {
-            AnyValue::UInt32(value) => Ok(Self(value)),
-            _ => Err(())
-        }
+        u32_from_any_value(value).map(|v| Self(v))
     }
 }
 
@@ -93,9 +91,6 @@ impl <'a> TryFrom<AnyValue<'a>> for SeqNum {
     type Error = ();
 
     fn try_from(value: AnyValue<'a>) -> Result<Self, Self::Error> {
-        match value {
-            AnyValue::UInt32(value) => Ok(Self(value)),
-            _ => Err(())
-        }
+        u32_from_any_value(value).map(|v| Self(v))
     }
 }
