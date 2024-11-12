@@ -17,7 +17,7 @@ pub fn filter_for_cluster(
         .filter(col("cluster_id").eq(lit(cluster_id)))
         .select([col("stop_id")])
         // We want to reassign new ids, so that they are continuous again
-        .rename(["stop_id"], ["original_stop_id"])
+        .rename(["stop_id"], ["original_stop_id"], true)
         .with_row_index("stop_id_in_cluster", None);
 
     // Filter the stops
@@ -30,7 +30,7 @@ pub fn filter_for_cluster(
                 JoinType::Inner
             )
         )
-        .rename(["stop_id"], ["original_stop_id"]);
+        .rename(["stop_id"], ["original_stop_id"], true);
     
     let stop_mapping = stops.clone()
         .select([ col("original_stop_id"), col("stop_id_in_cluster") ]);
@@ -49,7 +49,7 @@ pub fn filter_for_cluster(
         // don't keep the original stop id...
         .drop(["stop_id"])
         // ...instead replace it with the new one
-        .rename(["stop_id_in_cluster"], ["stop_id"]);
+        .rename(["stop_id_in_cluster"], ["stop_id"], true);
     
     let trip_ids_in_this_cluster = stop_times.clone()
         .select([col("trip_id")])
@@ -75,7 +75,7 @@ pub fn filter_for_cluster(
     
     let stops = stops
         // From now on, use the new stop id as the regular stop id
-        .rename(["stop_id_in_cluster"], ["stop_id"]);
+        .rename(["stop_id_in_cluster"], ["stop_id"], true);
     
     let preprocessing_input = PreprocessingInput {
         services: services.clone(),

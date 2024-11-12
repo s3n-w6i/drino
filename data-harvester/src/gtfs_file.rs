@@ -1,6 +1,6 @@
 use polars::datatypes::{AnyValue, DataType};
 use polars::error::{ErrString, PolarsError};
-use polars::prelude::{Field, StrptimeOptions};
+use polars::prelude::{Column, Field, StrptimeOptions};
 use polars::series::Series;
 
 pub const GTFS_REQUIRED_FILES: [&str; 5] = [
@@ -46,8 +46,8 @@ pub fn gtfs_date_format() -> StrptimeOptions {
 }
 
 #[inline]
-pub fn gtfs_time_to_ms(times: Series) -> Result<Series, PolarsError> {
-    let strings = times.rechunk().iter()
+pub fn gtfs_time_to_ms(times: Column) -> Result<Column, PolarsError> {
+    let strings = times.as_materialized_series().rechunk().iter()
         .map(|time| {
             match time {
                 AnyValue::String(time) => {
@@ -71,7 +71,7 @@ pub fn gtfs_time_to_ms(times: Series) -> Result<Series, PolarsError> {
         })
         .collect::<Result<Vec<u32>, PolarsError>>()?;
     let series: Series = strings.into_iter().collect();
-    Ok(series)
+    Ok(series.into())
 }
 
 #[derive(Debug)]

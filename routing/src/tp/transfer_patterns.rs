@@ -1,4 +1,5 @@
 use crate::algorithm::RangeOutput;
+use crate::journey::Journey;
 use common::types::StopId;
 use itertools::Itertools;
 use petgraph::algo::is_cyclic_directed;
@@ -9,9 +10,8 @@ use petgraph::{Directed, Graph, Incoming};
 use polars::datatypes::DataType;
 use polars::error::PolarsResult;
 use polars::frame::DataFrame;
-use polars::series::Series;
+use polars::prelude::Column;
 use std::fmt::Debug;
-use crate::journey::Journey;
 
 /// https://ad.informatik.uni-freiburg.de/files/transferpatterns.pdf
 
@@ -179,11 +179,11 @@ impl TransferPatternsGraphs {
 
 #[cfg(test)]
 mod tests {
-    use chrono::DateTime;
-    use common::types::{StopId, TripId};
     use crate::journey::Journey;
     use crate::journey::Leg::Ride;
     use crate::tp::transfer_patterns::TransferPatternsGraphs;
+    use chrono::DateTime;
+    use common::types::{StopId, TripId};
 
     #[test]
     fn test_tp_adding() {
@@ -278,8 +278,8 @@ pub struct TransferPatternsTable(pub(crate) DataFrame);
 
 impl TransferPatternsTable {
     pub(crate) fn new() -> PolarsResult<Self> {
-        let start_series = Series::new_empty("start".into(), &DataType::UInt32);
-        let end_series = Series::new_empty("end".into(), &DataType::UInt32);
+        let start_series = Column::new_empty("start".into(), &DataType::UInt32);
+        let end_series = Column::new_empty("end".into(), &DataType::UInt32);
 
         Ok(Self(DataFrame::new(vec![start_series, end_series])?))
     }

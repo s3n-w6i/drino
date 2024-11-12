@@ -9,8 +9,7 @@ use linfa_nn::distance::Distance;
 use linfa_nn::{BallTreeIndex, CommonNearestNeighbour, NearestNeighbourIndex};
 use ndarray::{ArrayBase, ArrayView, CowRepr, Data, Dimension, Ix2};
 use polars::frame::{DataFrame, UniqueKeepStrategy};
-use polars::prelude::{col, len, Float32Type, IndexOrder, IntoLazy, LazyFrame, NamedFrom, UInt32Type};
-use polars::series::Series;
+use polars::prelude::*;
 
 const MIN_POINTS: usize = 8;
 const MIN_CLUSTER_SIZE: u32 = 300;
@@ -112,8 +111,8 @@ fn extract_clusters(
         .collect::<Result<(), OpticsClusterError>>()?;
 
     let clusters = DataFrame::new(vec![
-        Series::new("cluster_id".into(), &clusters_cluster_column),
-        Series::new("stop_index".into(), &clusters_stop_column),
+        Column::new("cluster_id".into(), &clusters_cluster_column),
+        Column::new("stop_index".into(), &clusters_stop_column),
     ])?;
 
     Ok(clusters)

@@ -1,6 +1,6 @@
 use polars::error::PolarsError;
 use polars::frame::DataFrame;
-use polars::prelude::{col, lit, ChunkCompare, DataFrameJoinOps, IntoLazy, LazyFrame, Series};
+use polars::prelude::*;
 use polars::series::IntoSeries;
 
 use crate::algorithm::{PreprocessingError, PreprocessingInput};
@@ -125,7 +125,7 @@ impl DirectConnections {
     pub(crate) fn query_direct(&self, from: StopId, to: StopId) -> Result<LazyFrame, PreprocessingError> {
         // Utility function to filter for incidences whose stop_id matches
         fn filter_and_unpack_incidences(StopId(id): StopId, stop_incidence: &StopIncidenceFrame) -> Result<LazyFrame, PreprocessingError> {
-            let filter_mask = stop_incidence.column("stop_id")?.equal(id)?;
+            let filter_mask = stop_incidence.column("stop_id")?.as_materialized_series().equal(id)?;
             Ok(stop_incidence
                 .filter(&filter_mask)?
                 .select(["incidences"])?
