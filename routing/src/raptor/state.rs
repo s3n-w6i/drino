@@ -79,11 +79,11 @@ impl RaptorState {
     ) {
         let end_idx = alight_stop.0 as usize;
 
-        /*debug_assert!(
-            self.best_arrival(&start).expect("Expected start to have a tau value") <= &departure,
-            "{trip:?} must depart after arriving at {start:?}. It departs at {departure}, but earliest arrival at {start:?} is {:?}",
-            self.best_arrival(&start).unwrap()
-        );*/
+        debug_assert!(
+            self.best_arrival(&boarding_stop).unwrap() <= &boarding_time,
+            "{trip:?} must depart after arriving at {boarding_stop:?}. It departs at {boarding_time}, but earliest arrival at {boarding_stop:?} is {:?}",
+            self.best_arrival(&boarding_stop).unwrap()
+        );
 
         // τₖ(pᵢ) ← τₐᵣᵣ(t, pᵢ)
         self.k_arrivals[self.k][end_idx] = new_arrival;
@@ -91,7 +91,7 @@ impl RaptorState {
         self.best_arrivals[end_idx] = new_arrival;
 
         let ride_leg = Leg::Ride { trip, boarding_stop, alight_stop, boarding_time, alight_time: new_arrival };
-        if cfg!(debug_assertions) { ride_leg.validate(); }
+        #[cfg(debug_assertions)] { ride_leg.validate(); }
 
         self.connection_index
             .entry(alight_stop).or_default()
@@ -117,7 +117,7 @@ impl RaptorState {
         self.best_arrivals[end_idx] = time_after_transfer;
 
         let transfer_leg = Leg::Transfer { start, end, duration };
-        if cfg!(debug_assertions) { transfer_leg.validate(); }
+        #[cfg(debug_assertions)] { transfer_leg.validate(); }
 
         self.connection_index
             .entry(end).or_default()

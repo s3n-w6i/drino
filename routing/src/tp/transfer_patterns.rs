@@ -167,6 +167,7 @@ impl TransferPatternsGraphs {
         );
     }
 
+    #[cfg(debug_assertions)]
     pub(crate) fn validate(&self) {
         for graph in &self.dags {
             debug_assert!(

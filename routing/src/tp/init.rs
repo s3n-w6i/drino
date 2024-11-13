@@ -57,8 +57,8 @@ impl PreprocessInit for TransferPatternsAlgorithm {
         let tp_graph = Arc::try_unwrap(tp_graph)
             .expect("Lock is still owned by others").into_inner().unwrap();
         
-        // Check that graphs are acyclic. Expensive to compute, so only do in debug.
-        if cfg!(debug_assertions) {
+        #[cfg(debug_assertions)] {
+            // Check that graphs are acyclic. Expensive to compute, so only do that in debug.
             tp_graph.validate();
         }
         

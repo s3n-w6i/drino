@@ -1,8 +1,8 @@
-use std::fmt::{Debug, Formatter};
 use chrono::{DateTime, Duration, TimeDelta, Utc};
 use common::types::{StopId, TripId};
-use std::slice::Iter;
 use itertools::Itertools;
+use std::fmt::{Debug, Formatter};
+use std::slice::Iter;
 
 #[derive(Clone, Eq, PartialEq, Hash)]
 pub enum Leg {
@@ -16,29 +16,31 @@ impl Leg {
             Leg::Ride { boarding_stop: start, .. } | Leg::Transfer { start, .. } => start,
         }
     }
-    
+
     pub(crate) fn end(&self) -> &StopId {
         match self {
             Leg::Ride { alight_stop: end, .. } | Leg::Transfer { end, .. } => end,
         }
     }
-    
+
     #[cfg(debug_assertions)]
     pub(crate) fn validate(&self) {
         debug_assert!(
             self.start() != self.end(),
             "Trip must not end where it starts ({}).", self.start()
         );
-        
+
         match self {
             Leg::Ride { boarding_time, alight_time, .. } => {
                 debug_assert!(
                     boarding_time < alight_time,
-                    "Start of leg ({} @{}) must not be after end ({} @{})",
+                    "Start of leg ({} @{}) must not be after end ({} @{}).",
                     self.start(), boarding_time, self.end(), alight_time
                 );
             }
-            Leg::Transfer { .. } => {}
+            Leg::Transfer { duration, .. } => {
+                debug_assert!(duration >= &Duration::zero(), "Duration must not be negative {}", duration);
+            }
         }
     }
 }
@@ -63,11 +65,10 @@ pub struct Journey {
 }
 
 impl Journey {
-
     fn new(legs: Vec<Leg>) -> Self {
-        debug_assert!(legs.len() > 0, "A Journey must have at least one leg");
-        
-        if cfg!(debug_assertions) {
+        #[cfg(debug_assertions)] {
+            debug_assert!(legs.len() > 0, "A Journey must have at least one leg");
+
             // Check that the legs form a valid chain of stops: For each leg, the end location must
             // match the next leg's starting location
             let mut last_transfer_stop = legs.first().unwrap().end();
@@ -76,7 +77,7 @@ impl Journey {
                 debug_assert!(last_transfer_stop == leg.start());
                 last_transfer_stop = leg.end();
             }
-            
+
             // Check that there are no cycles in the journey
             // A journey must not go back to a stop where we came from, since then it is longer than
             // it needs to be. Since we already checked that end == start of next, only check start
@@ -90,7 +91,7 @@ impl Journey {
                 legs
             );
         }
-        
+
         Self { legs }
     }
 
