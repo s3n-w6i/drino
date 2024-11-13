@@ -1,4 +1,3 @@
-use log::LevelFilter;
 use crate::bootstrap_config::BootstrapConfig;
 
 pub(super) fn initialize_logging(config: BootstrapConfig) {
