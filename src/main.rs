@@ -35,11 +35,11 @@ type ALGORITHM = ScalableTransferPatternsAlgorithm;
 pub const MAX_SPEED: Speed = Speed(500.0);
 
 fn run() -> Result<(), DrinoError> {
-    initialize_logging();
-
+    let bootstrap_config = BootstrapConfig::read();
+    
+    initialize_logging(bootstrap_config.clone());
     info!(target: "main", "Using temporary folder at {}", std::env::temp_dir().to_str().unwrap());
-
-    let bootstrap_config = BootstrapConfig::read();    
+    
     let config = load_config(bootstrap_config)?;
 
     let result: Result<(), DrinoError> = match config {
