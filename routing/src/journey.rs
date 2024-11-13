@@ -22,6 +22,25 @@ impl Leg {
             Leg::Ride { alight_stop: end, .. } | Leg::Transfer { end, .. } => end,
         }
     }
+    
+    #[cfg(debug_assertions)]
+    pub(crate) fn validate(&self) {
+        debug_assert!(
+            self.start() != self.end(),
+            "Trip must not end where it starts ({}).", self.start()
+        );
+        
+        match self {
+            Leg::Ride { boarding_time, alight_time, .. } => {
+                debug_assert!(
+                    boarding_time < alight_time,
+                    "Start of leg ({} @{}) must not be after end ({} @{})",
+                    self.start(), boarding_time, self.end(), alight_time
+                );
+            }
+            Leg::Transfer { .. } => {}
+        }
+    }
 }
 
 impl Debug for Leg {
@@ -53,6 +72,7 @@ impl Journey {
             // match the next leg's starting location
             let mut last_transfer_stop = legs.first().unwrap().end();
             for leg in legs.iter().skip(1) {
+                leg.validate();
                 debug_assert!(last_transfer_stop == leg.start());
                 last_transfer_stop = leg.end();
             }

@@ -1,5 +1,5 @@
-use crate::journey::Leg;
 use crate::algorithm::QueryError::NoRouteFound;
+use crate::journey::Leg;
 use common::types::StopId;
 
 use super::*;
@@ -78,7 +78,7 @@ impl RaptorState {
         trip: TripId,
     ) {
         let end_idx = alight_stop.0 as usize;
-        
+
         /*debug_assert!(
             self.best_arrival(&start).expect("Expected start to have a tau value") <= &departure,
             "{trip:?} must depart after arriving at {start:?}. It departs at {departure}, but earliest arrival at {start:?} is {:?}",
@@ -90,9 +90,12 @@ impl RaptorState {
         // τ*(pᵢ) ← τₐᵣᵣ(t, pᵢ)
         self.best_arrivals[end_idx] = new_arrival;
 
+        let ride_leg = Leg::Ride { trip, boarding_stop, alight_stop, boarding_time, alight_time: new_arrival };
+        if cfg!(debug_assertions) { ride_leg.validate(); }
+
         self.connection_index
             .entry(alight_stop).or_default()
-            .insert(self.k, Leg::Ride { trip, boarding_stop, alight_stop, boarding_time, alight_time: new_arrival });
+            .insert(self.k, ride_leg);
     }
 
     pub fn set_transfer(
@@ -109,18 +112,21 @@ impl RaptorState {
             self.best_arrivals[end_idx] >= time_after_transfer,
             "set_tranfer called for transfer between {start:?} and {end:?} despite not being faster"
         );
-        
+
         self.k_arrivals[self.k][end_idx] = time_after_transfer;
         self.best_arrivals[end_idx] = time_after_transfer;
 
+        let transfer_leg = Leg::Transfer { start, end, duration };
+        if cfg!(debug_assertions) { transfer_leg.validate(); }
+
         self.connection_index
             .entry(end).or_default()
-            .insert(self.k, Leg::Transfer { start, end, duration });
+            .insert(self.k, transfer_leg);
     }
 
     pub fn backtrace(&self, target: StopId, departure: DateTime<Utc>) -> QueryResult<Journey> {
         let mut journeys: Vec<Journey> = vec![];
-        
+
         let ks_until_target = self.connection_index.get(&target).ok_or(NoRouteFound)?.keys();
 
         for k in ks_until_target {
@@ -128,12 +134,12 @@ impl RaptorState {
                 journeys.push(journey);
             }
         }
-        
+
         // TODO: Return pareto-set of k's versus duration        
         // Determine the fastest route by calculating the final arrival time at the destination
         let fastest_journey = journeys.into_iter()
             .min_by_key(|journey| journey.arrival_when_starting_at(departure));
-        
+
         fastest_journey.ok_or(NoRouteFound)
     }
 
@@ -146,7 +152,7 @@ impl RaptorState {
         let mut k = k;
         // time will be used to figure out whether a journey is actually feasible
         let mut time = None;
-        
+
         while let Some(Some(leg)) = self.connection_index.get(&curr_dest).map(|x| x.get(&k)) {
             match leg {
                 Leg::Ride { alight_time: arrival, boarding_time: departure, .. } => {
@@ -161,13 +167,13 @@ impl RaptorState {
                             return None;
                         }
                     }
-                    
+
                     // Update the time with the next fixed-time departure
                     time = Some(*departure);
-                },
+                }
                 Leg::Transfer { duration, .. } => {
                     // Do not decrement k, since RAPTOR's round don't count transfers
-                    
+
                     // If there already has been a fixed-time transfer (aka a ride), update the time
                     if let Some(fixed_time) = time {
                         time = Some(fixed_time - *duration);
@@ -218,7 +224,7 @@ mod tests {
     fn test_new_round() {
         let departure = DateTime::from_str("2042-06-24T12:00:00Z").unwrap();
         let mut state = RaptorState::init(2, StopId(0), departure);
-        
+
         assert_eq!(
             state.tau(&StopId(0)),
             Some(&departure)
