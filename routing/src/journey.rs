@@ -1,9 +1,10 @@
+use std::fmt::{Debug, Formatter};
 use chrono::{DateTime, Duration, TimeDelta, Utc};
 use common::types::{StopId, TripId};
 use std::slice::Iter;
 use itertools::Itertools;
 
-#[derive(Clone, Debug, Eq, PartialEq, Hash)]
+#[derive(Clone, Eq, PartialEq, Hash)]
 pub enum Leg {
     Ride { trip: TripId, boarding_stop: StopId, alight_stop: StopId, boarding_time: DateTime<Utc>, alight_time: DateTime<Utc> },
     Transfer { start: StopId, end: StopId, duration: Duration },
@@ -20,6 +21,20 @@ impl Leg {
         match self {
             Leg::Ride { alight_stop: end, .. } | Leg::Transfer { end, .. } => end,
         }
+    }
+}
+
+impl Debug for Leg {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Leg::Ride { boarding_time, alight_time, trip, .. } => {
+                f.write_fmt(format_args!("{:?} @{} ---{:?}---> {:?} @{}", self.start(), boarding_time, trip, self.end(), alight_time))?;
+            }
+            Leg::Transfer { duration, .. } => {
+                f.write_fmt(format_args!("{} ---({})---> {}", self.start(), duration.num_seconds(), self.end()))?;
+            }
+        }
+        Ok(())
     }
 }
 
@@ -50,7 +65,7 @@ impl Journey {
             let stops_unique = stops.clone().all_unique();
             debug_assert!(
                 stops_unique,
-                "Expected stops of journey to be unique. Instead, stops {:?} are visited twice. All legs: {:?}",
+                "Expected stops of journey to be unique. Instead, stops {:?} are visited twice. All legs: {:#?}",
                 stops.clone().duplicates().collect_vec(),
                 legs
             );
