@@ -3,6 +3,7 @@ use chrono::{DateTime, NaiveDate, Utc};
 use polars::datatypes::AnyValue;
 
 pub mod dataset;
+pub mod config;
 
 fn u32_from_any_value(value: AnyValue) -> Result<u32, ()> {
     match value {
