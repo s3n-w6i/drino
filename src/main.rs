@@ -18,7 +18,7 @@ use data_harvester::step2_import_data::{import_data, ImportError, ImportStepExtr
 use data_harvester::step3_validate_data::{validate_data, ValidateError, ValidateStepOutput};
 use data_harvester::step4_merge_data::{merge, MergeError};
 use data_harvester::step5_simplify::{simplify, SimplifyError};
-use routing::algorithm::{PreprocessInit, PreprocessingError, PreprocessingInput, PreprocessingResult};
+use routing::algorithm::{PreprocessInit, PreprocessingError, PreprocessingInput};
 use common::util::logging::{initialize_logging, run_with_spinner};
 use common::util::speed::Speed;
 use routing::stp::ScalableTransferPatternsAlgorithm;
