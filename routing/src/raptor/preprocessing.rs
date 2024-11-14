@@ -1,20 +1,19 @@
-use std::ops::{BitAnd, BitOr};
 use crate::algorithm::{PreprocessInit, PreprocessingError, PreprocessingInput, PreprocessingResult};
 use crate::direct_connections::DirectConnections;
-use crate::raptor::RaptorAlgorithm;
+use crate::raptor::{RaptorAlgorithm, TripAtStopTimeMap};
 use crate::transfers::crow_fly::CrowFlyTransferProvider;
 use chrono::{DateTime, Utc};
 use common::types::{LineId, SeqNum, StopId, TripId};
 use hashbrown::{HashMap, HashSet};
-use indicatif::MultiProgress;
 use itertools::{izip, Itertools};
 use polars::error::PolarsError;
 use polars::prelude::*;
+use std::ops::{BitAnd, BitOr};
 
 impl RaptorAlgorithm {
     pub fn preprocess(
         PreprocessingInput { stops, .. }: PreprocessingInput,
-        DirectConnections { lines, .. }: DirectConnections,
+        DirectConnections { expanded_lines, line_progressions, .. }: DirectConnections,
     ) -> PreprocessingResult<RaptorAlgorithm> {
         let stops_vec: Vec<StopId> = stops.clone()
             .select(&[col("stop_id")])
@@ -23,59 +22,72 @@ impl RaptorAlgorithm {
             .into_iter().filter_map(|x| x.map(StopId))
             .collect();
 
-        let lines = lines.clone()
+        let (stops_by_line, lines_by_stops) = {
+            let mut stops_by_line = HashMap::new();
+            let mut lines_by_stops = HashMap::new();
+
+            let [line_ids, stop_ids, sequence_numbers] = line_progressions.get_columns()
+            else { return Err(PreprocessingError::Polars(PolarsError::ColumnNotFound("".into()))); };
+
+            let [line_ids, stop_ids, sequence_numbers] =
+                [line_ids.u32()?, stop_ids.u32()?, sequence_numbers.u32()?];
+
+            for (line_id, stop_id, seq_num) in izip!(line_ids, stop_ids, sequence_numbers) {
+                let line_id = line_id.unwrap().into();
+                let stop_id = stop_id.unwrap().into();
+                let seq_num = seq_num.unwrap().into();
+                
+                stops_by_line.entry(line_id).or_insert(vec![])
+                    .push(stop_id);
+
+                lines_by_stops.entry(stop_id).or_insert(HashSet::new())
+                    .insert((line_id, seq_num));
+            }
+
+            Ok::<(HashMap<LineId, Vec<StopId>>, HashMap<StopId, HashSet<(LineId, SeqNum)>>), PreprocessingError>
+                ((stops_by_line, lines_by_stops))
+        }?;
+        debug_assert!(stops_vec.len() == lines_by_stops.len());
+
+
+        let lines = expanded_lines.clone()
             .select(["line_id", "stop_id", "stop_sequence", "trip_id", "arrival_time", "departure_time"])?;
-        
-        let sorted_lines = lines.clone().sort(
+
+        let (arrivals, departures) = {
+            let sorted_lines = lines.clone().sort(
                 ["line_id", "trip_id", "stop_sequence"],
                 SortMultipleOptions::default()
                     .with_maintain_order(false)
                     .with_order_descending(false),
             )?;
-        let [line_ids, stop_ids, sequence_numbers, trip_ids, arrival_times, departure_times] =
-            sorted_lines.get_columns()
-        else { return Err(PreprocessingError::Polars(PolarsError::ColumnNotFound("".into()))); };
+            let [_line_ids, stop_ids, _sequence_numbers, trip_ids, arrival_times, departure_times] =
+                sorted_lines.get_columns()
+            else { return Err(PreprocessingError::Polars(PolarsError::ColumnNotFound("".into()))); };
 
-        let line_ids = line_ids.u32()?;
-        let stop_ids = stop_ids.u32()?;
-        let sequence_numbers = sequence_numbers.u32()?;
-        let trip_ids = trip_ids.u32()?;
-        let arrival_times = arrival_times.duration()?;
-        let departure_times = departure_times.duration()?;
+            let [stop_ids, trip_ids] =
+                [stop_ids.u32()?, trip_ids.u32()?];
+            let arrival_times = arrival_times.duration()?;
+            let departure_times = departure_times.duration()?;
 
-        let mut stops_by_line = HashMap::new();
-        for (line_id, stop_id) in izip!(line_ids, stop_ids) {
-            let line_id = LineId(line_id.unwrap());
-            let stop_id = StopId(stop_id.unwrap());
-
-            stops_by_line.entry(line_id).or_insert(vec![])
-                .push(stop_id);
-        }
-
-        let mut lines_by_stops = HashMap::new();
-        for (stop_id, line_id, seq_num) in izip!(stop_ids, line_ids, sequence_numbers) {
-            let stop_id = StopId(stop_id.unwrap());
-            let line_id = LineId(line_id.unwrap());
-            let seq_num = SeqNum(seq_num.unwrap());
-
-            lines_by_stops.entry(stop_id).or_insert(HashSet::new())
-                .insert((line_id, seq_num));
-        }
-        debug_assert!(stops_vec.len() == lines_by_stops.len());
-
-        let mut arrivals = HashMap::new();
-        let mut departures = HashMap::new();
-        for (trip_id, stop_id, arrival_time, departure_time) in izip!(trip_ids, stop_ids, arrival_times.iter(), departure_times.iter()) {
-            let trip_id = TripId(trip_id.unwrap());
-            let stop_id = StopId(stop_id.unwrap());
-            let arrival_time = arrival_time.unwrap();
-            let departure_time = departure_time.unwrap();
-            // TODO: Fix date time handling
-            let arrival_time = DateTime::from_timestamp_millis(arrival_time).unwrap();
-            let departure_time = DateTime::from_timestamp_millis(departure_time).unwrap();
-            arrivals.insert((trip_id, stop_id), arrival_time);
-            departures.insert((trip_id, stop_id), departure_time);
-        }
+            let mut arrivals = HashMap::new();
+            let mut departures = HashMap::new();
+            for (trip_id, stop_id, arrival_time, departure_time) in izip!(trip_ids, stop_ids, arrival_times.iter(), departure_times.iter()) {
+                let trip_id = TripId(trip_id.unwrap());
+                let stop_id = StopId(stop_id.unwrap());
+                let arrival_time = arrival_time.unwrap();
+                let departure_time = departure_time.unwrap();
+                
+                // TODO: Fix date time handling
+                let arrival_time = DateTime::from_timestamp_millis(arrival_time).unwrap();
+                let departure_time = DateTime::from_timestamp_millis(departure_time).unwrap();
+                
+                arrivals.insert((trip_id, stop_id), arrival_time);
+                departures.insert((trip_id, stop_id), departure_time);
+            }
+            
+            Ok::<(TripAtStopTimeMap, TripAtStopTimeMap), PreprocessingError>
+                ((arrivals, departures))
+        }?;
 
 
         let trips_by_line_and_stop_df = lines.clone().lazy()
@@ -108,7 +120,7 @@ impl RaptorAlgorithm {
                 departures_trips.collect(),
             );
         }
-        
+
         if cfg!(debug_assertions) {
             // Assert monotonous increase in departure time within a trip
             for ((line, _), departures) in trips_by_line_and_stop.iter() {
@@ -148,7 +160,7 @@ impl RaptorAlgorithm {
 }
 
 impl PreprocessInit for RaptorAlgorithm {
-    fn preprocess(input: PreprocessingInput, _: Option<&MultiProgress>) -> PreprocessingResult<RaptorAlgorithm> {
+    fn preprocess(input: PreprocessingInput) -> PreprocessingResult<RaptorAlgorithm> {
         let direct_connections = DirectConnections::try_from(input.clone())?;
         Self::preprocess(input, direct_connections)
     }
