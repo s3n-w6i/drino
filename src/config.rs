@@ -10,9 +10,9 @@ pub(super) fn load_config(bootstrap_config: BootstrapConfig) -> Result<Config, D
     
     let config_file = File::open(path)?;
     let config: Config = serde_yaml::from_reader(config_file)
-        .expect(&format!("Could not read Config file '{path:?}'"));
+        .expect(&format!("Could not read Config file {path:?}"));
 
-    info!(target: "main", "Config read successfully from '{path:?}'");
+    info!(target: "main", "Config read successfully from {path:?}");
 
     Ok(config)
 }

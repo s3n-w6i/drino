@@ -30,7 +30,8 @@ futures = { version = "0.3.30", features = [] }
 itertools = "0.13.0"
 smartstring = "1.0.1"
 log = { workspace = true }
-env_logger = "0.11.5"
+env_logger = { workspace = true }
+indicatif = { workspace = true }
 num-traits = "0.2.17"
 hashbrown = "0.15.1"
 clap = { version = "4.5.18", features = ["env", "derive"] }
@@ -41,8 +42,10 @@ chrono = "0.4.38"
 tempfile = "3.12.0"
 hashbrown = "0.15.1"
 indicatif = "0.17.9"
+indicatif-log-bridge = "0.2.3"
 log = "0.4"
 serde = { version = "1.0.196", features = ["derive"] }
+env_logger = "0.11.5"
 
 [workspace.dependencies.polars]
 version = "0.44.2"

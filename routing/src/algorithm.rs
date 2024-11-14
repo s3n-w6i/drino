@@ -1,18 +1,17 @@
-use std::fmt;
-use std::fmt::{Debug, Display};
 use chrono::{DateTime, TimeDelta, Utc};
 use hashbrown::HashSet;
-use indicatif::MultiProgress;
 use polars::prelude::LazyFrame;
+use std::fmt;
+use std::fmt::{Debug, Display};
 
+use crate::journey::Journey;
 use crate::transfers::TransferError;
 use common::types::StopId;
-use crate::journey::Journey;
 
 pub trait RoutingAlgorithm {}
 
 pub trait PreprocessInit: RoutingAlgorithm + Sized {
-    fn preprocess(input: PreprocessingInput, progress_bars: Option<&MultiProgress>) -> PreprocessingResult<Self>;
+    fn preprocess(input: PreprocessingInput) -> PreprocessingResult<Self>;
 }
 
 

@@ -1,18 +1,16 @@
-use indicatif::MultiProgress;
-use log::info;
-use polars::frame::DataFrame;
-use polars::io::SerWriter;
-use polars::prelude::{CsvWriter, IntoLazy, LazyFrame};
-use common::util::logging::run_with_spinner;
 use crate::algorithm::{PreprocessInit, PreprocessingError, PreprocessingInput, PreprocessingResult};
 use crate::stp::preprocessing::clustering::filter_for_cluster;
 use crate::stp::preprocessing::clustering::k_means::cluster;
 use crate::stp::ScalableTransferPatternsAlgorithm;
 use crate::tp::TransferPatternsAlgorithm;
 use crate::write_tmp_file;
+use common::util::logging::{run_with_pb, run_with_spinner};
+use polars::frame::DataFrame;
+use polars::io::SerWriter;
+use polars::prelude::{CsvWriter, IntoLazy, LazyFrame};
 
 impl PreprocessInit for ScalableTransferPatternsAlgorithm {
-    fn preprocess(input: PreprocessingInput, _: Option<&MultiProgress>) -> PreprocessingResult<Self> {
+    fn preprocess(input: PreprocessingInput) -> PreprocessingResult<Self> {
         let (stop_ids_with_clusters, num_clusters) = run_with_spinner("preprocessing", "Clustering stops", || {
             let (stop_ids_with_clusters, num_clusters) = cluster(&input.stops)
                 .expect("Clustering failed");
@@ -27,33 +25,32 @@ impl PreprocessInit for ScalableTransferPatternsAlgorithm {
 
             Ok::<(DataFrame, u32), PreprocessingError>((stop_ids_with_clusters, num_clusters))
         })?;
+
+        let stop_ids_with_clusters = stop_ids_with_clusters.lazy();
         
-        let  stop_ids_with_clusters = stop_ids_with_clusters.lazy();
+        let message = format!("Calculating local transfers for {num_clusters} clusters");
+        run_with_pb("preprocessing", message.as_str(), num_clusters as u64, true, |pb| {
+            // Currently not parallelized, since individual clusters could take very different amounts
+            // of time and RAM usage is lower when only looking at a single cluster at a time.
+            // Therefore, we parallelize within one cluster.
+            for cluster_id in 0..num_clusters {
+                pb.inc(1);
+                process_cluster(cluster_id, &stop_ids_with_clusters, &input)?;
+            }
 
-        let clusters_pbs = MultiProgress::new();
-        
-        info!(target: "preprocessing", "Processing {num_clusters} clusters");
-
-        // Currently not parallelized, since individual clusters could take very different amounts
-        // of time and RAM usage is lower when only looking at a single cluster at a time.
-        // Therefore, we parallelize within one cluster.
-        for cluster_id in 0..num_clusters {
-            process_cluster(&clusters_pbs, cluster_id, &stop_ids_with_clusters, &input)?;
-        }
-
-        info!(target: "preprocessing", "Cluster processing finished ({num_clusters} clusters)");
+            Ok::<(), PreprocessingError>(())
+        })?;
 
         // TODO
-        Ok(Self { })
+        Ok(Self {})
     }
 }
 
 
 fn process_cluster(
-    clusters_pbs: &MultiProgress,
     cluster_id: u32,
     stop_ids_with_clusters: &LazyFrame,
-    overall_input: &PreprocessingInput
+    overall_input: &PreprocessingInput,
 ) -> Result<(), PreprocessingError> {
     let (cluster_filtered_input, stop_id_mapping) =
         filter_for_cluster(cluster_id, &stop_ids_with_clusters, &overall_input)?;
@@ -71,11 +68,11 @@ fn process_cluster(
         &mut cluster_filtered_input.stop_times.clone().collect()?
     )?;
 
-    let mut cluster_result = TransferPatternsAlgorithm::preprocess(cluster_filtered_input, Some(&clusters_pbs))?;
+    let mut cluster_result = TransferPatternsAlgorithm::preprocess(cluster_filtered_input)?;
 
     cluster_result.rename_stops(stop_id_mapping)?;
 
     drop(cluster_result);
-    
+
     Ok(())
 }

@@ -1,12 +1,10 @@
-mod logging;
 mod config;
-mod bootstrap_config;
+pub mod bootstrap_config;
 
 use std::fmt::{Display, Formatter};
 use std::io;
 use std::path::PathBuf;
 use std::time::SystemTime;
-
 use futures::{StreamExt, TryStreamExt};
 use log::{error, info};
 use polars::error::PolarsError;
@@ -21,12 +19,11 @@ use data_harvester::step3_validate_data::{validate_data, ValidateError, Validate
 use data_harvester::step4_merge_data::{merge, MergeError};
 use data_harvester::step5_simplify::{simplify, SimplifyError};
 use routing::algorithm::{PreprocessInit, PreprocessingError, PreprocessingInput};
-use common::util::logging::run_with_spinner;
+use common::util::logging::{initialize_logging, run_with_spinner};
 use common::util::speed::Speed;
 use routing::stp::ScalableTransferPatternsAlgorithm;
-use crate::bootstrap_config::BootstrapConfig;
+use bootstrap_config::BootstrapConfig;
 use crate::config::load_config;
-use crate::logging::initialize_logging;
 
 type ALGORITHM = ScalableTransferPatternsAlgorithm;
 
@@ -37,7 +34,7 @@ pub const MAX_SPEED: Speed = Speed(500.0);
 fn run() -> Result<(), DrinoError> {
     let bootstrap_config = BootstrapConfig::read();
     
-    initialize_logging(bootstrap_config.clone());
+    initialize_logging(bootstrap_config.clone().log_level.into());
     info!(target: "main", "Using temporary folder at {}", std::env::temp_dir().to_str().unwrap());
     
     let config = load_config(bootstrap_config)?;
@@ -95,9 +92,10 @@ fn run() -> Result<(), DrinoError> {
                 })
             })?;
 
-            let preprocessing_result = ALGORITHM::preprocess(cached_input, None)?;
+            let preprocessing_result = ALGORITHM::preprocess(cached_input)?;
 
-            info!(target: "preprocessing", "Preprocessing finished in {:?}", preprocessing_start_time.elapsed().unwrap());
+            let elapsed = indicatif::HumanDuration(preprocessing_start_time.elapsed().unwrap());
+            info!(target: "preprocessing", "Preprocessing finished in {}", elapsed);
             files_to_clean_up.into_iter()
                 .for_each(|file| {
                     TempPath::from_path(file).close()
@@ -110,7 +108,7 @@ fn run() -> Result<(), DrinoError> {
     result
 }
 
-fn main() {
+fn main() {    
     let _ = run()
         .map_err(|err| match err {
             DrinoError::ConfigFile(_) => {
