@@ -113,7 +113,7 @@ macro_rules! earliest_arrival_tests {
     ($t: ty) => {
         use chrono::{DateTime, Utc};
         
-        use crate::algorithm::{ EarliestArrival,   Single, SingleEarliestArrival};
+        use crate::algorithm::{ EarliestArrival, Single, SingleEarliestArrival};
         use common::types::{LineId, SeqNum, StopId, TripId};
         
         ///  0 ---Ride--> 1

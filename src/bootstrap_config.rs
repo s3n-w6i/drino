@@ -3,22 +3,22 @@ use clap::Parser;
 
 #[derive(Parser, Clone)]
 #[command(version, about)]
-pub(super) struct BootstrapConfig {
+pub struct BootstrapConfig {
     #[clap(short('c'), long("config"), env("DRINO_CONFIG"), default_value_os = "config.yaml")]
-    pub(super) config_file: String,
+    pub config_file: String,
     #[clap(short('l'), long("log-level"), env("DRINO_LOG_LEVEL"), default_value_t, value_enum)]
-    pub(super) log_level: LogLevel,
+    pub log_level: LogLevel,
 }
 
 impl BootstrapConfig {
-    pub(super) fn read() -> Self {
+    pub fn read() -> Self {
         BootstrapConfig::parse()
     }
 }
 
 
 #[derive(clap::ValueEnum, Clone, Default)]
-pub(super) enum LogLevel {
+pub enum LogLevel {
     Off,
     Error,
     Warn,

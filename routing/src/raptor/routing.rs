@@ -183,8 +183,6 @@ impl RaptorAlgorithm {
             }
         }
 
-        //println!("at the end {:?}", state);
-
         Ok(state)
     }
 
@@ -222,7 +220,7 @@ impl RaptorAlgorithm {
                         // We have no specific target (this is a one-to-all query)
                         None => {
                             let new_journeys = self.backtrace_all(state, departure)
-                                .unwrap_or(vec![])
+                                .unwrap_or_default()
                                 .into_iter()
                                 .filter(|j| { j.departure().unwrap_or(departure) <= last_departure });
 

@@ -75,7 +75,7 @@ fn extract_clusters(
     let mut current_cluster_size: u32 = 0;
 
     // TODO: par_bridge
-    analysis.iter().map(|sample| -> Result<(), OpticsClusterError> {
+    analysis.iter().try_for_each(|sample| -> Result<(), OpticsClusterError> {
         if sample.reachability_distance().unwrap_or(f32::INFINITY) <= eps {
             if clusters_cluster_column.is_empty() {
                 // Make a new cluster if there is none already
@@ -107,8 +107,7 @@ fn extract_clusters(
             }
         }
         Ok(())
-    })
-        .collect::<Result<(), OpticsClusterError>>()?;
+    })?;
 
     let clusters = DataFrame::new(vec![
         Column::new("cluster_id".into(), &clusters_cluster_column),

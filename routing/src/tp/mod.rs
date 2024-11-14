@@ -27,7 +27,7 @@ impl TransferPatternsAlgorithm {
             .into_iter().filter_map(|x| x.map(StopId))
             .collect_vec();
         
-        self.direct_connections.rename_stops(&mapping);
+        self.direct_connections.rename_stops(&mapping)?;
         self.transfer_patterns.rename_stops(original_stop_ids, stop_ids_in_cluster);
         
         Ok(())

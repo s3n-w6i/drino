@@ -67,7 +67,7 @@ pub struct Journey {
 impl Journey {
     fn new(legs: Vec<Leg>) -> Self {
         #[cfg(debug_assertions)] {
-            debug_assert!(legs.len() > 0, "A Journey must have at least one leg");
+            debug_assert!(!legs.is_empty(), "A Journey must have at least one leg");
 
             // Check that the legs form a valid chain of stops: For each leg, the end location must
             // match the next leg's starting location

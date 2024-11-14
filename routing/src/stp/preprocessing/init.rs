@@ -53,19 +53,19 @@ fn process_cluster(
     overall_input: &PreprocessingInput,
 ) -> Result<(), PreprocessingError> {
     let (cluster_filtered_input, stop_id_mapping) =
-        filter_for_cluster(cluster_id, &stop_ids_with_clusters, &overall_input)?;
+        filter_for_cluster(cluster_id, stop_ids_with_clusters, overall_input)?;
 
     write_tmp_file(
         format!("./data/tmp/stp/clusters/{cluster_id}/stops.parquet").into(),
-        &mut cluster_filtered_input.stops.clone().collect()?
+        &mut cluster_filtered_input.stops.clone().collect()?,
     )?;
     write_tmp_file(
         format!("./data/tmp/stp/clusters/{cluster_id}/trips.parquet").into(),
-        &mut cluster_filtered_input.trips.clone().collect()?
+        &mut cluster_filtered_input.trips.clone().collect()?,
     )?;
     write_tmp_file(
         format!("./data/tmp/stp/clusters/{cluster_id}/stop_times.parquet").into(),
-        &mut cluster_filtered_input.stop_times.clone().collect()?
+        &mut cluster_filtered_input.stop_times.clone().collect()?,
     )?;
 
     let mut cluster_result = TransferPatternsAlgorithm::preprocess(cluster_filtered_input)?;

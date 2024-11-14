@@ -17,7 +17,9 @@ use std::fmt::Debug;
 
 #[derive(Debug)]
 enum NodeType {
-    TARGET, PREFIX, ROOT
+    Target,
+    Prefix,
+    Root,
 }
 
 #[derive(Debug)]
@@ -32,7 +34,7 @@ impl TransferPatternsGraphs {
             .map(|root_node_idx| {
                 // Initialize a graph, where the root node is already present
                 let mut graph = Graph::with_capacity(num_stops, num_stops);
-                graph.add_node((StopId(root_node_idx as u32), NodeType::ROOT));
+                graph.add_node((StopId(root_node_idx as u32), NodeType::Root));
                 graph
             })
             .collect_vec();
@@ -48,7 +50,7 @@ impl TransferPatternsGraphs {
             self.add_journey(journey);
         }
     }
-    
+
     fn add_journey(&mut self, journey: Journey) {
         let journey_start_idx = journey.departure_stop().0 as usize;
         let journey_end = *journey.arrival_stop();
@@ -62,7 +64,7 @@ impl TransferPatternsGraphs {
         // out from. So, start here, because trip starts here as well
         let mut current_node_idx = NodeIndex::from(0);
         debug_assert!(&graph.node_weight(current_node_idx).unwrap().0 == journey.departure_stop());
-        
+
         for leg in journey.legs() {
             let end = leg.end();
             let start = leg.start();
@@ -85,15 +87,15 @@ impl TransferPatternsGraphs {
                     // Find a node on the path we've gone whose stop ID is the end of this leg.
                     // Direction is `Incoming`, since edges are in the opposite direction of
                     // travel.
-                    let end_node_idx = graph.neighbors_directed(current_node_idx.into(), Incoming)
+                    let end_node_idx = graph.neighbors_directed(current_node_idx, Incoming)
                         .find(|n| {
                             let (stop_id, node_type) = graph.node_weight(*n).unwrap();
-                            stop_id == end && matches!(node_type, NodeType::PREFIX)
+                            stop_id == end && matches!(node_type, NodeType::Prefix)
                         });
 
                     match end_node_idx {
                         None => {
-                            let end_node_idx = graph.add_node((*end, NodeType::PREFIX));
+                            let end_node_idx = graph.add_node((*end, NodeType::Prefix));
 
                             // Add an edge from the end to start. This is reversed, so that on query time, we
                             // can start at our target station and then find a way to the origin station
@@ -114,16 +116,16 @@ impl TransferPatternsGraphs {
                     // TODO: This is O(n). Make it more efficient if possible.
                     let candidate_node_idx = graph.node_indices()
                         .find(|n| graph.node_weight(*n).unwrap().0 == *target);
-                    
+
                     fn add_new_target_node(graph: &mut Graph<(StopId, NodeType), ()>, target_stop: StopId, from: NodeIndex) {
-                        let target_node_idx = graph.add_node((target_stop, NodeType::TARGET));
+                        let target_node_idx = graph.add_node((target_stop, NodeType::Target));
                         graph.add_edge(target_node_idx, from, ());
                     }
 
                     if let Some(target_node_idx) = candidate_node_idx {
                         // A node with the same value already exists. It might be a prefix node,
                         // in which case we would need to create a new node.
-                        if matches!(graph.node_weight(target_node_idx).unwrap().1, NodeType::TARGET) {
+                        if matches!(graph.node_weight(target_node_idx).unwrap().1, NodeType::Target) {
                             // The target node already exists, and it is valid (not a prefix node).
                             // Just add an edge (again, in reverse)
                             if !graph.contains_edge(target_node_idx, current_node_idx) {
@@ -156,11 +158,11 @@ impl TransferPatternsGraphs {
                 graph,
                 &[Config::EdgeNoLabel],
                 &|_graph, _e| { "".into() },
-                &|_graph, (n, (s, t))| {
+                &|_graph, (_n, (_s, t))| {
                     match t {
-                        NodeType::ROOT => { "shape = diamond width = 4 height = 2".into() }
-                        NodeType::TARGET => { "shape = square width = 1 height = 1".into() }
-                        NodeType::PREFIX => { "shape = circle width = 1 height = 1".into() }
+                        NodeType::Root => { "shape = diamond width = 4 height = 2".into() }
+                        NodeType::Target => { "shape = square width = 1 height = 1".into() }
+                        NodeType::Prefix => { "shape = circle width = 1 height = 1".into() }
                     }
                 },
             )
@@ -171,7 +173,7 @@ impl TransferPatternsGraphs {
     pub(crate) fn validate(&self) {
         for graph in &self.dags {
             debug_assert!(
-                !is_cyclic_directed::<&Graph<(StopId, NodeType), (), Directed>>(&graph),
+                !is_cyclic_directed::<&Graph<(StopId, NodeType), (), Directed>>(graph),
                 "Every transfer pattern graph must be acyclic."
             );
         }
@@ -192,26 +194,42 @@ mod tests {
         // A corresponds to Stop ID 0, B to 1 and so on...
         let mut tp = TransferPatternsGraphs::new(5);
 
-        let a = StopId(0); let b = StopId(1); let c = StopId(2); let d = StopId(3); let e = StopId(4);
-        
+        let a = StopId(0);
+        let b = StopId(1);
+        let c = StopId(2);
+        let d = StopId(3);
+        let e = StopId(4);
+
         let ab = Ride {
-            trip: TripId(41), boarding_stop: a, alight_stop: b,
-            boarding_time: DateTime::UNIX_EPOCH, alight_time: DateTime::UNIX_EPOCH,
+            trip: TripId(41),
+            boarding_stop: a,
+            alight_stop: b,
+            boarding_time: DateTime::UNIX_EPOCH,
+            alight_time: DateTime::UNIX_EPOCH,
         };
         let bc = Ride {
-            trip: TripId(43), boarding_stop: b, alight_stop: c,
-            boarding_time: DateTime::UNIX_EPOCH, alight_time: DateTime::UNIX_EPOCH,
+            trip: TripId(43),
+            boarding_stop: b,
+            alight_stop: c,
+            boarding_time: DateTime::UNIX_EPOCH,
+            alight_time: DateTime::UNIX_EPOCH,
         };
         let de = Ride {
-            trip: TripId(45), boarding_stop: d, alight_stop: e,
-            boarding_time: DateTime::UNIX_EPOCH, alight_time: DateTime::UNIX_EPOCH,
+            trip: TripId(45),
+            boarding_stop: d,
+            alight_stop: e,
+            boarding_time: DateTime::UNIX_EPOCH,
+            alight_time: DateTime::UNIX_EPOCH,
         };
 
         // A -> E
         tp.add_journey(Journey::from(vec![
             Ride {
-                trip: TripId(42), boarding_stop: a, alight_stop: e,
-                boarding_time: DateTime::UNIX_EPOCH, alight_time: DateTime::UNIX_EPOCH,
+                trip: TripId(42),
+                boarding_stop: a,
+                alight_stop: e,
+                boarding_time: DateTime::UNIX_EPOCH,
+                alight_time: DateTime::UNIX_EPOCH,
             }
         ]));
 
@@ -219,8 +237,11 @@ mod tests {
         tp.add_journey(Journey::from(vec![
             ab.clone(),
             Ride {
-                trip: TripId(42), boarding_stop: b, alight_stop: e,
-                boarding_time: DateTime::UNIX_EPOCH, alight_time: DateTime::UNIX_EPOCH,
+                trip: TripId(42),
+                boarding_stop: b,
+                alight_stop: e,
+                boarding_time: DateTime::UNIX_EPOCH,
+                alight_time: DateTime::UNIX_EPOCH,
             }
         ]));
 
@@ -234,8 +255,11 @@ mod tests {
         tp.add_journey(Journey::from(vec![
             ab.clone(),
             Ride {
-                trip: TripId(44), boarding_stop: b, alight_stop: d,
-                boarding_time: DateTime::UNIX_EPOCH, alight_time: DateTime::UNIX_EPOCH,
+                trip: TripId(44),
+                boarding_stop: b,
+                alight_stop: d,
+                boarding_time: DateTime::UNIX_EPOCH,
+                alight_time: DateTime::UNIX_EPOCH,
             },
             de.clone(),
         ]));
@@ -245,31 +269,37 @@ mod tests {
             ab.clone(),
             bc.clone(),
             Ride {
-                trip: TripId(31), boarding_stop: c, alight_stop: d,
-                boarding_time: DateTime::UNIX_EPOCH, alight_time: DateTime::UNIX_EPOCH,
+                trip: TripId(31),
+                boarding_stop: c,
+                alight_stop: d,
+                boarding_time: DateTime::UNIX_EPOCH,
+                alight_time: DateTime::UNIX_EPOCH,
             },
             de.clone()
         ]));
-        
+
         tp.print(a);
         todo!("assertions");
     }
-    
+
     #[test]
     fn test_tp_double_insert() {
         let mut tp = TransferPatternsGraphs::new(2);
-        
+
         for _ in 0..2 {
             tp.add_journey(Journey::from(vec![
-                Ride { 
-                    trip: TripId(0), boarding_stop: StopId(0), alight_stop: StopId(1),
-                    boarding_time: DateTime::UNIX_EPOCH, alight_time: DateTime::UNIX_EPOCH
+                Ride {
+                    trip: TripId(0),
+                    boarding_stop: StopId(0),
+                    alight_stop: StopId(1),
+                    boarding_time: DateTime::UNIX_EPOCH,
+                    alight_time: DateTime::UNIX_EPOCH
                 }
             ]));
         }
-        
+
         tp.print(StopId(0));
-        
+
         todo!("assertions");
     }
 }
