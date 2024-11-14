@@ -18,17 +18,21 @@ use common::types::StopId;
 /// In this implementation, all lines are stored in a single table, and stop times are represented
 /// vertically instead of horizontally, like this:
 ///
-/// | line_id | trip_id      | stop_id | arrival | departure |
-/// | ------- | ------------ | ------- | ------- | --------- |
-/// | 0       | 0            | 42      | null    | 8:15      |
-/// | 0       | 0            | 7       | 8:22    | 8:23      |
-/// | 0       | 0            | 68      | 8:38    | 8:39      |
-/// | 0       | 0            | ...     | ...     | ...       |
-/// | 0       | 1            | ...     | ...     | ...       |
-/// | 0       | ...          | ...     | ...     | ...       |
-/// | 1       | ...          | ...     | ...     | ...       |
-/// | ...     | ...          | ...     | ...     | ...       |
-pub type LinesFrame = DataFrame;
+/// | line_id | trip_id      | stop_id | arrival | departure | stop_sequence |
+/// | ------- | ------------ | ------- | ------- | --------- | ------------- |
+/// | 0       | 0            | 42      | null    | 8:15      |             0 |
+/// | 0       | 0            | 7       | 8:22    | 8:23      |             1 |
+/// | 0       | 0            | 68      | 8:38    | 8:39      |             2 |
+/// | 0       | 0            | ...     | ...     | ...       |           ... |
+/// | 0       | 1            | ...     | ...     | ...       |             0 |
+/// | 0       | ...          | ...     | ...     | ...       |           ... |
+/// | 1       | ...          | ...     | ...     | ...       |           ... |
+/// | ...     | ...          | ...     | ...     | ...       |           ... |
+pub type ExpandedLinesFrame = DataFrame;
+
+/// | line_id | stop_id | stop_sequence   |
+/// | ------- | ------- | --------------- |
+pub type LineProgressionFrame = DataFrame;
 
 /// | stop_id | incidences                                                     |
 /// | ------- | -------------------------------------------------------------- |
@@ -39,7 +43,8 @@ pub type StopIncidenceFrame = DataFrame;
 
 #[derive(Clone)]
 pub struct DirectConnections {
-    pub lines: LinesFrame,
+    pub expanded_lines: ExpandedLinesFrame,
+    pub line_progressions: LineProgressionFrame,
     pub stop_incidence: StopIncidenceFrame,
 }
 
@@ -48,7 +53,7 @@ impl TryFrom<PreprocessingInput> for DirectConnections {
     type Error = PreprocessingError;
 
     fn try_from(input: PreprocessingInput) -> Result<Self, Self::Error> {
-        let lines = {
+        let (expanded_lines, line_progressions) = {
             // TODO: For now, this completely ignores traffic days. Therefore, computed transfer patterns might include some patterns that are never possible and might not include some optimal ones (when mixture of days is better than whats possible on an actual day)!
             let lines = input.stop_times
                 .clone()
@@ -58,14 +63,18 @@ impl TryFrom<PreprocessingInput> for DirectConnections {
                 .group_by([col("trip_id")])
                 .agg([col("stop_id").alias("stop_ids"), col("arrival_time"), col("departure_time"), col("stop_sequence")])
                 // Group by the sequence of stop_ids, to identify lines (aka unique sequences of stops)
-                .group_by([col("stop_ids")])
-                .agg([col("trip_id").alias("trip_ids"), col("arrival_time"), col("departure_time"), col("stop_sequence")])
+                .group_by([col("stop_ids"), col("stop_sequence")])
+                .agg([col("trip_id").alias("trip_ids"), col("arrival_time"), col("departure_time")])
                 // Assign line ids
                 .with_row_index("line_id", None);
+            
+            let line_progressions = lines.clone()
+                .select([col("line_id"), col("stop_ids"), col("stop_sequence")])
+                .explode([col("stop_ids"), col("stop_sequence")]); // TODO
 
             let exploded_lines = lines
                 // Disaggregate trips of a line
-                .explode([col("trip_ids"), col("arrival_time"), col("departure_time"), col("stop_sequence")])
+                .explode([col("trip_ids"), col("arrival_time"), col("departure_time")])
                 // Rename plural "trip_ids" back to singular "trip_id"
                 .select([col("*").exclude(["trip_ids"]), col("trip_ids").alias("trip_id")])
                 // Disaggregate stops of a trip
@@ -73,33 +82,33 @@ impl TryFrom<PreprocessingInput> for DirectConnections {
                 // Rename plural "stop_ids" back to singular "stop_id"
                 .select([col("*").exclude(["stop_ids"]), col("stop_ids").alias("stop_id")]);
 
-            exploded_lines            
-        }.collect()?;
+            Ok::<(ExpandedLinesFrame, LineProgressionFrame), PreprocessingError>(
+                (exploded_lines.collect()?, line_progressions.collect()?)
+            )            
+        }?;
         
         let stop_incidence = {
-            let incidences: Series = lines.clone()
+            let incidences: Series = expanded_lines.clone()
                 .select(["line_id", "stop_sequence"])?
                 .into_struct("incidences".into())
                 .into_series();
             
-            let stop_incidence_frame = lines
+            expanded_lines
                 .select(["stop_id"])?
                 .with_column(incidences)?
                 .clone().lazy()
                 .group_by([col("stop_id")])
-                .agg([col("incidences")]);
-            
-            stop_incidence_frame            
+                .agg([col("incidences")])      
         }.collect()?;
         
-        Ok(Self { lines, stop_incidence })
+        Ok(Self { expanded_lines, line_progressions, stop_incidence })
     }
 }
 
 
 impl DirectConnections {
     pub(crate) fn rename_stops(&mut self, mapping: &DataFrame) -> Result<(), PolarsError> {
-        self.lines = self.lines
+        self.expanded_lines = self.expanded_lines
             .left_join(
                 mapping,
                 ["stop_id"],
@@ -159,7 +168,7 @@ impl DirectConnections {
         let common_lines = self.query_direct(from, to)?;
         let common_lines_after_departure = common_lines
             .left_join(
-                self.lines.select(["line_id", "departure_time"])?.lazy(),
+                self.expanded_lines.select(["line_id", "departure_time"])?.lazy(),
                 col("line_id"), col("line_id"),
             )
             .filter(
