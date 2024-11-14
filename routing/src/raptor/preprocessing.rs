@@ -1,6 +1,6 @@
 use crate::algorithm::{PreprocessInit, PreprocessingError, PreprocessingInput, PreprocessingResult};
 use crate::direct_connections::DirectConnections;
-use crate::raptor::{RaptorAlgorithm, TripAtStopTimeMap};
+use crate::raptor::{RaptorAlgorithm, TripAtStopTimeMap, TripsByLineAndStopMap};
 use crate::transfers::crow_fly::CrowFlyTransferProvider;
 use chrono::{DateTime, Utc};
 use common::types::{LineId, SeqNum, StopId, TripId};
@@ -102,7 +102,7 @@ impl RaptorAlgorithm {
         let trips_ids = trips_ids.list()?;
         let departures_times = departures_times.list()?;
 
-        let mut trips_by_line_and_stop: HashMap<(LineId, StopId), Vec<(DateTime<Utc>, TripId)>> = HashMap::new();
+        let mut trips_by_line_and_stop: TripsByLineAndStopMap = HashMap::new();
 
         for (line_id, stop_id, trips, departures) in izip!(line_ids, stop_ids, trips_ids, departures_times) {
             let trips = trips.unwrap();
