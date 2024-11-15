@@ -211,8 +211,7 @@ mod tests {
 
     #[test]
     fn test_preprocessing() {
-        let departure_times: Series = [0; 15]
-            .into_iter().collect::<Series>()
+        let departure_times: Series = (0..15).into_iter().collect::<Series>()
             .cast(&DataType::Duration(TimeUnit::Milliseconds)).unwrap();
         
         // Stop sequences of lines:
