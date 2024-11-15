@@ -2,8 +2,9 @@ use crate::algorithm::{PreprocessInit, PreprocessingError, PreprocessingInput, P
 use crate::direct_connections::DirectConnections;
 use crate::raptor::{RaptorAlgorithm, TripAtStopTimeMap, TripsByLineAndStopMap};
 use crate::transfers::crow_fly::CrowFlyTransferProvider;
-use chrono::{DateTime, Utc};
+use chrono::DateTime;
 use common::types::{LineId, SeqNum, StopId, TripId};
+use common::util::time::INFINITY;
 use hashbrown::{HashMap, HashSet};
 use itertools::{izip, Itertools};
 use polars::error::PolarsError;
@@ -36,7 +37,7 @@ impl RaptorAlgorithm {
                 let line_id = line_id.unwrap().into();
                 let stop_id = stop_id.unwrap().into();
                 let seq_num = seq_num.unwrap().into();
-                
+
                 stops_by_line.entry(line_id).or_insert(vec![])
                     .push(stop_id);
 
@@ -76,15 +77,27 @@ impl RaptorAlgorithm {
                 let stop_id = StopId(stop_id.unwrap());
                 let arrival_time = arrival_time.unwrap();
                 let departure_time = departure_time.unwrap();
-                
+
                 // TODO: Fix date time handling
                 let arrival_time = DateTime::from_timestamp_millis(arrival_time).unwrap();
                 let departure_time = DateTime::from_timestamp_millis(departure_time).unwrap();
-                
+
                 arrivals.insert((trip_id, stop_id), arrival_time);
                 departures.insert((trip_id, stop_id), departure_time);
             }
-            
+
+            #[cfg(debug_assertions)] {
+                // Assert that no arrival at a stop is after the departure
+                &arrivals.iter().for_each(|((trip, stop), arrival)| {
+                    let departure = departures.get(&(*trip, *stop))
+                        .unwrap_or(&INFINITY);
+                    debug_assert!(
+                        arrival <= departure,
+                        "Departure at stop {stop:?} must be after arrival. Issue found on {trip:?}"
+                    );
+                });
+            }
+
             Ok::<(TripAtStopTimeMap, TripAtStopTimeMap), PreprocessingError>
                 ((arrivals, departures))
         }?;
@@ -121,7 +134,7 @@ impl RaptorAlgorithm {
             );
         }
 
-        if cfg!(debug_assertions) {
+        #[cfg(debug_assertions)] {
             // Assert monotonous increase in departure time within a trip
             for ((line, _), departures) in trips_by_line_and_stop.iter() {
                 // We can only check increase for trips that have at least two stops
@@ -145,6 +158,26 @@ impl RaptorAlgorithm {
                     }
                 }
             }
+
+            // Assert that stop sequences of lines match across trips_by_line_and_stop and stops_by_line
+            let stops_by_line_a = &stops_by_line;
+            let stops_by_line_b = &trips_by_line_and_stop.clone().into_keys()
+                .into_group_map();
+
+            stops_by_line_a.iter().for_each(|(line, stops_a)| {
+                // Sort so that vecs match
+                let stops_a = stops_a.iter().sorted().collect_vec();
+                let stops_b = stops_by_line_b.get(line)
+                    .expect(format!("Expected line {line:?} to exist in trips_by_line_and_stop").as_str())
+                    .iter().sorted()
+                    .collect_vec();
+
+                debug_assert!(
+                    stops_a == stops_b,
+                    "Stops don't match for {line:?}. stops_by_line: {:?}\ntrips_by_line_and_stop: {:?}",
+                    stops_a, stops_b
+                );
+            });
         }
 
         Ok(Self {
