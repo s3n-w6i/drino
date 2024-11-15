@@ -55,7 +55,7 @@ impl TryFrom<PreprocessingInput> for DirectConnections {
     fn try_from(input: PreprocessingInput) -> Result<Self, Self::Error> {
         let (expanded_lines, line_progressions) = {
             // TODO: For now, this completely ignores traffic days. Therefore, computed transfer patterns might include some patterns that are never possible and might not include some optimal ones (when mixture of days is better than whats possible on an actual day)!
-            let lines = input.stop_times
+            let mut lines = input.stop_times
                 .clone()
                 // Sort the stop sequence, so that list of stop_ids are identical once aggregated
                 .sort(["stop_sequence"], Default::default())
@@ -65,14 +65,19 @@ impl TryFrom<PreprocessingInput> for DirectConnections {
                 // Group by the sequence of stop_ids, to identify lines (aka unique sequences of stops)
                 .group_by([col("stop_ids"), col("stop_sequence")])
                 .agg([col("trip_id").alias("trip_ids"), col("arrival_time"), col("departure_time")])
-                // Assign line ids
-                .with_row_index("line_id", None);
-            
-            let line_progressions = lines.clone()
+                .collect()?;
+
+            // Assign line ids
+            let num_lines = lines.get_columns().first().unwrap().len() as u32;
+            let mut line_ids = Column::from(Series::from_iter(0..num_lines));
+            line_ids.rename("line_id".into());
+            lines.with_column(line_ids)?;
+
+            let line_progressions = lines.clone().lazy()
                 .select([col("line_id"), col("stop_ids"), col("stop_sequence")])
                 .explode([col("stop_ids"), col("stop_sequence")]); // TODO
 
-            let exploded_lines = lines
+            let exploded_lines = lines.lazy()
                 // Disaggregate trips of a line
                 .explode([col("trip_ids"), col("arrival_time"), col("departure_time")])
                 // Rename plural "trip_ids" back to singular "trip_id"
@@ -84,23 +89,23 @@ impl TryFrom<PreprocessingInput> for DirectConnections {
 
             Ok::<(ExpandedLinesFrame, LineProgressionFrame), PreprocessingError>(
                 (exploded_lines.collect()?, line_progressions.collect()?)
-            )            
+            )
         }?;
-        
+
         let stop_incidence = {
             let incidences: Series = expanded_lines.clone()
                 .select(["line_id", "stop_sequence"])?
                 .into_struct("incidences".into())
                 .into_series();
-            
+
             expanded_lines
                 .select(["stop_id"])?
                 .with_column(incidences)?
                 .clone().lazy()
                 .group_by([col("stop_id")])
-                .agg([col("incidences")])      
+                .agg([col("incidences")])
         }.collect()?;
-        
+
         Ok(Self { expanded_lines, line_progressions, stop_incidence })
     }
 }
@@ -117,7 +122,7 @@ impl DirectConnections {
             .drop("stop_id")? // Don't keep the stop_id withing the cluster...
             .rename("original_stop_id", "stop_id".into())? //...instead, use original id
             .clone();
-        
+
         self.stop_incidence = self.stop_incidence
             .left_join(
                 mapping,
@@ -127,7 +132,7 @@ impl DirectConnections {
             .drop("stop_id")?
             .rename("original_stop_id", "stop_id".into())?
             .clear();
-        
+
         Ok(())
     }
 
