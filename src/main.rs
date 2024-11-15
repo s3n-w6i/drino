@@ -118,11 +118,13 @@ fn preprocess(datasets: Vec<Dataset>) -> Result<ALGORITHM, DrinoError> {
 
     let elapsed = indicatif::HumanDuration(preprocessing_start_time.elapsed().unwrap());
     info!(target: "preprocessing", "Preprocessing finished in {}", elapsed);
+    
     files_to_clean_up.into_iter()
         .for_each(|file| {
             TempPath::from_path(file).close()
                 .expect("Unable to clean up temp files. Please clean up manually.");
         });
+    debug!("Files cleaned up");
     
     Ok(preprocessing_result)
 }
