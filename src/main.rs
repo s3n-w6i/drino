@@ -1,30 +1,30 @@
 mod config;
 pub mod bootstrap_config;
 
-use std::fmt::{Display, Formatter};
-use std::io;
-use std::path::PathBuf;
-use std::time::SystemTime;
 use futures::{StreamExt, TryStreamExt};
 use log::{debug, error, info};
 use polars::error::PolarsError;
 use polars::prelude::IntoLazy;
+use std::fmt::{Display, Formatter};
+use std::io;
+use std::path::PathBuf;
+use std::time::SystemTime;
 use tempfile::TempPath;
 use tokio::runtime::Runtime;
 
+use crate::config::load_config;
+use bootstrap_config::BootstrapConfig;
 use common::types::config::Config;
+use common::types::dataset::Dataset;
+use common::util::logging::{initialize_logging, run_with_spinner};
+use common::util::speed::Speed;
 use data_harvester::step1_fetch_data::{fetch_dataset, FetchError};
 use data_harvester::step2_import_data::{import_data, ImportError, ImportStepExtra};
 use data_harvester::step3_validate_data::{validate_data, ValidateError, ValidateStepOutput};
 use data_harvester::step4_merge_data::{merge, MergeError};
 use data_harvester::step5_simplify::{simplify, SimplifyError};
 use routing::algorithm::{PreprocessInit, PreprocessingError, PreprocessingInput};
-use common::util::logging::{initialize_logging, run_with_spinner};
-use common::util::speed::Speed;
 use routing::stp::ScalableTransferPatternsAlgorithm;
-use bootstrap_config::BootstrapConfig;
-use common::types::dataset::Dataset;
-use crate::config::load_config;
 
 type ALGORITHM = ScalableTransferPatternsAlgorithm;
 
@@ -46,25 +46,34 @@ fn main() {
 
 fn run() -> Result<(), DrinoError> {
     let bootstrap_config = BootstrapConfig::read();
-    
+
     initialize_logging(bootstrap_config.clone().log_level.into());
     debug!(target: "main", "Using temporary folder at {}", std::env::temp_dir().to_str().unwrap());
-    
+
     let config = load_config(bootstrap_config)?;
 
-    let result: Result<(), DrinoError> = match config {
+    let algorithm = match config {
         Config::Version1 { datasets, .. } => {
-            preprocess(datasets)?;
-            Ok(())
+            preprocess(datasets)?
         }
     };
+
+    // Since we cleaned up in preprocess already, provide empty array of files here
+    Ok(())
+}
+
+/// Wrapper for `preprocess_inner` that handles cleaning up temporary files, no matter if error is thrown or not.
+fn preprocess(datasets: Vec<Dataset>) -> Result<ALGORITHM, DrinoError> {
+    let mut files_to_clean_up: Vec<PathBuf> = vec![];
+
+    let result = preprocess_inner(datasets, &mut files_to_clean_up);
+
+    clean_up(files_to_clean_up);
 
     result
 }
 
-fn preprocess(datasets: Vec<Dataset>) -> Result<ALGORITHM, DrinoError> {
-    let mut files_to_clean_up: Vec<PathBuf> = vec![];
-
+fn preprocess_inner(datasets: Vec<Dataset>, files_to_clean_up: &mut Vec<PathBuf>) -> Result<ALGORITHM, DrinoError> {
     info!(target: "preprocessing", "Starting preprocessing");
     let preprocessing_start_time = SystemTime::now();
 
@@ -118,16 +127,24 @@ fn preprocess(datasets: Vec<Dataset>) -> Result<ALGORITHM, DrinoError> {
 
     let elapsed = indicatif::HumanDuration(preprocessing_start_time.elapsed().unwrap());
     info!(target: "preprocessing", "Preprocessing finished in {}", elapsed);
-    
-    files_to_clean_up.into_iter()
-        .for_each(|file| {
-            TempPath::from_path(file).close()
-                .expect("Unable to clean up temp files. Please clean up manually.");
-        });
-    debug!("Files cleaned up");
-    
+
     Ok(preprocessing_result)
 }
+
+fn clean_up(files: Vec<PathBuf>) {
+    if !files.is_empty() {
+        files.into_iter()
+            .for_each(|file| {
+                TempPath::from_path(file.clone()).close()
+                    .expect(format!(
+                        "Unable to clean up temp file at {file:?}. Please clean up manually."
+                    ).as_str());
+            });
+
+        debug!("Temporary files cleaned up");
+    }
+}
+
 
 #[derive(thiserror::Error, Debug)]
 pub enum DrinoError {
