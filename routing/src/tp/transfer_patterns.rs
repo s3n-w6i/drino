@@ -15,7 +15,7 @@ use std::fmt::Debug;
 
 /// https://ad.informatik.uni-freiburg.de/files/transferpatterns.pdf
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, PartialOrd, Ord, Eq)]
 enum NodeType {
     Target,
     Prefix,
@@ -177,11 +177,11 @@ impl TransferPatternsGraphs {
                 !is_cyclic_directed::<&Graph<(StopId, NodeType), (), Directed>>(graph),
                 "Every transfer pattern graph must be acyclic."
             );
-            
+
             // Check that there is only one target node per stop
             let duplicate_targets = graph.node_weights()
                 // Only check uniqueness of target nodes (there can be multiple prefix nodes per stop)
-                .filter(|(_stop, node_type)| matches!(node_type, NodeType::Target) )
+                .filter(|(_stop, node_type)| matches!(node_type, NodeType::Target))
                 // Find the duplicate stops
                 .duplicates_by(|(stop, _t)| stop)
                 .collect_vec();
@@ -192,15 +192,23 @@ impl TransferPatternsGraphs {
             );
         }
     }
+
+    pub(self) fn nodes(&self, root: StopId) -> Option<impl Iterator<Item=&(StopId, NodeType)> + Sized> {
+        self.dags.get::<usize>(root.0 as usize)
+            .map(|dag: &Graph<(StopId, NodeType), (), Directed>| {
+                dag.node_weights()
+            })
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use crate::journey::Journey;
     use crate::journey::Leg::Ride;
-    use crate::tp::transfer_patterns::TransferPatternsGraphs;
+    use crate::tp::transfer_patterns::{NodeType, TransferPatternsGraphs};
     use chrono::{DateTime, TimeDelta};
     use common::types::{StopId, TripId};
+    use itertools::{assert_equal, Itertools};
 
     #[test]
     fn test_tp_adding() {
@@ -298,8 +306,9 @@ mod tests {
 
     #[test]
     fn test_tp_double_insert() {
-        let mut tp = TransferPatternsGraphs::new(2);
+        let mut tp = TransferPatternsGraphs::new(3);
 
+        // Do twice
         for _ in 0..2 {
             tp.add_journey(Journey::from(vec![
                 Ride {
@@ -307,14 +316,43 @@ mod tests {
                     boarding_stop: StopId(0),
                     alight_stop: StopId(1),
                     boarding_time: DateTime::UNIX_EPOCH,
-                    alight_time: DateTime::UNIX_EPOCH
+                    alight_time: DateTime::UNIX_EPOCH + TimeDelta::seconds(42),
+                }
+            ]));
+
+            tp.add_journey(Journey::from(vec![
+                Ride {
+                    trip: TripId(0),
+                    boarding_stop: StopId(0),
+                    alight_stop: StopId(1),
+                    boarding_time: DateTime::UNIX_EPOCH,
+                    alight_time: DateTime::UNIX_EPOCH + TimeDelta::seconds(42),
+                },
+                Ride {
+                    trip: TripId(2),
+                    boarding_stop: StopId(1),
+                    alight_stop: StopId(2),
+                    boarding_time: DateTime::UNIX_EPOCH,
+                    alight_time: DateTime::UNIX_EPOCH + TimeDelta::seconds(1),
                 }
             ]));
         }
 
         tp.print(StopId(0));
+        tp.print(StopId(1));
+        tp.print(StopId(2));
 
-        todo!("assertions");
+        tp.validate();
+
+        assert_equal(
+            tp.nodes(StopId(0)).unwrap().into_iter().sorted(),
+            [
+                &(StopId(2), NodeType::Target),
+                &(StopId(1), NodeType::Target),
+                &(StopId(1), NodeType::Prefix),
+                &(StopId(0), NodeType::Root),
+            ].into_iter().sorted(),
+        );
     }
 }
 
