@@ -95,7 +95,7 @@ impl RaptorAlgorithm {
 
             #[cfg(debug_assertions)] {
                 // Assert that no arrival at a stop is after the departure
-                &arrivals.iter().for_each(|((trip, stop), arrival)| {
+                arrivals.iter().for_each(|((trip, stop), arrival)| {
                     let departure = departures.get(&(*trip, *stop))
                         .unwrap_or(&INFINITY);
                     debug_assert!(
@@ -214,7 +214,12 @@ mod tests {
         let departure_times: Series = [0; 15]
             .into_iter().collect::<Series>()
             .cast(&DataType::Duration(TimeUnit::Milliseconds)).unwrap();
-
+        
+        // Stop sequences of lines:
+        // [s:0, s:1, s:2, s:3]          Trips: [t:0]
+        // [s:2, s:3, s:4, s:5]          Trips: [t:1]
+        // [s:3, s:4]                    Trips: [t:2]
+        // [s:0, s:1, s:2, s:3, s:4]     Trips: [t:3]
         let preprocessing_in = PreprocessingInput {
             services: DataFrame::empty().lazy(),
             stops: df!(
