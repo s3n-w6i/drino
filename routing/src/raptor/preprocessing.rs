@@ -11,6 +11,13 @@ use polars::error::PolarsError;
 use polars::prelude::*;
 use std::ops::{BitAnd, BitOr};
 
+impl PreprocessInit for RaptorAlgorithm {
+    fn preprocess(input: PreprocessingInput) -> PreprocessingResult<RaptorAlgorithm> {
+        let direct_connections = DirectConnections::try_from(input.clone())?;
+        Self::preprocess(input, direct_connections)
+    }
+}
+
 impl RaptorAlgorithm {
     pub fn preprocess(
         PreprocessingInput { stops, .. }: PreprocessingInput,
@@ -189,13 +196,6 @@ impl RaptorAlgorithm {
             trips_by_line_and_stop,
             transfer_provider: Box::new(CrowFlyTransferProvider::from_stops(stops)?),
         })
-    }
-}
-
-impl PreprocessInit for RaptorAlgorithm {
-    fn preprocess(input: PreprocessingInput) -> PreprocessingResult<RaptorAlgorithm> {
-        let direct_connections = DirectConnections::try_from(input.clone())?;
-        Self::preprocess(input, direct_connections)
     }
 }
 
