@@ -131,13 +131,13 @@ impl RaptorAlgorithm {
                         debug_assert!(
                             departure_time >= last_departure_time,
                             "Expected departure time ({departure_time}) to not be smaller than previous ({last_departure_time}) in trips_by_line_and_stop. Offending Trip: {trip:?} (compared to {last_trip:?}) on line {line:?}. Excerpt from lines DF:\n{}\nExcerpt from trips_by_line_and_stop:\n{:#?}",
-                            lines.clone().filter(
-                                &lines.column("line_id")?.as_materialized_series().equal(line.0)?.bitand(
-                                    lines.column("trip_id")?.as_materialized_series().equal(trip.0)?.bitor(
-                                        lines.column("trip_id")?.as_materialized_series().equal(last_trip.0)?
-                                    )
-                                )
-                            )?,
+                            {
+                                let line_mask = lines.column("line_id")?.as_materialized_series().equal(line.0)?;
+                                let trip_series = lines.column("trip_id")?.as_materialized_series();
+                                let trip_mask = trip_series.equal(trip.0)?;
+                                let last_trip_mask = trip_series.equal(last_trip.0)?;
+                                lines.clone().filter(&line_mask.bitand(trip_mask.bitor(last_trip_mask)))
+                            }?,
                             trips_by_line_and_stop.iter()
                                 .filter(|((l, _), _)| l == line)
                                 .collect_vec()
