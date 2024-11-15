@@ -199,6 +199,19 @@ impl TransferPatternsGraphs {
                 dag.node_weights()
             })
     }
+
+    pub(self) fn edges(&self, root: StopId) -> Option<impl Iterator<Item=(&(StopId, NodeType), &(StopId, NodeType))> + Sized + use<'_>> {
+        self.dags.get::<usize>(root.0 as usize)
+            .map(|dag: &Graph<(StopId, NodeType), (), Directed>| {
+                dag.edge_indices()
+                    .map(|i| {
+                        dag.edge_endpoints(i).unwrap()
+                    })
+                    .map(|(start_idx, end_idx)| {
+                        (dag.node_weight(start_idx).unwrap(), dag.node_weight(end_idx).unwrap())
+                    })
+            })
+    }
 }
 
 #[cfg(test)]
@@ -339,19 +352,28 @@ mod tests {
         }
 
         tp.print(StopId(0));
-        tp.print(StopId(1));
-        tp.print(StopId(2));
 
         tp.validate();
 
+        let expected_nodes = [
+            &(StopId(2), NodeType::Target),
+            &(StopId(1), NodeType::Target),
+            &(StopId(1), NodeType::Prefix),
+            &(StopId(0), NodeType::Root),
+        ];
         assert_equal(
             tp.nodes(StopId(0)).unwrap().into_iter().sorted(),
-            [
-                &(StopId(2), NodeType::Target),
-                &(StopId(1), NodeType::Target),
-                &(StopId(1), NodeType::Prefix),
-                &(StopId(0), NodeType::Root),
-            ].into_iter().sorted(),
+            expected_nodes.into_iter().sorted(),
+        );
+        
+        let expected_edges = [
+            (&(StopId(2), NodeType::Target), &(StopId(1), NodeType::Prefix)),
+            (&(StopId(1), NodeType::Prefix), &(StopId(0), NodeType::Root)),
+            (&(StopId(1), NodeType::Target), &(StopId(0), NodeType::Root)),
+        ];
+        assert_equal(
+            tp.edges(StopId(0)).unwrap().into_iter().sorted(),
+            expected_edges.into_iter().sorted()
         );
     }
 }
