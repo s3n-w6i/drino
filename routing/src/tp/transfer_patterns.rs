@@ -361,10 +361,10 @@ pub struct TransferPatternsTable(pub(crate) DataFrame);
 
 impl TransferPatternsTable {
     pub(crate) fn new() -> PolarsResult<Self> {
-        let start_series = Column::new_empty("start".into(), &DataType::UInt32);
-        let end_series = Column::new_empty("end".into(), &DataType::UInt32);
+        let start_col = Column::new_empty("start".into(), &DataType::UInt32);
+        let end_col = Column::new_empty("end".into(), &DataType::UInt32);
 
-        Ok(Self(DataFrame::new(vec![start_series, end_series])?))
+        Ok(Self(DataFrame::new(vec![start_col, end_col])?))
     }
 }
 
