@@ -172,9 +172,22 @@ impl TransferPatternsGraphs {
     #[cfg(debug_assertions)]
     pub(crate) fn validate(&self) {
         for graph in &self.dags {
+            // Validate acyclic property
             debug_assert!(
                 !is_cyclic_directed::<&Graph<(StopId, NodeType), (), Directed>>(graph),
                 "Every transfer pattern graph must be acyclic."
+            );
+            
+            // Check that there is only one target node per stop
+            let duplicate_targets = graph.node_weights()
+                // Only check uniqueness of target nodes (there can be multiple prefix nodes per stop)
+                .filter(|(_stop, node_type)| matches!(node_type, NodeType::Target) )
+                .duplicates_by(|(stop, _t)| stop)
+                .collect_vec();
+            debug_assert!(
+                duplicate_targets.is_empty(),
+                "There must only be one target node for each stop. These are duplicates: {:?}",
+                duplicate_targets.iter().map(|(stop, _)| stop).collect_vec()
             );
         }
     }
