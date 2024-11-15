@@ -182,6 +182,7 @@ impl TransferPatternsGraphs {
             let duplicate_targets = graph.node_weights()
                 // Only check uniqueness of target nodes (there can be multiple prefix nodes per stop)
                 .filter(|(_stop, node_type)| matches!(node_type, NodeType::Target) )
+                // Find the duplicate stops
                 .duplicates_by(|(stop, _t)| stop)
                 .collect_vec();
             debug_assert!(
@@ -198,7 +199,7 @@ mod tests {
     use crate::journey::Journey;
     use crate::journey::Leg::Ride;
     use crate::tp::transfer_patterns::TransferPatternsGraphs;
-    use chrono::DateTime;
+    use chrono::{DateTime, TimeDelta};
     use common::types::{StopId, TripId};
 
     #[test]
@@ -218,21 +219,21 @@ mod tests {
             boarding_stop: a,
             alight_stop: b,
             boarding_time: DateTime::UNIX_EPOCH,
-            alight_time: DateTime::UNIX_EPOCH,
+            alight_time: DateTime::UNIX_EPOCH + TimeDelta::seconds(1),
         };
         let bc = Ride {
             trip: TripId(43),
             boarding_stop: b,
             alight_stop: c,
             boarding_time: DateTime::UNIX_EPOCH,
-            alight_time: DateTime::UNIX_EPOCH,
+            alight_time: DateTime::UNIX_EPOCH + TimeDelta::days(1),
         };
         let de = Ride {
             trip: TripId(45),
             boarding_stop: d,
             alight_stop: e,
             boarding_time: DateTime::UNIX_EPOCH,
-            alight_time: DateTime::UNIX_EPOCH,
+            alight_time: DateTime::UNIX_EPOCH + TimeDelta::milliseconds(1),
         };
 
         // A -> E
@@ -242,7 +243,7 @@ mod tests {
                 boarding_stop: a,
                 alight_stop: e,
                 boarding_time: DateTime::UNIX_EPOCH,
-                alight_time: DateTime::UNIX_EPOCH,
+                alight_time: DateTime::UNIX_EPOCH + TimeDelta::hours(20),
             }
         ]));
 
@@ -254,7 +255,7 @@ mod tests {
                 boarding_stop: b,
                 alight_stop: e,
                 boarding_time: DateTime::UNIX_EPOCH,
-                alight_time: DateTime::UNIX_EPOCH,
+                alight_time: DateTime::UNIX_EPOCH + TimeDelta::hours(1),
             }
         ]));
 
@@ -272,7 +273,7 @@ mod tests {
                 boarding_stop: b,
                 alight_stop: d,
                 boarding_time: DateTime::UNIX_EPOCH,
-                alight_time: DateTime::UNIX_EPOCH,
+                alight_time: DateTime::UNIX_EPOCH + TimeDelta::hours(2),
             },
             de.clone(),
         ]));
@@ -286,7 +287,7 @@ mod tests {
                 boarding_stop: c,
                 alight_stop: d,
                 boarding_time: DateTime::UNIX_EPOCH,
-                alight_time: DateTime::UNIX_EPOCH,
+                alight_time: DateTime::UNIX_EPOCH + TimeDelta::hours(42),
             },
             de.clone()
         ]));
