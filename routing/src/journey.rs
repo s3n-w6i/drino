@@ -112,14 +112,14 @@ impl Journey {
                 .map(|leg| {
                     match leg {
                         Leg::Transfer { duration, .. } => duration,
-                        _ => panic!("A ride leg cannot occur here, since we only take while legs are transfers!")
+                        _ => unreachable!("A ride leg cannot occur here, since we only take while legs are transfers")
                     }
                 })
                 .sum();
             if let Leg::Ride { boarding_time, .. } = first_ride {
                 Some(*boarding_time - start_transfers_duration)
             } else {
-                panic!("The first_ride leg cannot not be a ride!");
+                unreachable!("The first_ride leg is always a ride");
             }
         } else {
             None
@@ -141,14 +141,14 @@ impl Journey {
                 .map(|leg| {
                     match leg {
                         Leg::Transfer { duration, .. } => duration,
-                        _ => panic!("A ride leg cannot occur here, since we only take while legs are transfers!")
+                        _ => unreachable!("A ride leg cannot occur here, since we only take while legs are transfers")
                     }
                 })
                 .sum();
             if let Leg::Ride { alight_time, .. } = last_ride {
                 Some(*alight_time + end_transfers_duration)
             } else {
-                panic!("The last_ride leg cannot not be a ride!");
+                unreachable!("The last_ride leg is always a ride");
             }
         } else {
             None
@@ -171,7 +171,7 @@ impl Journey {
                 .map(|leg| {
                     match leg {
                         Leg::Transfer { duration, .. } => duration,
-                        _ => panic!("Journey was not expected to have a ride leg, since its departure is None")
+                        _ => unreachable!("Journey's departure is None, so it can't have a ride leg")
                     }
                 })
                 .sum();
