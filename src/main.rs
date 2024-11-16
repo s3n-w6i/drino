@@ -36,13 +36,13 @@ fn main() {
     let _ = run().inspect_err(|err| error!("{}", err));
 }
 
-fn run() -> Result<(), DrinoError> {    
+fn run() -> Result<(), DrinoError> {
     let bootstrap_config = BootstrapConfig::read();
 
     initialize_logging(bootstrap_config.clone().log_level.into());
-    
+
     print_ascii_art();
-    
+
     debug!(target: "main", "Using temporary folder at {}", std::env::temp_dir().to_str().unwrap());
 
     let config = load_config(bootstrap_config)?;
