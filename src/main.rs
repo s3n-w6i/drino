@@ -33,15 +33,7 @@ type ALGORITHM = ScalableTransferPatternsAlgorithm;
 pub const MAX_SPEED: Speed = Speed(500.0);
 
 fn main() {
-    let _ = run()
-        .map_err(|err| match err {
-            DrinoError::ConfigFile(_) => {
-                error!("Error while reading config file: {:?}", err);
-            }
-            _ => {
-                error!("{:?}", err);
-            }
-        });
+    let _ = run().inspect_err(|err| error!("{}", err));
 }
 
 fn run() -> Result<(), DrinoError> {    
@@ -155,6 +147,7 @@ fn clean_up(files: Vec<PathBuf>) {
 
 #[derive(thiserror::Error, Debug)]
 pub enum DrinoError {
+    ConfigDeserialization(#[from] serde_yaml::Error),
     ConfigFile(#[from] io::Error),
     Fetch(#[from] FetchError),
     Import(#[from] ImportError),
@@ -168,6 +161,7 @@ pub enum DrinoError {
 impl Display for DrinoError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let err: &dyn Display = match self {
+            DrinoError::ConfigDeserialization(err) => err,
             DrinoError::ConfigFile(err) => err,
             DrinoError::Fetch(err) => err,
             DrinoError::Import(err) => err,
@@ -175,8 +169,19 @@ impl Display for DrinoError {
             DrinoError::Merge(err) => err,
             DrinoError::Simplify(err) => err,
             DrinoError::Polars(err) => err,
-            DrinoError::Preprocessing(err) => err
+            DrinoError::Preprocessing(err) => err,
         };
-        write!(f, "{}", err)
+        let prefix = match self {
+            DrinoError::ConfigDeserialization(_) => "Unable to parse config file",
+            DrinoError::ConfigFile(_) => "Error while reading config file",
+            DrinoError::Fetch(_) => "Error while fetching a dataset",
+            DrinoError::Import(_) => "Error while fetching a dataset",
+            DrinoError::Validate(_) => "Error while validating a dataset",
+            DrinoError::Merge(_) => "Error while merging datasets",
+            DrinoError::Simplify(_) => "Error while simplifying a dataset",
+            DrinoError::Polars(_) => "Error while processing dataset data",
+            DrinoError::Preprocessing(_) => "Error while preprocessing data",
+        };
+        write!(f, "{}: {}", prefix, err)
     }
 }
