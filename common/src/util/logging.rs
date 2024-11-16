@@ -32,7 +32,7 @@ pub fn run_with_spinner<'a, F, Out>(
 
     let pb = ProgressBar::new_spinner()
         .with_message(format!("{}...", task_desc))
-        .with_style(ProgressStyle::with_template("{spinner} [{elapsed}] {msg}").unwrap());
+        .with_style(ProgressStyle::with_template("{spinner:.white} [{elapsed:.green}] {msg}").unwrap());
     pb.enable_steady_tick(Duration::from_millis(100));
 
     // Set up connection with log library so that progress bars don't jump around
@@ -60,9 +60,10 @@ pub fn run_with_pb<'a, F, Out>(
     let pb = ProgressBar::new(total)
         .with_message(format!("{}...", task_desc))
         .with_style(
-            ProgressStyle::with_template("[{elapsed}] {msg} [{wide_bar}] {human_pos}/{human_len} [{eta}]")
+            ProgressStyle::with_template("[{elapsed:.green}] {msg} [{wide_bar:.cyan/blue}] {human_pos}/{human_len} [{eta}]")
                 .unwrap().progress_chars("=> ")
         );
+    pb.enable_steady_tick(Duration::from_secs(1));
     
     unsafe {
         MULTI.clone().unwrap().add(pb.clone());
