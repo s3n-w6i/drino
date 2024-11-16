@@ -29,7 +29,10 @@ pub enum DatasetFormat {
 }
 
 #[derive(Debug, Deserialize, Clone)]
-#[serde(untagged, expecting = "Specify either a remote source with `url:` or a local path with `file:` under `src:` of this dataset")]
+#[serde(
+    untagged,
+    expecting = "Invalid or missing data source. Specify either a remote source with `url:` and `headers:` or a local path with `file:` under `src:` of this dataset")
+]
 pub enum DataSource {
     URL {
         url: Url,
