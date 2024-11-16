@@ -36,18 +36,21 @@ fn main() {
     let _ = run()
         .map_err(|err| match err {
             DrinoError::ConfigFile(_) => {
-                error!("Error while reading config file: {}", err);
+                error!("Error while reading config file: {:?}", err);
             }
             _ => {
-                error!("{}", err);
+                error!("{:?}", err);
             }
         });
 }
 
-fn run() -> Result<(), DrinoError> {
+fn run() -> Result<(), DrinoError> {    
     let bootstrap_config = BootstrapConfig::read();
 
     initialize_logging(bootstrap_config.clone().log_level.into());
+    
+    print_ascii_art();
+    
     debug!(target: "main", "Using temporary folder at {}", std::env::temp_dir().to_str().unwrap());
 
     let config = load_config(bootstrap_config)?;
@@ -60,6 +63,10 @@ fn run() -> Result<(), DrinoError> {
 
     // Since we cleaned up in preprocess already, provide empty array of files here
     Ok(())
+}
+
+fn print_ascii_art() {
+    info!("\n      _      _             \n   __| |_ __(_)_ __   ___  \n  / _` | '__| | '_ \\ / _ \\ \n | (_| | |  | | | | | (_) |\n  \\__,_|_|  |_|_| |_|\\___/ \n                           \n R O U T I N G   E N G I N E\n");
 }
 
 /// Wrapper for `preprocess_inner` that handles cleaning up temporary files, no matter if error is thrown or not.
