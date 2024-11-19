@@ -35,5 +35,13 @@ datasets:
   - id: de:vvs:gtfs
     format: gtfs
     license: CC-BY-4.0
+    groups: [de:vvs]
     src:
       path: ./dummy-data/gtfs/vvs.zip
+
+dataset_groups:
+  - id: de:vvs
+    consistency:
+      stop_ids: true
+      stop_coordinates: { radius: 10 }
+      trip_ids: { tolerance: 0.2 }

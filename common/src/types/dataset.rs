@@ -1,13 +1,58 @@
+use crate::util::distance::{Distance, Radius};
+use serde::Deserialize;
 use std::collections::HashMap;
 use url::Url;
-use serde::Deserialize;
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct DatasetGroup {
-    pub name: String,
-    #[serde(default = "bool::default")] // false
-    pub consistent_ids: bool
+    pub id: String,
+    pub consistency: DatasetConsistency
 }
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct DatasetConsistency {
+    #[serde(default)]
+    stop_ids: IdConsistency,
+    #[serde(default)]
+    stop_coordinates: GeoPointConsistency,
+    #[serde(default)]
+    trip_ids: IdConsistency,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+#[serde(untagged)]
+pub enum IdConsistency {
+    Fully(bool),
+    Partially { tolerance: f32 },
+}
+
+impl Default for IdConsistency {
+    fn default() -> Self {
+        IdConsistency::Partially { tolerance: 0.5 }
+    }
+}
+
+#[derive(Debug, Deserialize, Clone)]
+#[serde(
+    untagged,
+    expecting = "Invalid or missing consistency definition. Specify either a hard cutoff radius with `radius: 42m` or an attenuation with `equality_radius:` and `inequality_radius:`"
+)]
+pub enum GeoPointConsistency {
+    Attenuation {
+        equality_radius: Radius,
+        inequality_radius: Radius
+    },
+    HardCutoff {
+        radius: Radius
+    }
+}
+
+impl Default for GeoPointConsistency {
+    fn default() -> Self {
+        GeoPointConsistency::HardCutoff { radius: Distance(20.0) }
+    }
+}
+
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct Dataset {
@@ -16,7 +61,7 @@ pub struct Dataset {
     pub format: DatasetFormat,
     pub license: Option<License>,
     #[serde(default, rename = "groups")]
-    pub group_names: Vec<String>,
+    pub group_ids: Vec<String>,
     // TODO: Fetch interval et al
 }
 

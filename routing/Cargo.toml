@@ -16,7 +16,7 @@ dashmap = { version = "6.0.1", features = ["rayon"] }
 ordered-float = "4.2.0"
 rayon = "1.9.0"
 itertools = "0.13.0"
-geo = "0.28.0"
+geo = { workspace = true }
 linfa-clustering = { version = "0.7.0", features = ["default"] }
 linfa = { version = "0.7.0", features = ["default"] }
 linfa-nn = "0.7.0"
