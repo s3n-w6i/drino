@@ -32,7 +32,9 @@ impl RaptorAlgorithm {
                 // foreach line serving marked_stop (stop a)
                 for (line, seq_num_a) in lines_serving_stop {
                     let other_stops = self.stops_by_line.get(line)
-                        .expect(&format!("Line {line:?} is in lines_by_stops, so it must also be in stops_by_line."));
+                        .unwrap_or_else(|| panic!(
+                            "Line {line:?} is in lines_by_stops, so it must also be in stops_by_line."
+                        ));
                     // for any stop b that is also on the line
                     for (seq_num_b, stop_b) in other_stops.iter().enumerate() {
                         let seq_num_b = SeqNum(seq_num_b as u32);
@@ -55,16 +57,18 @@ impl RaptorAlgorithm {
         // Get all stops on that line that comes after stop_id (including stop_id)
         let stops_on_line = self.stops_by_line.get(line).unwrap();
         let a_stop_idx_on_line = stops_on_line.iter().position(|x| x == stop)
-            .expect(&format!(
+            .unwrap_or_else(|| panic!( // used instead of expect for performance
                 "Expected Stop with ID {stop:?} to be on line {line:?}. But this line has only these stops: {stops_on_line:?}"
             ));
         let stops_on_line_after = stops_on_line.iter().skip(a_stop_idx_on_line);
 
-        // stop_id itself is first in line of the stops
-        debug_assert!(
-            stops_on_line_after.clone().collect::<Vec<&StopId>>()[0] == stop,
-            "Line {line:?} does not include stop {stop:?} as a stop after {stop:?}",
-        );
+        #[cfg(debug_assertions)] {
+            // stop_id itself is first in line of the stops
+            debug_assert!(
+                stops_on_line_after.clone().collect::<Vec<&StopId>>()[0] == stop,
+                "Line {line:?} does not include stop {stop:?} as a stop after {stop:?}",
+            );
+        }
 
         stops_on_line_after.into_iter()
     }
@@ -108,9 +112,8 @@ impl RaptorAlgorithm {
                     if let Some(trip) = trip {
                         let b_arrival = self.arrivals.get(&(trip, *b_stop))
                             .unwrap_or(&INFINITY);
-                        let best_b_arrival = state.best_arrival(b_stop)
-                            .expect(&format!("{b_stop:?} must be in best arrivals, since best_arrivals was initialized for all stops"));
-                        let best_target_arrival = target.and_then(|target| {
+                        let best_b_arrival = state.best_arrival(b_stop);
+                        let best_target_arrival = target.map(|target| {
                             state.best_arrival(&target)
                         }).unwrap_or(&INFINITY);
 
@@ -119,7 +122,9 @@ impl RaptorAlgorithm {
                         if b_arrival < min(best_b_arrival, best_target_arrival) {
                             let boarding_stop = boarding_stop.expect("Boarding stop must not be None");
                             let boarding_stop_departure = self.departures.get(&(trip, boarding_stop))
-                                .expect(&format!("Expected departure for stop {a_stop:?} to exist on trip {trip:?}"));
+                                .unwrap_or_else(|| panic!(
+                                    "Expected departure for stop {a_stop:?} to exist on trip {trip:?}"
+                                ));
 
                             state.set_ride(boarding_stop, *b_stop, *boarding_stop_departure, *b_arrival, trip);
                             marked_stops.insert(*b_stop);
@@ -130,8 +135,7 @@ impl RaptorAlgorithm {
                         self.departures.get(&(trip, *b_stop))
                     }).unwrap_or(&INFINITY);
 
-                    let prev_b_arrival = state.previous_tau(b_stop)
-                        .expect("At this position, k is >= 1, so a previous tau must exist.");
+                    let prev_b_arrival = state.previous_tau(b_stop);
 
                     // Initialize trip if its None. Also execute when we can catch an earlier trip
                     // of the same line at stop b.

@@ -4,12 +4,12 @@ use crate::raptor::{RaptorAlgorithm, TripAtStopTimeMap, TripsByLineAndStopMap};
 use crate::transfers::crow_fly::CrowFlyTransferProvider;
 use chrono::DateTime;
 use common::types::{LineId, SeqNum, StopId, TripId};
-use common::util::time::INFINITY;
 use hashbrown::{HashMap, HashSet};
 use itertools::{izip, Itertools};
 use polars::error::PolarsError;
 use polars::prelude::*;
 use std::ops::{BitAnd, BitOr};
+use common::util::time::INFINITY;
 
 impl PreprocessInit for RaptorAlgorithm {
     fn preprocess(input: PreprocessingInput) -> PreprocessingResult<RaptorAlgorithm> {
@@ -179,11 +179,13 @@ impl RaptorAlgorithm {
                     .iter().sorted()
                     .collect_vec();
 
-                debug_assert!(
-                    stops_a == stops_b,
-                    "Stops don't match for {line:?}. stops_by_line: {:?}\ntrips_by_line_and_stop: {:?}",
-                    stops_a, stops_b
-                );
+                #[cfg(debug_assertions)] {
+                    debug_assert!(
+                        stops_a == stops_b,
+                        "Stops don't match for {line:?}. stops_by_line: {:?}\ntrips_by_line_and_stop: {:?}",
+                        stops_a, stops_b
+                    );
+                }
             });
         }
 

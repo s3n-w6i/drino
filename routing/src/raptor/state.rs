@@ -56,17 +56,35 @@ impl RaptorState {
 
     // τ_k(stop)
     pub fn tau(&self, stop: &StopId) -> Option<&DateTime<Utc>> {
-        self.k_arrivals.get(self.k)?.get(stop.0 as usize)
+        debug_assert!(self.k < self.k_arrivals.len());
+        
+        self.k_arrivals.get(self.k)
+            .expect("tau must exist, since k is valid")
+            .get(stop.0 as usize)
     }
 
     // τ_k−1(stop)
-    pub fn previous_tau(&self, stop: &StopId) -> Option<&DateTime<Utc>> {
-        self.k_arrivals.get(self.k - 1)?.get(stop.0 as usize)
+    pub fn previous_tau(&self, stop: &StopId) -> &DateTime<Utc> {
+        debug_assert!(stop.0 < self.best_arrivals.len() as u32);
+        debug_assert!(self.k >= 1);
+        debug_assert!(self.k < self.k_arrivals.len());
+
+        self.k_arrivals.get(self.k - 1)
+            .expect("previous tau must exist, since k >= 1")
+            .get(stop.0 as usize)
+            .unwrap_or_else(|| panic!(
+                "{stop:?} must be in previous tau, since tau was initialized for all stops"
+            ))
     }
 
     // τ∗(stop)
-    pub fn best_arrival(&self, stop: &StopId) -> Option<&DateTime<Utc>> {
+    pub fn best_arrival(&self, stop: &StopId) -> &DateTime<Utc> {
+        debug_assert!(stop.0 < self.best_arrivals.len() as u32);
+
         self.best_arrivals.get(stop.0 as usize)
+            .unwrap_or_else(|| panic!(
+                "{stop:?} must be in best arrivals, since best_arrivals was initialized for all stops"
+            ))
     }
 
     pub fn set_ride(
@@ -80,9 +98,9 @@ impl RaptorState {
         let end_idx = alight_stop.0 as usize;
 
         debug_assert!(
-            self.best_arrival(&boarding_stop).unwrap() <= &boarding_time,
+            self.best_arrival(&boarding_stop) <= &boarding_time,
             "{trip:?} must depart after arriving at {boarding_stop:?}. It departs at {boarding_time}, but earliest arrival at {boarding_stop:?} is {:?}",
-            self.best_arrival(&boarding_stop).unwrap()
+            self.best_arrival(&boarding_stop)
         );
 
         // τₖ(pᵢ) ← τₐᵣᵣ(t, pᵢ)
@@ -225,23 +243,17 @@ mod tests {
         let departure = DateTime::from_str("2042-06-24T12:00:00Z").unwrap();
         let mut state = RaptorState::init(2, StopId(0), departure);
 
-        assert_eq!(
-            state.tau(&StopId(0)),
-            Some(&departure)
-        );
-        assert_eq!(
-            state.tau(&StopId(1)),
-            Some(&DateTime::<Utc>::MAX_UTC)
-        );
+        assert_eq!(state.tau(&StopId(0)), Some(&departure));
+        assert_eq!(state.tau(&StopId(1)), Some(&DateTime::<Utc>::MAX_UTC));
 
         state.new_round();
 
         assert_eq!(
-            state.tau(&StopId(0)),
+            state.tau(&StopId(0)).unwrap(),
             state.previous_tau(&StopId(0))
         );
         assert_eq!(
-            state.tau(&StopId(1)),
+            state.tau(&StopId(1)).unwrap(),
             state.previous_tau(&StopId(1))
         );
     }
