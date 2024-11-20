@@ -34,8 +34,8 @@ impl PreprocessInit for ScalableTransferPatternsAlgorithm {
             // of time and RAM usage is lower when only looking at a single cluster at a time.
             // Therefore, we parallelize within one cluster.
             for cluster_id in 0..num_clusters {
-                pb.inc(1);
                 process_cluster(cluster_id, &stop_ids_with_clusters, &input)?;
+                pb.inc(1);
             }
 
             Ok::<(), PreprocessingError>(())
