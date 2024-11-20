@@ -21,13 +21,13 @@ pub struct StopId(pub u32);
 
 impl Display for StopId {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&format!("s:{}", self.0))
+        write!(f, "s:{}", self.0)
     }
 }
 
 impl Debug for StopId {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&format!("s:{}", self.0))
+        write!(f, "s:{}", self.0)
     }
 }
 
