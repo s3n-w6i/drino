@@ -22,14 +22,14 @@ pub fn cluster(
         .fit(&stops_data)?;
     let result = k_means_model.predict(stops_array);
 
-    let target_series: Series = result.targets.into_iter()
+    let cluster_id_series: Series = result.targets.into_iter()
         .map(|x| x as u32)
         .collect::<Series>()
         .with_name("cluster_id".into());
 
     let stop_ids_with_clusters = stops.clone()
-        //.select([ col("stop_id") ])
-        .with_column(target_series.lit())
+        .select([ col("stop_id") ])
+        .with_column(cluster_id_series.lit())
         .collect()?;
 
     Ok((stop_ids_with_clusters, NUM_CLUSTERS))
