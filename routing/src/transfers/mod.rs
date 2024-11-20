@@ -1,5 +1,6 @@
 pub mod fixed_time;
-pub(crate) mod crow_fly;
+pub mod crow_fly;
+pub mod noop;
 
 use std::fmt;
 use std::fmt::Display;
