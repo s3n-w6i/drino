@@ -153,11 +153,11 @@ impl RaptorAlgorithm {
             // THIRD STAGE: Scan transfers
             // Look at individual station-to-station transfers (like footpaths) and update
             // best_arrival when walking to a stop is faster than taking transit
-            let tp = &self.transfer_provider;
+            let transfer_provider = &self.transfer_provider;
             // foreach marked stop p
             for start in marked_stops.clone() {
                 // foreach footpath (p, p') ∈ F
-                for end in tp.transfers_from(&start) {
+                for end in transfer_provider.transfers_from(&start) {
                     // This is the maximum amount of time a transfer will have to take in order to
                     // be faster
                     let max_duration = *state.tau(&end).unwrap_or(&INFINITY) - *state.tau(&start)
@@ -166,11 +166,11 @@ impl RaptorAlgorithm {
                     // This if-clause checks if there is any chance this transfer is faster.
                     // For this approximation, we use a lower bound duration that is cheaper to
                     // calculate than an actual route and duration (at least for large distances)
-                    let lower_bound_duration = tp.lower_bound_duration(start, end)?;
+                    let lower_bound_duration = transfer_provider.lower_bound_duration(start, end)?;
                     if lower_bound_duration < max_duration {
                         // Since we found a candidate, calculate the actual, precise duration it
                         // will take.
-                        let actual_duration = tp.duration(start, end)?;
+                        let actual_duration = transfer_provider.duration(start, end)?;
                         debug_assert!(
                             actual_duration >= lower_bound_duration,
                             "Actual duration must be greater than the lower bound."
