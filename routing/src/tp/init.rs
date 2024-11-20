@@ -21,26 +21,22 @@ impl PreprocessInit for TransferPatternsAlgorithm {
         let total = raptor.stops.len() as u64;
         run_with_pb("preprocessing", "Calculating local transfers in a single cluster", total, false, |pb| {
             raptor.stops.par_iter()
-                .for_each(|stop| {
-                    let raptor = Arc::clone(&raptor);
+                .map(|stop| {
+                    Arc::clone(&raptor).query_range_all(Range {
+                        earliest_departure: DateTime::from_timestamp_millis(0).unwrap(),
+                        start: *stop,
+                        range: Duration::weeks(1),
+                    })
+                })
+                .filter_map(|result| result.ok())
+                .map(|range_out| {
                     let tp_graph = Arc::clone(&tp_graph);
-
-                    let result = raptor.query_range_all(
-                        Range {
-                            earliest_departure: DateTime::from_timestamp_millis(0).unwrap(),
-                            start: *stop,
-                            range: Duration::weeks(1),
-                        }
-                    );
-
-                    if let Ok(range_out) = result {
-                        // Add this chunk to our existing transfer patterns
-                        let mut tp_graph = tp_graph.lock().unwrap();
-                        tp_graph.add(vec![range_out]);
-                    }
-
-                    pb.inc(1);
-                });
+                    // Add this chunk to our existing transfer patterns
+                    let mut tp_graph = tp_graph.lock().unwrap();
+                    tp_graph.add(vec![range_out]);
+                    drop(tp_graph);
+                })
+                .for_each(|_| pb.inc(1));
         });
 
         let tp_graph = Arc::try_unwrap(tp_graph)
