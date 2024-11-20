@@ -47,8 +47,6 @@ impl PreprocessInit for TransferPatternsAlgorithm {
             tp_graph.validate();
         }
 
-        tp_graph.print(0.into());
-
         Ok(Self {
             direct_connections,
             transfer_patterns: tp_graph,
