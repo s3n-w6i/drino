@@ -115,7 +115,10 @@ impl TransferPatternsGraphs {
                     let target = end;
                     // TODO: This is O(n). Make it more efficient if possible.
                     let candidate_node_idx = graph.node_indices()
-                        .find(|n| graph.node_weight(*n).unwrap().0 == *target);
+                        .find(|n| {
+                            let (stop_id, node_type) = graph.node_weight(*n).unwrap();
+                            stop_id == target && matches!(node_type, NodeType::Target)
+                        });
 
                     fn add_new_target_node(graph: &mut Graph<(StopId, NodeType), ()>, target_stop: StopId, from: NodeIndex) {
                         let target_node_idx = graph.add_node((target_stop, NodeType::Target));
