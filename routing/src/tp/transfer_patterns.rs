@@ -22,9 +22,28 @@ enum NodeType {
     Root,
 }
 
+/// This is just one of the graphs with a single root node
+/// It displays all the patterns of journeys that start at that root node
+type TpGraph = Graph<(StopId, NodeType), (), Directed>;
+
 #[derive(Debug)]
 pub struct TransferPatternsGraphs {
-    dags: Vec<Graph<(StopId, NodeType), (), Directed>>,
+    dags: Vec<TpGraph>,
+}
+
+fn format_graph<'a>(graph: &TpGraph) -> Dot<'a, &TpGraph> {
+    Dot::with_attr_getters(
+        graph,
+        &[Config::EdgeNoLabel],
+        &|_graph, _e| { "".into() },
+        &|_graph, (_n, (_s, t))| {
+            match t {
+                NodeType::Root => { "shape = diamond width = 4 height = 2".into() }
+                NodeType::Target => { "shape = square width = 1 height = 1".into() }
+                NodeType::Prefix => { "shape = circle width = 1 height = 1".into() }
+            }
+        },
+    )
 }
 
 impl TransferPatternsGraphs {
@@ -152,24 +171,14 @@ impl TransferPatternsGraphs {
         // todo!()
     }
 
-    pub(crate) fn print(&self, stop_id: StopId) {
+    pub(crate) fn format_as_dot<'a>(&self, stop_id: StopId) -> Dot<'a, &TpGraph> {
         let graph = &self.dags[stop_id.0 as usize];
 
-        println!(
-            "{:?}",
-            Dot::with_attr_getters(
-                graph,
-                &[Config::EdgeNoLabel],
-                &|_graph, _e| { "".into() },
-                &|_graph, (_n, (_s, t))| {
-                    match t {
-                        NodeType::Root => { "shape = diamond width = 4 height = 2".into() }
-                        NodeType::Target => { "shape = square width = 1 height = 1".into() }
-                        NodeType::Prefix => { "shape = circle width = 1 height = 1".into() }
-                    }
-                },
-            )
-        );
+        format_graph(graph)
+    }
+    
+    pub(crate) fn print(&self, stop_id: StopId) {
+        println!("{:?}", self.format_as_dot(stop_id));
     }
 
     #[cfg(debug_assertions)]
@@ -190,8 +199,9 @@ impl TransferPatternsGraphs {
                 .collect_vec();
             debug_assert!(
                 duplicate_targets.is_empty(),
-                "There must only be one target node for each stop. These are duplicates: {:?}",
-                duplicate_targets.iter().map(|(stop, _)| stop).collect_vec()
+                "There must only be one target node for each stop. These are duplicates: {:?}. Graph: {:?}",
+                duplicate_targets.iter().map(|(stop, _)| stop).collect_vec(),
+                format_graph(graph)
             );
         }
     }
