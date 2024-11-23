@@ -168,7 +168,7 @@ impl DirectConnections {
     }
 
     pub(crate) fn query_direct_earliest_after(
-        &self, from: StopId, to: StopId, departure: polars::prelude::Duration,
+        &self, from: StopId, to: StopId, departure: Duration,
     ) -> Result<LazyFrame, PreprocessingError> {
         let common_lines = self.query_direct(from, to)?;
         let common_lines_after_departure = common_lines
