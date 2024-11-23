@@ -32,7 +32,7 @@ pub fn filter_for_cluster(
             )
         )
         .rename(["stop_id"], ["global_stop_id"], true);
-    
+
     let stop_mapping = stops.clone()
         .select([ col("global_stop_id"), col("stop_id_in_cluster") ]);
 

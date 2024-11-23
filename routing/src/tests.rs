@@ -147,7 +147,7 @@ macro_rules! earliest_arrival_tests {
             };
 
             let res = raptor.query_ea(
-                EarliestArrival { start: StopId(0), departure: DateTime::UNIX_EPOCH },
+                EarliestArrival { start: StopId(0), earliest_departure: DateTime::UNIX_EPOCH },
                 Single { target: StopId(1) },
             ).unwrap();
 
@@ -162,7 +162,7 @@ macro_rules! earliest_arrival_tests {
 
             // query a little later (missed the only connection there is)
             let res = raptor.query_ea(
-                EarliestArrival { start: StopId(0), departure: DateTime::<Utc>::from_timestamp(300, 0).unwrap() },
+                EarliestArrival { start: StopId(0), earliest_departure: DateTime::<Utc>::from_timestamp(300, 0).unwrap() },
                 Single { target: StopId(1) },
             );
 
@@ -205,7 +205,7 @@ macro_rules! earliest_arrival_tests {
             };
 
             let res = raptor.query_ea(
-                EarliestArrival { start: StopId(0), departure: DateTime::UNIX_EPOCH },
+                EarliestArrival { start: StopId(0), earliest_departure: DateTime::UNIX_EPOCH },
                 Single { target: StopId(2) },
             ).unwrap();
 
@@ -269,7 +269,7 @@ macro_rules! earliest_arrival_tests {
             };
 
             let res = raptor.query_ea(
-                EarliestArrival { start: StopId(0), departure: DateTime::UNIX_EPOCH },
+                EarliestArrival { start: StopId(0), earliest_departure: DateTime::UNIX_EPOCH },
                 Single { target: StopId(3) },
             ).unwrap();
 
@@ -324,7 +324,7 @@ macro_rules! earliest_arrival_tests {
             // 0 ---Ride(130_1)--> 3 ---Transfer--> 4
             // Takes 250s + 410s = 660s
             let res = raptor.query_ea(
-                EarliestArrival { start: StopId(0), departure: dep0 },
+                EarliestArrival { start: StopId(0), earliest_departure: dep0 },
                 Single { target: StopId(4) },
             ).unwrap();
 
@@ -353,7 +353,7 @@ macro_rules! earliest_arrival_tests {
             // of 700s:
             // 0@20s   ---Ride(100_1)-->   3@300s   ---Transfer-->   4@710s
             let res = raptor.query_ea(
-                EarliestArrival { start: StopId(0), departure: DateTime::<Utc>::from_timestamp(1, 0).unwrap() },
+                EarliestArrival { start: StopId(0), earliest_departure: DateTime::<Utc>::from_timestamp(1, 0).unwrap() },
                 Single { target: StopId(4) },
             ).unwrap();
 

@@ -78,7 +78,12 @@ impl QueryTargetCardinality for Multiple<'static> {}
 impl QueryTargetCardinality for All {}
 
 pub struct EarliestArrival {
-    pub(crate) departure: DateTime<Utc>,
+    pub(crate) earliest_departure: DateTime<Utc>,
+    pub(crate) start: StopId,
+}
+
+pub struct LatestDeparture {
+    pub(crate) latest_arrival: DateTime<Utc>,
     pub(crate) start: StopId,
 }
 

@@ -278,11 +278,11 @@ impl RaptorAlgorithm {
 impl SingleEarliestArrival for RaptorAlgorithm {
     fn query_ea(
         &self,
-        EarliestArrival { start, departure }: EarliestArrival,
+        EarliestArrival { start, earliest_departure }: EarliestArrival,
         Single { target }: Single,
     ) -> QueryResult<EarliestArrivalOutput> {
-        let res_state = self.run(start, Some(target), departure)?;
-        let journey = res_state.backtrace(target, departure)?;
+        let res_state = self.run(start, Some(target), earliest_departure)?;
+        let journey = res_state.backtrace(target, earliest_departure)?;
         Ok(EarliestArrivalOutput { journey })
     }
 }
@@ -294,9 +294,9 @@ impl SingleRange for RaptorAlgorithm {
 }
 
 impl AllEarliestArrival for RaptorAlgorithm {
-    fn query_ea_all(&self, EarliestArrival { start, departure }: EarliestArrival) -> MultiQueryResult<EarliestArrivalOutput> {
-        let res_state = self.run(start, None, departure)?;
-        let journeys = self.backtrace_all(res_state, departure)?;
+    fn query_ea_all(&self, EarliestArrival { start, earliest_departure }: EarliestArrival) -> MultiQueryResult<EarliestArrivalOutput> {
+        let res_state = self.run(start, None, earliest_departure)?;
+        let journeys = self.backtrace_all(res_state, earliest_departure)?;
         let result = journeys.into_iter()
             .map(|journey| EarliestArrivalOutput { journey })
             .collect();
