@@ -21,11 +21,7 @@ impl PreprocessInit for TransferPatternsAlgorithm {
         // Also keep a graph representation when in debugging mode. This is useful for checking the
         // validity of what we build.
         #[allow(unused_assignments)] // for the regular compiler, where this is not used at all        
-        let tp_graph = if cfg!(debug_assertions) {
-            &Some(Arc::new(Mutex::new(
-                TransferPatternsGraphs::new(raptor.stops.len())
-            )))
-        } else { &None };
+        let tp_graph = Arc::new(Mutex::new(TransferPatternsGraphs::new(raptor.stops.len())));
 
         let total = raptor.stops.len() as u64;
         run_with_pb("preprocessing", "Calculating local transfers in a single cluster", total, false, |pb| {
@@ -38,19 +34,17 @@ impl PreprocessInit for TransferPatternsAlgorithm {
                     })
                 })
                 .filter_map(|result| result.ok())
-                .map(move |range_out| {
+                .map(|range_out| {
                     // Add the collected results to the table of transfer patterns
                     // TODO
 
                     // Also build the graph version in debug
                     #[cfg(debug_assertions)] {
-                        tp_graph.as_ref().map(|tp_graph| {
-                            let tp_graph = Arc::clone(tp_graph);
-                            // Add this chunk to our existing transfer patterns graph
-                            let mut tp_graph = tp_graph.lock().unwrap();
-                            tp_graph.add(vec![range_out]);
-                            drop(tp_graph);
-                        });
+                        let tp_graph = Arc::clone(&tp_graph);
+                        // Add this chunk to our existing transfer patterns graph
+                        let mut tp_graph = tp_graph.lock().unwrap();
+                        tp_graph.add(vec![range_out]);
+                        drop(tp_graph);
                     }
                 })
                 .for_each(|_| pb.inc(1));
@@ -58,12 +52,10 @@ impl PreprocessInit for TransferPatternsAlgorithm {
 
 
         #[cfg(debug_assertions)] {
-            tp_graph.to_owned().map(|tp_graph| {
-                let tp_graph = Arc::try_unwrap(tp_graph)
-                        .expect("Lock is still owned by others").into_inner().unwrap();
-                // Check that graphs are acyclic. Expensive to compute, so only do that in debug.
-                tp_graph.validate();
-            });
+            let tp_graph = Arc::try_unwrap(tp_graph)
+                    .expect("Lock is still owned by others").into_inner().unwrap();
+            // Check that graphs are acyclic. Expensive to compute, so only do that in debug.
+            tp_graph.validate();
         }
 
         Ok(Self {
