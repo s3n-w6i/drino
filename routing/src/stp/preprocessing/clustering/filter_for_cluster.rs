@@ -2,7 +2,7 @@ use crate::algorithm::{PreprocessingError, PreprocessingInput};
 use polars::frame::UniqueKeepStrategy;
 use polars::prelude::*;
 
-// columns: "stop_id_in_cluster", "original_stop_id"
+// columns: "stop_id_in_cluster", "global_stop_id"
 pub(crate) type StopIdMapping = LazyFrame;
 
 pub fn filter_for_cluster(
@@ -17,7 +17,8 @@ pub fn filter_for_cluster(
         .filter(col("cluster_id").eq(lit(cluster_id)))
         .select([col("stop_id")])
         // We want to reassign new ids, so that they are continuous again
-        .rename(["stop_id"], ["original_stop_id"], true)
+        .rename(["stop_id"], ["global_stop_id"], true)
+        // TODO: Replace with a stable id
         .with_row_index("stop_id_in_cluster", None);
 
     // Filter the stops
@@ -25,15 +26,15 @@ pub fn filter_for_cluster(
         .join(
             stop_ids_in_this_cluster.clone(),
             [col("stop_id")],
-            [col("original_stop_id")],
+            [col("global_stop_id")],
             JoinArgs::new(
                 JoinType::Inner
             )
         )
-        .rename(["stop_id"], ["original_stop_id"], true);
+        .rename(["stop_id"], ["global_stop_id"], true);
     
     let stop_mapping = stops.clone()
-        .select([ col("original_stop_id"), col("stop_id_in_cluster") ]);
+        .select([ col("global_stop_id"), col("stop_id_in_cluster") ]);
 
     // Only include stop times that are within the cluster
     // Since lines (in RAPTOR) will be calculated based only on the stop_times-table, resulting
@@ -44,7 +45,7 @@ pub fn filter_for_cluster(
         .inner_join(
             stop_ids_in_this_cluster.clone(),
             col("stop_id"),
-            col("original_stop_id"),
+            col("global_stop_id"),
         )
         // don't keep the original stop id...
         .drop(["stop_id"])

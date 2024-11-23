@@ -120,7 +120,7 @@ impl DirectConnections {
                 ["stop_id_in_cluster"],
             )?
             .drop("stop_id")? // Don't keep the stop_id withing the cluster...
-            .rename("original_stop_id", "stop_id".into())? //...instead, use original id
+            .rename("global_stop_id", "stop_id".into())? //...instead, use original id
             .clone();
 
         self.stop_incidence = self.stop_incidence
@@ -130,7 +130,7 @@ impl DirectConnections {
                 ["stop_id_in_cluster"],
             )?
             .drop("stop_id")?
-            .rename("original_stop_id", "stop_id".into())?
+            .rename("global_stop_id", "stop_id".into())?
             .clear();
 
         Ok(())
