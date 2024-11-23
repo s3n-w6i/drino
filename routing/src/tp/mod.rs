@@ -1,16 +1,16 @@
 use crate::algorithm::{PreprocessingResult, RoutingAlgorithm};
 use crate::direct_connections::DirectConnections;
 use crate::stp::preprocessing::clustering::filter_for_cluster::StopIdMapping;
-use crate::tp::transfer_patterns::TransferPatternsGraphs;
+use crate::tp::transfer_pattern_ds::table::TransferPatternsTable;
 
 /// https://ad.informatik.uni-freiburg.de/files/transferpatterns.pdf
 
-mod transfer_patterns;
 mod init;
+mod transfer_pattern_ds;
 
 pub struct TransferPatternsAlgorithm {
     direct_connections: DirectConnections,
-    pub transfer_patterns: TransferPatternsGraphs,
+    pub transfer_patterns: TransferPatternsTable,
 }
 
 impl RoutingAlgorithm for TransferPatternsAlgorithm {}

@@ -7,13 +7,11 @@ use petgraph::data::DataMap;
 use petgraph::dot::{Config, Dot};
 use petgraph::graph::NodeIndex;
 use petgraph::{Directed, Graph, Incoming};
-use polars::datatypes::DataType;
-use polars::error::PolarsResult;
-use polars::frame::DataFrame;
-use polars::prelude::Column;
 use std::fmt::Debug;
 
 /// https://ad.informatik.uni-freiburg.de/files/transferpatterns.pdf
+/// This graph only exists for debugging purposes. In the real world, we use the transfer pattern
+/// table to make easier to store them. Be careful: Stops are not mapped to their real ids here!
 
 #[derive(Debug, PartialEq, PartialOrd, Ord, Eq)]
 enum NodeType {
@@ -167,10 +165,6 @@ impl TransferPatternsGraphs {
         }
     }
 
-    pub(crate) fn rename_stops(&mut self, from: &Vec<StopId>, to: &Vec<StopId>) {
-        // todo!()
-    }
-
     pub(crate) fn format_as_dot<'a>(&self, stop_id: StopId) -> Dot<'a, &TpGraph> {
         let graph = &self.dags[stop_id.0 as usize];
 
@@ -231,7 +225,7 @@ impl TransferPatternsGraphs {
 mod tests {
     use crate::journey::Journey;
     use crate::journey::Leg::Ride;
-    use crate::tp::transfer_patterns::{NodeType, TransferPatternsGraphs};
+    use super::{NodeType, TransferPatternsGraphs};
     use chrono::{DateTime, TimeDelta};
     use common::types::{StopId, TripId};
     use itertools::{assert_equal, Itertools};
@@ -391,38 +385,3 @@ mod tests {
     }
 }
 
-#[derive(Debug)]
-pub struct TransferPatternsTable(pub(crate) DataFrame);
-
-impl TransferPatternsTable {
-    pub(crate) fn new() -> PolarsResult<Self> {
-        let start_col = Column::new_empty("start".into(), &DataType::UInt32);
-        let end_col = Column::new_empty("end".into(), &DataType::UInt32);
-
-        Ok(Self(DataFrame::new(vec![start_col, end_col])?))
-    }
-}
-
-/*TODO: impl TryFrom<TransferPatternsDAGs> for TransferPatternsTable {
-    type Error = PolarsError;
-
-    fn try_from(TransferPatternsDAGs(graph): TransferPatternsDAGs) -> Result<Self, Self::Error> {
-        let mut table = Self::new()?;
-        
-        let rows = graph.all_edges()
-            .map(|(a, b, ..)| {
-                Row::new(vec![a.into(), b.into()])
-            })
-            .collect_vec();
-        
-        if !rows.is_empty() {
-            table.0.vstack_mut_unchecked(
-                &DataFrame::from_rows(&rows)?
-            );
-
-            table.0.align_chunks();
-        }
-        
-        Ok(table)
-    }
-}*/
