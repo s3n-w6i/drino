@@ -90,12 +90,12 @@ async fn main() -> std::io::Result<()> {
 
         App::new()
             .wrap(cors)
-            // Static files
-            .service(Files::new("/data-files", "../data").prefer_utf8(true))
-            // Serve the frontend
-            .service(ResourceFiles::new("/", frontend_files).resolve_not_found_to_root())
             // Stats endpoints
             .service(stats)
+            // Static files
+            .service(Files::new("/data-files", "../data").prefer_utf8(true))
+            // Serve the frontend. This is a catchall, so it must be defined last.
+            .service(ResourceFiles::new("/", frontend_files).resolve_not_found_to_root())
     })
         .bind_rustls_0_23("127.0.0.1:3001", tls_cfg())?
         .run()
