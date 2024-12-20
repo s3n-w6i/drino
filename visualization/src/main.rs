@@ -93,7 +93,7 @@ async fn main() -> std::io::Result<()> {
             // Static files
             .service(Files::new("/data-files", "../data").prefer_utf8(true))
             // Serve the frontend
-            .service(ResourceFiles::new("/", frontend_files))
+            .service(ResourceFiles::new("/", frontend_files).resolve_not_found_to_root())
             // Stats endpoints
             .service(stats)
     })
