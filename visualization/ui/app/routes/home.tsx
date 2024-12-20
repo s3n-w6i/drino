@@ -67,10 +67,14 @@ export default function Home() {
                     value={stats?.num_stops?.toString()}
                     icon={<MapPin/>}/>
                 <CardStats
-                    title="Lines" subtitle="Lines accross datasets" value="4,202"
+                    title="Lines" subtitle="Lines accross datasets"
+                    valueLoading={statsLoading}
+                    value="4,202"
                     icon={<Waypoints/>}/>
                 <CardStats
-                    title="Trips" subtitle="Trips places accross datasets" value="34,502"
+                    title="Trips" subtitle="Trips places accross datasets"
+                    valueLoading={statsLoading}
+                    value="34,502"
                     icon={<Navigation/>}/>
             </div>
             <div className="flex flex-col gap-4 md:gap-8">

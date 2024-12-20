@@ -171,7 +171,7 @@ export default function MapPage() {
 
     return (
         <div className="flex items-_start flex-row">
-            <div className="relative flex-1">
+            <div className="relative flex-1 rounded-r-xl overflow-hidden">
                 <Map
                     initialViewState={{
                         longitude: 0,
