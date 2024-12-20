@@ -5,6 +5,7 @@ import {NavLink} from "react-router";
 import {Card, CardDescription, CardHeader, CardTitle} from "~/components/ui/card";
 import {Button} from "~/components/ui/button";
 import {useEffect, useState} from "react";
+import {LoadingSpinner} from "~/components/ui/spinner";
 
 export function meta({}: Route.MetaArgs) {
     return [
@@ -28,7 +29,11 @@ const STEPS = [
         ]
     },
     {
-        title: "Pre-Calculate connections",
+        title: "Pre-Calculate connections within clusters",
+        cards: []
+    },
+    {
+        title: "Pre-Calculate connections between clusters",
         cards: []
     }
 ]
@@ -71,7 +76,9 @@ export default function Home() {
             <div className="flex flex-col gap-4 md:gap-8">
                 {STEPS.map((step) => (
                     <>
-                        <h2 className="text-lg font-semibold leading-none tracking-tight">{step.title}</h2>
+                        <h2 className="text-lg font-semibold leading-none tracking-tight flex items-center gap-3">
+                            <LoadingSpinner size={18} /> {step.title}
+                        </h2>
                         {step.cards.map((card) => (
                             <NavLink to={card.link} key={card.link}>
                                 <Card className="flex flex-row items-center">
