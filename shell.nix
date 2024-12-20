@@ -18,7 +18,7 @@ pkgs.mkShell {
     cargo-flamegraph
     # Node.js
     nodejs_20
-    yarn-berry
+    pnpm
     # for hot reloading in Cargo
     cargo-watch
   ]);

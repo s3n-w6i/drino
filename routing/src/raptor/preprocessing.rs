@@ -1,15 +1,15 @@
 use crate::algorithm::{PreprocessInit, PreprocessingError, PreprocessingInput, PreprocessingResult};
 use crate::direct_connections::DirectConnections;
-use crate::raptor::{RaptorAlgorithm, TripAtStopTimeMap, TripsByLineAndStopMap};
+use crate::raptor::{GlobalStopId, RaptorAlgorithm, StopMapping, TripAtStopTimeMap, TripsByLineAndStopMap};
 use crate::transfers::crow_fly::CrowFlyTransferProvider;
 use chrono::DateTime;
 use common::types::{LineId, SeqNum, StopId, TripId};
+use common::util::time::INFINITY;
 use hashbrown::{HashMap, HashSet};
 use itertools::{izip, Itertools};
 use polars::error::PolarsError;
 use polars::prelude::*;
 use std::ops::{BitAnd, BitOr};
-use common::util::time::INFINITY;
 
 impl PreprocessInit for RaptorAlgorithm {
     fn preprocess(input: PreprocessingInput) -> PreprocessingResult<RaptorAlgorithm> {
@@ -23,39 +23,42 @@ impl RaptorAlgorithm {
         PreprocessingInput { stops, .. }: PreprocessingInput,
         DirectConnections { expanded_lines, line_progressions, .. }: DirectConnections,
     ) -> PreprocessingResult<RaptorAlgorithm> {
-        let stops_vec: Vec<StopId> = stops.clone()
+        let stops_vec: Vec<GlobalStopId> = stops.clone()
             .select(&[col("stop_id")])
             .collect()?.column("stop_id")?
             .u32()?.to_vec()
             .into_iter().filter_map(|x| x.map(StopId))
             .collect();
 
+        let stop_mapping = StopMapping(stops_vec);
+        
         let (stops_by_line, lines_by_stops) = {
             let mut stops_by_line = HashMap::new();
             let mut lines_by_stops = HashMap::new();
 
-            let [line_ids, stop_ids, sequence_numbers] = line_progressions.get_columns()
+            let [line_ids, global_stop_ids, sequence_numbers] = line_progressions.get_columns()
             else { return Err(PreprocessingError::Polars(PolarsError::ColumnNotFound("".into()))); };
 
-            let [line_ids, stop_ids, sequence_numbers] =
-                [line_ids.u32()?, stop_ids.u32()?, sequence_numbers.u32()?];
+            let [line_ids, global_stop_ids, sequence_numbers] =
+                [line_ids.u32()?, global_stop_ids.u32()?, sequence_numbers.u32()?];
 
-            for (line_id, stop_id, seq_num) in izip!(line_ids, stop_ids, sequence_numbers) {
+            for (line_id, global_stop_id, seq_num) in izip!(line_ids, global_stop_ids, sequence_numbers) {
                 let line_id = line_id.unwrap().into();
-                let stop_id = stop_id.unwrap().into();
+                let global_stop_id = global_stop_id.unwrap().into();
+                let local_stop_id = stop_mapping.translate_to_local(global_stop_id);
                 let seq_num = seq_num.unwrap().into();
 
                 stops_by_line.entry(line_id).or_insert(vec![])
-                    .push(stop_id);
+                    .push(local_stop_id);
 
-                lines_by_stops.entry(stop_id).or_insert(HashSet::new())
+                lines_by_stops.entry(local_stop_id).or_insert(HashSet::new())
                     .insert((line_id, seq_num));
             }
 
             Ok::<(HashMap<LineId, Vec<StopId>>, HashMap<StopId, HashSet<(LineId, SeqNum)>>), PreprocessingError>
                 ((stops_by_line, lines_by_stops))
         }?;
-        debug_assert!(stops_vec.len() == lines_by_stops.len());
+        debug_assert!(stop_mapping.0.len() == lines_by_stops.len());
 
 
         let lines = expanded_lines.clone()
@@ -68,20 +71,21 @@ impl RaptorAlgorithm {
                     .with_maintain_order(false)
                     .with_order_descending(false),
             )?;
-            let [_line_ids, stop_ids, _sequence_numbers, trip_ids, arrival_times, departure_times] =
+            let [_line_ids, global_stop_ids, _sequence_numbers, trip_ids, arrival_times, departure_times] =
                 sorted_lines.get_columns()
             else { return Err(PreprocessingError::Polars(PolarsError::ColumnNotFound("".into()))); };
 
-            let [stop_ids, trip_ids] =
-                [stop_ids.u32()?, trip_ids.u32()?];
+            let [global_stop_ids, trip_ids] =
+                [global_stop_ids.u32()?, trip_ids.u32()?];
             let arrival_times = arrival_times.duration()?;
             let departure_times = departure_times.duration()?;
 
             let mut arrivals = HashMap::new();
             let mut departures = HashMap::new();
-            for (trip_id, stop_id, arrival_time, departure_time) in izip!(trip_ids, stop_ids, arrival_times.iter(), departure_times.iter()) {
+            for (trip_id, global_stop_id, arrival_time, departure_time) in izip!(trip_ids, global_stop_ids, arrival_times.iter(), departure_times.iter()) {
                 let trip_id = TripId(trip_id.unwrap());
-                let stop_id = StopId(stop_id.unwrap());
+                let global_stop_id = StopId(global_stop_id.unwrap());
+                let local_stop_id = stop_mapping.translate_to_local(global_stop_id);
                 let arrival_time = arrival_time.unwrap();
                 let departure_time = departure_time.unwrap();
 
@@ -89,8 +93,8 @@ impl RaptorAlgorithm {
                 let arrival_time = DateTime::from_timestamp_millis(arrival_time).unwrap();
                 let departure_time = DateTime::from_timestamp_millis(departure_time).unwrap();
 
-                arrivals.insert((trip_id, stop_id), arrival_time);
-                departures.insert((trip_id, stop_id), departure_time);
+                arrivals.insert((trip_id, local_stop_id), arrival_time);
+                departures.insert((trip_id, local_stop_id), departure_time);
             }
 
             #[cfg(debug_assertions)] {
@@ -115,16 +119,16 @@ impl RaptorAlgorithm {
             .group_by(&[col("line_id"), col("stop_id")])
             .agg(&[col("trip_id"), col("departure_time")])
             .collect()?;
-        let [line_ids, stop_ids, trips_ids, departures_times] = trips_by_line_and_stop_df.get_columns()
+        let [line_ids, global_stop_ids, trips_ids, departures_times] = trips_by_line_and_stop_df.get_columns()
         else { return Err(PreprocessingError::Polars(PolarsError::ColumnNotFound("".into()))); };
         let line_ids = line_ids.u32()?;
-        let stop_ids = stop_ids.u32()?;
+        let global_stop_ids = global_stop_ids.u32()?;
         let trips_ids = trips_ids.list()?;
         let departures_times = departures_times.list()?;
 
         let mut trips_by_line_and_stop: TripsByLineAndStopMap = HashMap::new();
 
-        for (line_id, stop_id, trips, departures) in izip!(line_ids, stop_ids, trips_ids, departures_times) {
+        for (line_id, global_stop_id, trips, departures) in izip!(line_ids, global_stop_ids, trips_ids, departures_times) {
             let trips = trips.unwrap();
             let departures = departures.unwrap();
             let departures_trips = departures.duration()?.iter().zip(trips.u32()?)
@@ -133,12 +137,13 @@ impl RaptorAlgorithm {
                         // TODO: Fix date conversion
                         (DateTime::from_timestamp_millis(departure).unwrap(), TripId(trip.unwrap()))
                     })
-                });
+                })
+                .collect();
+            let line_id = LineId(line_id.unwrap());
+            let global_stop_id = StopId(global_stop_id.unwrap());
+            let local_stop_id = stop_mapping.translate_to_local(global_stop_id);
 
-            trips_by_line_and_stop.insert(
-                (LineId(line_id.unwrap()), StopId(stop_id.unwrap())),
-                departures_trips.collect(),
-            );
+            trips_by_line_and_stop.insert((line_id, local_stop_id), departures_trips);
         }
 
         #[cfg(debug_assertions)] {
@@ -188,9 +193,9 @@ impl RaptorAlgorithm {
                 }
             });
         }
-
+        
         Ok(Self {
-            stops: stops_vec,
+            stop_mapping,
             stops_by_line,
             lines_by_stops,
             arrivals,
@@ -242,7 +247,10 @@ mod tests {
 
         let preprocessing_out = <RaptorAlgorithm as PreprocessInit>::preprocess(preprocessing_in).unwrap();
 
-        assert!(list_eq(&preprocessing_out.stops, &vec![0u32, 1, 2, 3, 4, 5].into_iter().map(|x| StopId(x)).collect()));
+        assert!(list_eq(
+            &preprocessing_out.stop_mapping.0,
+            &vec![0u32, 1, 2, 3, 4, 5].into_iter().map(|x| StopId(x)).collect())
+        );
         // TODO: Test all of preprocessing_out
     }
 
