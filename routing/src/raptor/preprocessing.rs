@@ -178,19 +178,18 @@ impl RaptorAlgorithm {
 
             stops_by_line_a.iter().for_each(|(line, stops_a)| {
                 // Sort so that vecs match
-                let stops_a = stops_a.iter().sorted().collect_vec();
+                // Unique removes double stops, since stops are deduplicated in stops_by_line_b 
+                let stops_a = stops_a.iter().unique().sorted().collect_vec();
                 let stops_b = stops_by_line_b.get(line)
                     .expect(format!("Expected line {line:?} to exist in trips_by_line_and_stop").as_str())
                     .iter().sorted()
                     .collect_vec();
 
-                #[cfg(debug_assertions)] {
-                    debug_assert!(
-                        stops_a == stops_b,
-                        "Stops don't match for {line:?}. stops_by_line: {:?}\ntrips_by_line_and_stop: {:?}",
-                        stops_a, stops_b
-                    );
-                }
+                debug_assert!(
+                    stops_a == stops_b,
+                    "Stops don't match for {line:?}. stops_by_line: {:?}\ntrips_by_line_and_stop: {:?}",
+                    stops_a, stops_b
+                );
             });
         }
         
