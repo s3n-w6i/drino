@@ -27,6 +27,7 @@ pkgs.mkShell {
         python-pkgs.matplotlib
         python-pkgs.numpy
         python-pkgs.scikit-learn
+        python-pkgs.pyarrow
     ]))
   ];
   RUST_BACKTRACE = 1;
