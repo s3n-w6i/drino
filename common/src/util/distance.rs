@@ -1,11 +1,11 @@
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
 use either::Either;
 use regex::Regex;
 
 /// Distance in meters
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(try_from = "SerializedDistance")]
 pub struct Distance(pub f32);
 

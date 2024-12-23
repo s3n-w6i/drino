@@ -1,7 +1,7 @@
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use crate::types::dataset::{Dataset, DatasetGroup};
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(tag = "version")]
 pub enum Config {
     #[serde(rename = "1")]

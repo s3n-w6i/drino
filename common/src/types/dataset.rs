@@ -1,15 +1,15 @@
 use crate::util::distance::{Distance, Radius};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use url::Url;
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct DatasetGroup {
     pub id: String,
     pub consistency: DatasetConsistency
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct DatasetConsistency {
     #[serde(default)]
     stop_ids: IdConsistency,
@@ -19,7 +19,7 @@ pub struct DatasetConsistency {
     trip_ids: IdConsistency,
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(untagged)]
 pub enum IdConsistency {
     Fully(bool),
@@ -32,7 +32,7 @@ impl Default for IdConsistency {
     }
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(
     untagged,
     expecting = "Invalid or missing consistency definition. Specify either a hard cutoff radius with `radius: 42m` or an attenuation with `equality_radius:` and `inequality_radius:`"
@@ -54,7 +54,7 @@ impl Default for GeoPointConsistency {
 }
 
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Dataset {
     pub id: String,
     pub src: DataSource,
@@ -65,7 +65,7 @@ pub struct Dataset {
     // TODO: Fetch interval et al
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub enum DatasetFormat {
     #[serde(rename = "gtfs")]
     Gtfs,
@@ -73,7 +73,7 @@ pub enum DatasetFormat {
     GtfsRt,
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(
     untagged,
     expecting = "Invalid or missing data source. Specify either a remote source with `url:` and `headers:` or a local path with `file:` under `src:` of this dataset")
@@ -90,7 +90,7 @@ pub enum DataSource {
 }
 
 // Identifiers: https://spdx.org/licenses/
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub enum License {
     Custom { src: DataSource },
     #[serde(rename = " CC0-1.0")]
