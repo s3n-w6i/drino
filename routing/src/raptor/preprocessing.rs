@@ -110,7 +110,7 @@ impl RaptorAlgorithm {
                 if !cfg!(debug_assertions) {
                     unsafe {
                         arrivals.insert_unique_unchecked((trip_id, local_stop_id, visit_idx), arrival_time);
-                        arrivals.insert_unique_unchecked((trip_id, local_stop_id, visit_idx), arrival_time);
+                        departures.insert_unique_unchecked((trip_id, local_stop_id, visit_idx), departure_time);
                     }
                 } else {
                     arrivals.insert((trip_id, local_stop_id, visit_idx), arrival_time);
