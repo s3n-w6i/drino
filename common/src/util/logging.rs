@@ -6,7 +6,7 @@ use std::time::{Duration, SystemTime};
 static mut MULTI: Option<MultiProgress> = None;
 
 
-pub fn initialize_logging(log_level: LevelFilter) {
+pub fn init(log_level: LevelFilter) {
     let logger = env_logger::builder()
         .filter_level(log_level)
         .parse_default_env() // Allow overriding log level through RUST_LOG env var

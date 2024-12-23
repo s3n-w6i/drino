@@ -16,7 +16,7 @@ use crate::config::load_config;
 use bootstrap_config::BootstrapConfig;
 use common::types::config::Config;
 use common::types::dataset::Dataset;
-use common::util::logging::{initialize_logging, run_with_spinner};
+use common::util::logging;
 use common::util::speed::Speed;
 use data_harvester::step1_fetch_data::{fetch_dataset, FetchError};
 use data_harvester::step2_import_data::{import_data, ImportError, ImportStepExtra};
@@ -39,7 +39,7 @@ fn main() {
 fn run() -> Result<(), DrinoError> {
     let bootstrap_config = BootstrapConfig::read();
 
-    initialize_logging(bootstrap_config.clone().log_level.into());
+    logging::init(bootstrap_config.clone().log_level.into());
 
     print_ascii_art();
 
@@ -76,7 +76,7 @@ fn preprocess_inner(datasets: Vec<Dataset>, files_to_clean_up: &mut Vec<PathBuf>
     info!(target: "preprocessing", "Starting preprocessing");
     let preprocessing_start_time = SystemTime::now();
 
-    let preprocessing_input = run_with_spinner("preprocessing", "Fetching and importing datasets", || {
+    let preprocessing_input = logging::run_with_spinner("preprocessing", "Fetching and importing datasets", || {
         let rt = Runtime::new().unwrap();
         rt.block_on(async {
             // TODO: Process all datasets
@@ -114,7 +114,7 @@ fn preprocess_inner(datasets: Vec<Dataset>, files_to_clean_up: &mut Vec<PathBuf>
     // TODO: Merge datasets (with deduplication) and frequency reduce calender times
 
     // Cache important (and small) tables like stops to speed up computation
-    let cached_input = run_with_spinner("preprocessing", "Reading and caching timetable data", move || {
+    let cached_input = logging::run_with_spinner("preprocessing", "Reading and caching timetable data", move || {
         Ok::<PreprocessingInput, DrinoError>(PreprocessingInput {
             stops: preprocessing_input.stops.collect()?.lazy(),
             stop_times: preprocessing_input.stop_times.collect()?.lazy(),
