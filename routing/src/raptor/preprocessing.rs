@@ -12,7 +12,11 @@ use polars::prelude::*;
 use std::ops::{BitAnd, BitOr};
 
 impl PreprocessInit for RaptorAlgorithm {
-    fn preprocess(input: PreprocessingInput) -> PreprocessingResult<RaptorAlgorithm> {
+    fn preprocess(input: PreprocessingInput, save_to_disk: bool) -> PreprocessingResult<RaptorAlgorithm> {
+        if save_to_disk {
+            unimplemented!()
+        }
+        
         let direct_connections = DirectConnections::try_from(input.clone())?;
         Self::preprocess(input, direct_connections)
     }
@@ -244,7 +248,7 @@ mod tests {
             ).unwrap().lazy(),
         };
 
-        let preprocessing_out = <RaptorAlgorithm as PreprocessInit>::preprocess(preprocessing_in).unwrap();
+        let preprocessing_out = <RaptorAlgorithm as PreprocessInit>::preprocess(preprocessing_in, false).unwrap();
 
         assert!(list_eq(
             &preprocessing_out.stop_mapping.0,

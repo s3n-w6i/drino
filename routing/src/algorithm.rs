@@ -11,13 +11,12 @@ use common::types::StopId;
 pub trait RoutingAlgorithm {}
 
 pub trait PreprocessInit: RoutingAlgorithm + Sized {
-    fn preprocess(input: PreprocessingInput) -> PreprocessingResult<Self>;
+    fn preprocess(input: PreprocessingInput, save_to_disk: bool) -> PreprocessingResult<Self>;
 }
 
 
 pub trait FromDiskInit: RoutingAlgorithm + Sized {
     fn load_from_disk() -> PreprocessingResult<Self>;
-    fn save_to_disk();
 }
 
 

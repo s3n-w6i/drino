@@ -12,7 +12,11 @@ use std::sync::{Arc, Mutex};
 
 #[async_trait]
 impl PreprocessInit for TransferPatternsAlgorithm {
-    fn preprocess(input: PreprocessingInput) -> PreprocessingResult<Self> {
+    fn preprocess(input: PreprocessingInput, save_to_disk: bool) -> PreprocessingResult<Self> {
+        if save_to_disk {
+            unimplemented!()
+        }
+        
         let direct_connections = DirectConnections::try_from(input.clone())?;
         let raptor = Arc::new(RaptorAlgorithm::preprocess(input.clone(), direct_connections.clone())?);
 

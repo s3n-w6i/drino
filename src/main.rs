@@ -122,7 +122,7 @@ fn preprocess_inner(datasets: Vec<Dataset>, files_to_clean_up: &mut Vec<PathBuf>
         })
     })?;
 
-    let preprocessing_result = ALGORITHM::preprocess(cached_input)?;
+    let preprocessing_result = ALGORITHM::preprocess(cached_input, true)?;
 
     let elapsed = indicatif::HumanDuration(preprocessing_start_time.elapsed().unwrap());
     info!(target: "preprocessing", "Preprocessing finished in {}", elapsed);
