@@ -1,11 +1,10 @@
 use std::fmt;
 use std::fmt::Display;
 
-use geo::{point, HaversineDistance};
-use linfa::traits::Transformer;
+use geo::{point, Distance, Haversine};
 use linfa::Float;
+use linfa::traits::Transformer;
 use linfa_clustering::{Optics, OpticsAnalysis, Sample};
-use linfa_nn::distance::Distance;
 use linfa_nn::{BallTreeIndex, CommonNearestNeighbour, NearestNeighbourIndex};
 use ndarray::{ArrayBase, ArrayView, CowRepr, Data, Dimension, Ix2};
 use polars::frame::{DataFrame, UniqueKeepStrategy};
@@ -18,13 +17,13 @@ const MAX_CLUSTER_SIZE: u32 = 1_500;
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct HaversineDist;
 
-impl<F: Float> Distance<F> for HaversineDist {
+impl<F: Float> linfa_nn::distance::Distance<F> for HaversineDist {
     fn distance<D: Dimension>(&self, a: ArrayView<F, D>, b: ArrayView<F, D>) -> F {
         let mut a_iter = a.into_iter();
         let mut b_iter = b.into_iter();
         let point_a = point!(x: *a_iter.next().unwrap(), y: *a_iter.next().unwrap());
         let point_b = point!(x: *b_iter.next().unwrap(), y: *b_iter.next().unwrap());
-        let distance = point_a.haversine_distance(&point_b);
+        let distance = Haversine::distance(point_a, point_b);
         F::from(distance).unwrap()
     }
 }
