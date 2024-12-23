@@ -40,8 +40,7 @@ fn run() -> Result<(), DrinoError> {
     let bootstrap_config = BootstrapConfig::read();
 
     logging::init(bootstrap_config.clone().log_level.into());
-
-    print_ascii_art();
+    print_startup_message();
 
     debug!(target: "main", "Using temporary folder at {}", std::env::temp_dir().to_str().unwrap());
 
@@ -57,7 +56,7 @@ fn run() -> Result<(), DrinoError> {
     Ok(())
 }
 
-fn print_ascii_art() {
+fn print_startup_message() {
     info!("\n      _      _             \n   __| |_ __(_)_ __   ___  \n  / _` | '__| | '_ \\ / _ \\ \n | (_| | |  | | | | | (_) |\n  \\__,_|_|  |_|_| |_|\\___/ \n                           \n R O U T I N G   E N G I N E\n");
 }
 
