@@ -29,7 +29,7 @@ impl PreprocessInit for TransferPatternsAlgorithm {
 
         let total = raptor.stops.len() as u64;
         run_with_pb("preprocessing", "Calculating local transfers in a single cluster", total, false, |pb| {
-            raptor.stops.par_iter()
+            raptor.stop_mapping.0.par_iter()
                 .map(|stop| {
                     Arc::clone(&raptor).query_range_all(Range {
                         earliest_departure: DateTime::from_timestamp_millis(0).unwrap(),
