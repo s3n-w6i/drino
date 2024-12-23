@@ -20,13 +20,15 @@ pub trait TransferProvider {
 
 #[derive(thiserror::Error, Debug)]
 pub enum TransferError {
-    StopNotFound
+    StopNotFound,
+    OutOfReach
 }
 
 impl Display for TransferError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let err: &dyn Display = match self {
-            TransferError::StopNotFound => &"Stop not found"
+            TransferError::StopNotFound => &"Stop not found",
+            TransferError::OutOfReach => &"Transfer is out of reach"
         };
         write!(f, "{}", err)
     }

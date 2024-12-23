@@ -3,7 +3,8 @@ use chrono::{Duration, TimeDelta};
 #[derive(Copy, Clone)]
 pub struct Speed(pub f64); // in km/h
 
-pub const MAX_WALKING_SPEED: Speed = Speed(10f64);
+pub const MAX_WALKING_SPEED: Speed = Speed(7f64);
+pub const MAX_WALKING_DURATION: Duration = Duration::minutes(15);
 
 impl Speed {
     pub fn time_to_travel_distance(&self, meters: f32) -> Duration {
