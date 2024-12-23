@@ -39,7 +39,8 @@ const STEPS = [
 ]
 
 interface Stats {
-    num_stops: number
+    num_stops: number,
+    num_trips: number
 }
 
 export default function Home() {
@@ -69,12 +70,12 @@ export default function Home() {
                 <CardStats
                     title="Lines" subtitle="Lines accross datasets"
                     valueLoading={statsLoading}
-                    value="4,202"
+                    value="42,4242"
                     icon={<Waypoints/>}/>
                 <CardStats
                     title="Trips" subtitle="Trips places accross datasets"
                     valueLoading={statsLoading}
-                    value="34,502"
+                    value={stats?.num_trips?.toString()}
                     icon={<Navigation/>}/>
             </div>
             <div className="flex flex-col gap-4 md:gap-8">
