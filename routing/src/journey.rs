@@ -33,7 +33,7 @@ impl Leg {
         match self {
             Leg::Ride { boarding_time, alight_time, .. } => {
                 debug_assert!(
-                    boarding_time < alight_time,
+                    boarding_time <= alight_time,
                     "Start of leg ({} @{}) must not be after end ({} @{}).",
                     self.start(), boarding_time, self.end(), alight_time
                 );
