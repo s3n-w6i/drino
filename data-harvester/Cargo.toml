@@ -4,8 +4,8 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-common = { path = "../common", package = "drino-common" }
-routing = { path = "../routing", package = "drino-routing" }
+common = { workspace = true }
+routing = { workspace = true }
 polars = { workspace = true }
 tempfile = { workspace = true }
 zip = { version = "2.2.0", default-features = false, features = ["deflate"] }

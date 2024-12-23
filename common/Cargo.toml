@@ -11,9 +11,7 @@ chrono = { workspace = true }
 polars = { workspace = true }
 serde = { workspace = true }
 url = { version = "2.5.0", features = ["serde"] }
-reqwest = { version = "0.12.5", features = ["stream"] }
 env_logger = { workspace = true }
-geo = { workspace = true }
 thiserror = { workspace = true }
 either = { version = "1.13.0", features = ["serde"] }
 regex = { version = "1.11.1", features = [] }
