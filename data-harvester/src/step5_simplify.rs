@@ -1,8 +1,25 @@
 use crate::step4_merge_data::DatasetMergeOutput;
-use polars::prelude::{col, JoinArgs, JoinType};
+use common::util::df::{write_file, FileType};
+use polars::frame::DataFrame;
+use polars::prelude::{col, Column, IntoLazy, JoinArgs, JoinType};
+use polars::series::Series;
 use routing::algorithm::PreprocessingInput;
 use std::fmt;
 use std::fmt::Display;
+
+fn assign_new_ids(
+    mut frame: DataFrame,
+    name: &str
+) -> Result<DataFrame, SimplifyError> {
+    let num = frame.get_columns().first().unwrap().len() as u32;
+    
+    let mut new_ids = Column::from(Series::from_iter(0..num));
+    new_ids.rename(name.into());
+    
+    frame.with_column(new_ids)?;
+    
+    Ok(frame)
+}
 
 pub async fn simplify(
     DatasetMergeOutput {
@@ -20,16 +37,19 @@ pub async fn simplify(
             stop_times.clone(),
             col("stop_id"),
             col("stop_id")
-        )
-        .select([
+        ).select([
             // Keep "old" id-pairs (stop_id + dataset_id) so that we can match in other tables
             col("stop_id").alias("stop_id_in_dataset"),
             col("dataset_id"),
             col("stop_lat").alias("lat"),
             col("stop_lon").alias("lon"),
-        ])
-        // Generate a new stop_id
-        .with_row_index("stop_id", None);
+        ]);
+    
+    // Generate a new stop_id
+    let stops = assign_new_ids(stops.collect()?, "stop_id")?;
+    
+    write_file("data/tmp/simplify/stops.parquet".into(), FileType::PARQUET, stops.clone())?;
+    let stops = stops.lazy();
 
     let trips = trips
         .select([
@@ -37,8 +57,12 @@ pub async fn simplify(
             col("route_id").alias("route_id_in_dataset"),
             col("service_id").alias("service_id_in_dataset"),
             col("dataset_id"),
-        ])
-        .with_row_index("trip_id", None);
+        ]);
+    
+    let trips = assign_new_ids(trips.collect()?, "trip_id")?;
+
+    write_file("data/tmp/simplify/trips.parquet".into(), FileType::PARQUET, trips.clone())?;
+    let trips = trips.lazy();
 
     let services = services
         .select([
@@ -47,8 +71,12 @@ pub async fn simplify(
             col("monday"), col("tuesday"), col("wednesday"),
             col("thursday"), col("friday"), col("saturday"),
             col("sunday"), col("start_date"), col("end_date")
-        ])
-        .with_row_index("service_id", None);
+        ]);
+    
+    let services = assign_new_ids(services.collect()?, "service_id")?;
+    
+    write_file("data/tmp/simplify/services.parquet".into(), FileType::PARQUET, services.clone())?;
+    let services = services.lazy();
 
     let stop_times = stop_times
         .select([
@@ -66,14 +94,17 @@ pub async fn simplify(
             [col("dataset_id"), col("stop_id_in_dataset")],
             JoinArgs::new(JoinType::Inner),
         )
-        .drop(["stop_id_in_dataset"])
         // Convert trip_ids to numeric ones
         .join(
             trips.clone().select([col("dataset_id"), col("trip_id_in_dataset"), col("trip_id")]),
             [col("dataset_id"), col("trip_id_in_dataset")],
             [col("dataset_id"), col("trip_id_in_dataset")],
             JoinArgs::new(JoinType::Inner),
-        )
+        );
+    
+    write_file("data/tmp/simplify/stop_times.parquet".into(), FileType::PARQUET, stop_times.clone().collect()?)?;
+    
+    let stop_times = stop_times.drop(["stop_id_in_dataset"])
         .drop(["dataset_id", "trip_id_in_dataset"]);
 
     let trips = trips
