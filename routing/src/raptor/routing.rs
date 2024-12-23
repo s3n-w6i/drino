@@ -1,14 +1,13 @@
 use crate::algorithm::*;
+use crate::journey::Journey;
 use crate::raptor::state::RaptorState;
-use crate::raptor::RaptorAlgorithm;
+use crate::raptor::{LocalStopId, RaptorAlgorithm};
 use chrono::{DateTime, Duration, TimeDelta, Utc};
 use common::types::{LineId, SeqNum, StopId, TripId};
 use common::util::time::INFINITY;
 use hashbrown::HashSet;
 use itertools::Itertools;
 use std::cmp::min;
-use std::iter::Skip;
-use crate::journey::Journey;
 
 impl RaptorAlgorithm {
     /// Selects the earliest trip of a line, that departs at `stop` after a given time
@@ -24,8 +23,8 @@ impl RaptorAlgorithm {
             })
     }
 
-    fn build_queue(&self, marked_stops: &HashSet<StopId>) -> HashSet<(LineId, StopId)> {
-        let mut queue: HashSet<(LineId, StopId)> = HashSet::new();
+    fn build_queue(&self, marked_stops: &HashSet<LocalStopId>) -> HashSet<(LineId, LocalStopId)> {
+        let mut queue: HashSet<(LineId, LocalStopId)> = HashSet::new();
 
         for stop_a in marked_stops {
             if let Some(lines_serving_stop) = self.lines_by_stops.get(stop_a) {
@@ -53,7 +52,7 @@ impl RaptorAlgorithm {
         queue
     }
 
-    fn stops_on_line_after(&self, line: &LineId, stop: &StopId) -> Skip<std::slice::Iter<StopId>> {
+    fn stops_on_line_after(&self, line: &LineId, stop: &LocalStopId) -> impl Iterator<Item=&LocalStopId> {
         // Get all stops on that line that comes after stop_id (including stop_id)
         let stops_on_line = self.stops_by_line.get(line).unwrap();
         let a_stop_idx_on_line = stops_on_line.iter().position(|x| x == stop)
@@ -70,17 +69,17 @@ impl RaptorAlgorithm {
             );
         }
 
-        stops_on_line_after.into_iter()
+        stops_on_line_after
     }
 
     fn run(
         &self,
-        start: StopId,
-        target: Option<StopId>,
+        start: LocalStopId,
+        target: Option<LocalStopId>,
         departure: DateTime<Utc>,
     ) -> QueryResult<RaptorState> {
-        let mut state = RaptorState::init(self.stops.len(), start, departure);
-        let mut marked_stops: HashSet<StopId> = HashSet::from([start]);
+        let mut state = RaptorState::init(self.num_stops(), start, departure, &self.stop_mapping);
+        let mut marked_stops: HashSet<LocalStopId> = HashSet::from([start]);
 
         // Increase the number of legs per round
         // foreach k <- 1,2,... do
@@ -262,8 +261,8 @@ impl RaptorAlgorithm {
     }
 
     fn backtrace_all(&self, state: RaptorState, departure: DateTime<Utc>) -> QueryResult<Vec<Journey>> {
-        let journeys = self.stops.iter()
-            .map(|stop| state.backtrace(*stop, departure))
+        let journeys = self.local_stop_ids()
+            .map(|stop| state.backtrace(stop, departure))
             .filter_map(|res| res.ok())
             .collect_vec();
 
@@ -281,6 +280,9 @@ impl SingleEarliestArrival for RaptorAlgorithm {
         EarliestArrival { start, earliest_departure }: EarliestArrival,
         Single { target }: Single,
     ) -> QueryResult<EarliestArrivalOutput> {
+        let start = self.stop_mapping.translate_to_local(start);
+        let target = self.stop_mapping.translate_to_local(target);
+
         let res_state = self.run(start, Some(target), earliest_departure)?;
         let journey = res_state.backtrace(target, earliest_departure)?;
         Ok(EarliestArrivalOutput { journey })
@@ -289,12 +291,17 @@ impl SingleEarliestArrival for RaptorAlgorithm {
 
 impl SingleRange for RaptorAlgorithm {
     fn query_range(&self, Range { start, earliest_departure, range }: Range, Single { target }: Single) -> QueryResult<RangeOutput> {
+        let start = self.stop_mapping.translate_to_local(start);
+        let target = self.stop_mapping.translate_to_local(target);
+        
         self.run_range(start, Some(target), earliest_departure, range)
     }
 }
 
 impl AllEarliestArrival for RaptorAlgorithm {
     fn query_ea_all(&self, EarliestArrival { start, earliest_departure }: EarliestArrival) -> MultiQueryResult<EarliestArrivalOutput> {
+        let start = self.stop_mapping.translate_to_local(start);
+
         let res_state = self.run(start, None, earliest_departure)?;
         let journeys = self.backtrace_all(res_state, earliest_departure)?;
         let result = journeys.into_iter()
@@ -306,6 +313,8 @@ impl AllEarliestArrival for RaptorAlgorithm {
 
 impl AllRange for RaptorAlgorithm {
     fn query_range_all(&self, Range { earliest_departure, range, start }: Range) -> QueryResult<RangeOutput> {
+        let start = self.stop_mapping.translate_to_local(start);
+
         self.run_range(start, None, earliest_departure, range)
     }
 }
@@ -315,18 +324,19 @@ impl AllRange for RaptorAlgorithm {
 mod tests {
     use super::*;
     use crate::earliest_arrival_tests;
-    use crate::tests::generate_case_4;
+    use crate::journey::Leg;
+    use crate::raptor::tests::generate_case_4;
+    use crate::raptor::StopMapping;
     use crate::transfers::fixed_time::FixedTimeTransferProvider;
     use common::util::duration;
     use hashbrown::{HashMap, HashSet};
     use ndarray::array;
-    use crate::journey::Leg;
 
     earliest_arrival_tests!(RaptorAlgorithm);
 
     fn case1() -> RaptorAlgorithm {
         RaptorAlgorithm {
-            stops: vec![0, 1].into_iter().map(|x| StopId(x)).collect(),
+            stop_mapping: StopMapping(vec![0, 1].into_iter().map(|x| StopId(x)).collect()),
             stops_by_line: HashMap::from([
                 (LineId(0), vec![StopId(0), StopId(1)])
             ]),
@@ -365,7 +375,7 @@ mod tests {
     #[test]
     fn test_earliest_trip_function() {
         let raptor = RaptorAlgorithm {
-            stops: vec![0, 1, 2].into_iter().map(|x| StopId(x)).collect(),
+            stop_mapping: StopMapping(vec![0, 1, 2].into_iter().map(|x| StopId(x)).collect()),
             stops_by_line: HashMap::from([
                 (LineId(0), vec![StopId(0), StopId(1)]),
                 (LineId(1), vec![StopId(1), StopId(2)]),
@@ -495,6 +505,7 @@ mod tests {
                     ])
                 )
             ]),
+            stop_mapping: &StopMapping(vec![StopId(0), StopId(1)])
         };
 
         let res = case1().backtrace_all(state, DateTime::UNIX_EPOCH).unwrap();

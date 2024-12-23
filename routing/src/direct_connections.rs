@@ -1,11 +1,9 @@
-use polars::error::PolarsError;
 use polars::frame::DataFrame;
 use polars::prelude::*;
 use polars::series::IntoSeries;
 
 use crate::algorithm::{PreprocessingError, PreprocessingInput};
 use common::types::StopId;
-
 
 /// In the transfer patterns paper, lines are represented like this:
 ///
@@ -102,6 +100,7 @@ impl TryFrom<PreprocessingInput> for DirectConnections {
                 .select(["stop_id"])?
                 .with_column(incidences)?
                 .clone().lazy()
+                .unique(None, UniqueKeepStrategy::Any)
                 .group_by([col("stop_id")])
                 .agg([col("incidences")])
         }.collect()?;
@@ -112,30 +111,6 @@ impl TryFrom<PreprocessingInput> for DirectConnections {
 
 
 impl DirectConnections {
-    pub(crate) fn rename_stops(&mut self, mapping: &DataFrame) -> Result<(), PolarsError> {
-        self.expanded_lines = self.expanded_lines
-            .left_join(
-                mapping,
-                ["stop_id"],
-                ["stop_id_in_cluster"],
-            )?
-            .drop("stop_id")? // Don't keep the stop_id withing the cluster...
-            .rename("global_stop_id", "stop_id".into())? //...instead, use original id
-            .clone();
-
-        self.stop_incidence = self.stop_incidence
-            .left_join(
-                mapping,
-                ["stop_id"],
-                ["stop_id_in_cluster"],
-            )?
-            .drop("stop_id")?
-            .rename("global_stop_id", "stop_id".into())?
-            .clear();
-
-        Ok(())
-    }
-
     pub(crate) fn query_direct(&self, from: StopId, to: StopId) -> Result<LazyFrame, PreprocessingError> {
         // Utility function to filter for incidences whose stop_id matches
         fn filter_and_unpack_incidences(StopId(id): StopId, stop_incidence: &StopIncidenceFrame) -> Result<LazyFrame, PreprocessingError> {

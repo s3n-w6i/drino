@@ -2,40 +2,31 @@ use crate::algorithm::{PreprocessingError, PreprocessingInput};
 use polars::frame::UniqueKeepStrategy;
 use polars::prelude::*;
 
-// columns: "stop_id_in_cluster", "global_stop_id"
-pub(crate) type StopIdMapping = LazyFrame;
-
 pub fn filter_for_cluster(
     cluster_id: u32,
     // columns: "stop_id", "cluster_id"
-    stop_ids_with_cluster_ids: &LazyFrame,
+    stop_ids_with_cluster_ids: &DataFrame,
     PreprocessingInput {
         stops, stop_times, trips, services
     }: &PreprocessingInput,
-) -> Result<(PreprocessingInput, StopIdMapping), PreprocessingError> {
-    let stop_ids_in_this_cluster = stop_ids_with_cluster_ids.clone()
+) -> Result<PreprocessingInput, PreprocessingError> {
+    let stop_ids_in_this_cluster = stop_ids_with_cluster_ids.clone().lazy()
         .filter(col("cluster_id").eq(lit(cluster_id)))
         .select([col("stop_id")])
-        // We want to reassign new ids, so that they are continuous again
-        .rename(["stop_id"], ["global_stop_id"], true)
-        // TODO: Replace with a stable id
-        .with_row_index("stop_id_in_cluster", None);
-
+        .collect()?;
+    
     // Filter the stops
     let stops = stops.clone()
         .join(
-            stop_ids_in_this_cluster.clone(),
+            stop_ids_in_this_cluster.clone().lazy(),
             [col("stop_id")],
-            [col("global_stop_id")],
+            [col("stop_id")],
             JoinArgs::new(
                 JoinType::Inner
             )
         )
-        .rename(["stop_id"], ["global_stop_id"], true);
-
-    let stop_mapping = stops.clone()
-        .select([ col("global_stop_id"), col("stop_id_in_cluster") ]);
-
+        .collect()?;
+    
     // Only include stop times that are within the cluster
     // Since lines (in RAPTOR) will be calculated based only on the stop_times-table, resulting
     // lines will "skip over" the parts of a line that are outside the cluster. This is fine, since
@@ -43,14 +34,10 @@ pub fn filter_for_cluster(
     let stop_times = stop_times.clone()
         // Only keep stops that are in the cluster
         .inner_join(
-            stop_ids_in_this_cluster.clone(),
+            stop_ids_in_this_cluster.clone().lazy(),
             col("stop_id"),
-            col("global_stop_id"),
-        )
-        // don't keep the original stop id...
-        .drop(["stop_id"])
-        // ...instead replace it with the new one
-        .rename(["stop_id_in_cluster"], ["stop_id"], true);
+            col("stop_id"),
+        );
     
     let trip_ids_in_this_cluster = stop_times.clone()
         .select([col("trip_id")])
@@ -74,20 +61,14 @@ pub fn filter_for_cluster(
             col("service_id"),
         );
     
-    let stops = stops
-        // From now on, use the new stop id as the regular stop id
-        .rename(["stop_id_in_cluster"], ["stop_id"], true);
-    
     let preprocessing_input = PreprocessingInput {
         services: services.clone(),
-        stops,
+        stops: stops.clone().lazy(),
         trips,
         stop_times,
     };
     
-    println!("{:?}", stop_mapping.clone().collect());
-
-    Ok((preprocessing_input, stop_mapping))
+    Ok(preprocessing_input)
 }
 
 
@@ -100,7 +81,7 @@ mod tests {
         let stop_ids_with_clusters = df!(
             "stop_id"    => &[0u32, 1, 2, 3, 4, 5],
             "cluster_id" => &[0u32, 0, 1, 1, 2, 2],
-        ).unwrap().lazy();
+        ).unwrap();
         let stops = df!(
             "stop_id"    => &[0u32, 1, 2, 3, 4, 5]
         ).unwrap().lazy();
@@ -116,12 +97,12 @@ mod tests {
             "service_id" => [0u32, 1, 2, 3, 4, 5, 6, 7, 8],
         ).unwrap().lazy();
 
-        let (PreprocessingInput {
+        let PreprocessingInput {
             stops: filtered_stops,
             stop_times: filtered_stop_times,
             trips: filtered_trips,
             services: filtered_services,
-        }, _) = filter_for_cluster(
+        } = filter_for_cluster(
             1,
             &stop_ids_with_clusters,
             &PreprocessingInput { stops, stop_times, trips, services },

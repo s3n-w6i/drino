@@ -1,23 +1,26 @@
-use chrono::{DateTime, Duration, Utc};
-use hashbrown::{HashMap, HashSet};
-
 use crate::algorithm::{QueryResult, RoutingAlgorithm};
 use crate::journey::Journey;
 use crate::transfers::TransferProvider;
+use chrono::{DateTime, Duration, Utc};
 use common::types::{LineId, SeqNum, StopId, TripId};
+use hashbrown::{HashMap, HashSet};
 
 mod state;
 mod preprocessing;
 mod routing;
+mod tests;
 
-pub type TripAtStopTimeMap = HashMap<(TripId, StopId), DateTime<Utc>>;
-pub type TripsByLineAndStopMap = HashMap<(LineId, StopId), Vec<(DateTime<Utc>, TripId)>>;
+type GlobalStopId = StopId;
+type LocalStopId = StopId;
+
+pub type TripAtStopTimeMap = HashMap<(TripId, LocalStopId), DateTime<Utc>>;
+pub type TripsByLineAndStopMap = HashMap<(LineId, LocalStopId), Vec<(DateTime<Utc>, TripId)>>;
 
 pub struct RaptorAlgorithm {
-    pub(crate) stops: Vec<StopId>,
-
-    pub(crate) stops_by_line: HashMap<LineId, Vec<StopId>>,
-    pub(crate) lines_by_stops: HashMap<StopId, HashSet<(LineId, SeqNum)>>,
+    pub(crate) stop_mapping: StopMapping,
+    
+    pub(crate) stops_by_line: HashMap<LineId, Vec<LocalStopId>>,
+    pub(crate) lines_by_stops: HashMap<LocalStopId, HashSet<(LineId, SeqNum)>>,
 
     // <(trip_id, stop_id), departure_time>
     pub(crate) departures: TripAtStopTimeMap,
@@ -32,3 +35,40 @@ pub struct RaptorAlgorithm {
 }
 
 impl RoutingAlgorithm for RaptorAlgorithm {}
+
+impl RaptorAlgorithm {
+    
+    fn local_stop_ids(&self) -> impl Iterator<Item=LocalStopId> {
+        (0..self.num_stops())
+            .map(|x| StopId(x as u32))
+            .into_iter()
+    }
+    
+    pub(crate) fn num_stops(&self) -> usize {
+        // Since each stop has also got a global ID, use the number of those IDs to determine how many
+        // stops there are.
+        self.stop_mapping.0.len()
+    }
+}
+
+
+/// In order to simplify lookup of data, the passed stop IDs will be transformed to local stop
+/// ids that start at zero and assign a new stop ID to each stop continuously. The index of 
+/// stop_mapping is the local stop ID, the value at that index is the global stop ID.
+#[derive(Debug)]
+pub(crate) struct StopMapping(pub(crate) Vec<GlobalStopId>);
+
+impl StopMapping {
+    /// Translates a local stop ID into a global stop ID
+    fn translate_to_global(&self, local_stop_id: LocalStopId) -> GlobalStopId {
+        self.0[local_stop_id.0 as usize]
+    }
+    
+    /// Translates a global stop ID into a local stop ID
+    // TODO: Return the result, maybe use a separate hash map to speed up the lookup?
+    fn translate_to_local(&self, global_stop_id: GlobalStopId) -> LocalStopId {
+        let idx = self.0.iter().position(|stop_id| stop_id == &global_stop_id);
+        
+        StopId(idx.unwrap() as u32)
+    }
+}

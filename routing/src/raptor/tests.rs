@@ -1,10 +1,12 @@
-use crate::raptor::RaptorAlgorithm;
+use crate::raptor::{RaptorAlgorithm, StopMapping};
 use crate::transfers::fixed_time::FixedTimeTransferProvider;
 use chrono::{DateTime, Duration, Utc};
 use common::types::{LineId, SeqNum, StopId, TripId};
 use common::util::duration::INFINITY;
 use hashbrown::{HashMap, HashSet};
 use ndarray::array;
+
+#[cfg(test)]
 #[allow(clippy::inconsistent_digit_grouping)]
 /// Test case 4 has some specialties:
 /// - Stop 3 and 4 are quite close together, so walking between them is feasible
@@ -31,7 +33,7 @@ pub(crate) fn generate_case_4() -> RaptorAlgorithm {
     let duration_3_to_4 = Duration::seconds(410);
 
     RaptorAlgorithm {
-        stops: vec![0, 1, 2, 3, 4].into_iter().map(StopId).collect(),
+        stop_mapping: StopMapping(vec![0, 1, 2, 3, 4].into_iter().map(StopId).collect()),
         stops_by_line: HashMap::from([
             // Line 100: 0 --> 2 --> 3
             (LineId(100), vec![StopId(0), StopId(2), StopId(3)]),
@@ -121,7 +123,7 @@ macro_rules! earliest_arrival_tests {
         async fn test_query_earliest_1() {
             // todo: let algorithm = <$t>::preprocess(todo!(), todo!()).unwrap();
             let raptor = RaptorAlgorithm {
-                stops: vec![0, 1].into_iter().map(|x| StopId(x)).collect(),
+                stop_mapping: StopMapping(vec![0, 1].into_iter().map(|x| StopId(x)).collect()),
                 stops_by_line: HashMap::from([
                     (LineId(0), vec![StopId(0), StopId(1)])
                 ]),
@@ -173,7 +175,7 @@ macro_rules! earliest_arrival_tests {
         #[tokio::test]
         async fn test_query_earliest_2() {
             let raptor = RaptorAlgorithm {
-                stops: vec![0, 1, 2].into_iter().map(|x| StopId(x)).collect(),
+                stop_mapping: StopMapping(vec![0, 1, 2].into_iter().map(|x| StopId(x)).collect()),
                 stops_by_line: HashMap::from([
                     (LineId(0), vec![StopId(0), StopId(1)]),
                     (LineId(1), vec![StopId(1), StopId(2)]),
@@ -235,7 +237,7 @@ macro_rules! earliest_arrival_tests {
             let duration_1_to_2 = Duration::seconds(10);
             
             let raptor = RaptorAlgorithm {
-                stops: vec![0, 1, 2, 3].into_iter().map(|x| StopId(x)).collect(),
+                stop_mapping: StopMapping(vec![0, 1, 2, 3].into_iter().map(|x| StopId(x)).collect()),
                 stops_by_line: HashMap::from([
                     (LineId(0), vec![StopId(0), StopId(1)]),
                     (LineId(1), vec![StopId(2), StopId(3)]),
