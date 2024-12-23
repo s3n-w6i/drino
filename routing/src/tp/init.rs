@@ -20,14 +20,14 @@ impl PreprocessInit for TransferPatternsAlgorithm {
         let direct_connections = DirectConnections::try_from(input.clone())?;
         let raptor = Arc::new(RaptorAlgorithm::preprocess(input.clone(), direct_connections.clone())?);
 
-        let tp_table = TransferPatternsTable::new()?;
+        let tp_table = Arc::new(Mutex::new(TransferPatternsTable::new()?));
 
         // Also keep a graph representation when in debugging mode. This is useful for checking the
         // validity of what we build.
-        #[allow(unused_assignments)] // for the regular compiler, where this is not used at all        
-        let tp_graph = Arc::new(Mutex::new(TransferPatternsGraphs::new(raptor.stops.len())));
+        #[allow(unused_variables)] // for the regular compiler, where this is not used at all
+        let tp_graph = Arc::new(Mutex::new(TransferPatternsGraphs::new(raptor.stop_mapping.0.clone())));
 
-        let total = raptor.stops.len() as u64;
+        let total = raptor.num_stops() as u64;
         run_with_pb("preprocessing", "Calculating local transfers in a single cluster", total, false, |pb| {
             raptor.stop_mapping.0.par_iter()
                 .map(|stop| {
@@ -39,29 +39,41 @@ impl PreprocessInit for TransferPatternsAlgorithm {
                 })
                 .filter_map(|result| result.ok())
                 .map(|range_out| {
-                    // Add the collected results to the table of transfer patterns
-                    // TODO
-
                     // Also build the graph version in debug
                     #[cfg(debug_assertions)] {
                         let tp_graph = Arc::clone(&tp_graph);
                         // Add this chunk to our existing transfer patterns graph
                         let mut tp_graph = tp_graph.lock().unwrap();
-                        tp_graph.add(vec![range_out]);
+                        tp_graph.add(range_out.clone());
                         drop(tp_graph);
                     }
+
+                    // Add the collected results to the table of transfer patterns
+                    let tp_table = Arc::clone(&tp_table);
+                    let mut tp_table = tp_table.lock().unwrap();
+                    let res = tp_table.add(range_out);
+                    drop(tp_table);
+
+                    res
                 })
-                .for_each(|_| pb.inc(1));
+                .for_each(|_| {
+                    pb.inc(1);
+                });
         });
 
 
         #[cfg(debug_assertions)] {
             let tp_graph = Arc::try_unwrap(tp_graph)
-                    .expect("Lock is still owned by others").into_inner().unwrap();
+                .expect("Lock is still owned by others").into_inner().unwrap();
             // Check that graphs are acyclic. Expensive to compute, so only do that in debug.
             tp_graph.validate();
         }
 
+        let mut tp_table = Arc::try_unwrap(tp_table)
+            .expect("Lock is still owned by others").into_inner().unwrap();
+        
+        tp_table.reduce()?;
+        
         Ok(Self {
             direct_connections,
             transfer_patterns: tp_table,

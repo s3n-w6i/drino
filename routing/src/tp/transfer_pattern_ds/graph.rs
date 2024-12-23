@@ -1,8 +1,9 @@
 use crate::algorithm::RangeOutput;
 use crate::journey::Journey;
 use common::types::StopId;
+use hashbrown::HashMap;
 use itertools::Itertools;
-use petgraph::algo::is_cyclic_directed;
+#[cfg(debug_assertions)] use petgraph::algo::is_cyclic_directed;
 use petgraph::data::DataMap;
 use petgraph::dot::{Config, Dot};
 use petgraph::graph::NodeIndex;
@@ -26,7 +27,7 @@ type TpGraph = Graph<(StopId, NodeType), (), Directed>;
 
 #[derive(Debug)]
 pub struct TransferPatternsGraphs {
-    dags: Vec<TpGraph>,
+    dags: HashMap<StopId, TpGraph>,
 }
 
 fn format_graph<'a>(graph: &TpGraph) -> Dot<'a, &TpGraph> {
@@ -45,34 +46,35 @@ fn format_graph<'a>(graph: &TpGraph) -> Dot<'a, &TpGraph> {
 }
 
 impl TransferPatternsGraphs {
-    pub(crate) fn new(num_stops: usize) -> Self {
+    pub(crate) fn new(stops: Vec<StopId>) -> Self {
+        let num_stops = stops.len();
+        
         // Build a graph for each origin stop
-        let dags = (0..num_stops)
-            .map(|root_node_idx| {
+        let mut dags = HashMap::with_capacity(num_stops);
+        
+        stops.into_iter()
+            .map(|stop| {
                 // Initialize a graph, where the root node is already present
-                let mut graph = Graph::with_capacity(num_stops, num_stops);
-                graph.add_node((StopId(root_node_idx as u32), NodeType::Root));
-                graph
+                let mut graph: TpGraph = Graph::with_capacity(num_stops, num_stops);
+                graph.add_node((stop, NodeType::Root));
+                (stop, graph)
             })
-            .collect_vec();
+            .for_each(|(stop, graph)| { 
+                dags.insert(stop, graph); 
+            });
 
         Self { dags }
     }
 
-    pub(crate) fn add(&mut self, results: Vec<RangeOutput>) {
-        let all_journeys = results.into_iter()
-            .flat_map(|res| { res.journeys });
-
-        for journey in all_journeys {
+    pub(crate) fn add(&mut self, result: RangeOutput) {
+        for journey in result.journeys {
             self.add_journey(journey);
         }
     }
 
     fn add_journey(&mut self, journey: Journey) {
-        let journey_start_idx = journey.departure_stop().0 as usize;
-        let journey_end = *journey.arrival_stop();
-        // Find the graph to which we want to add this journey
-        let graph = &mut self.dags[journey_start_idx];
+        // Find the graph we want to add this journey to
+        let graph = self.dags.get_mut(journey.departure_stop()).unwrap();
 
         // At least the root node is always in the graph (see Self::new())
         debug_assert!(graph.node_count() > 0);
@@ -82,6 +84,7 @@ impl TransferPatternsGraphs {
         let mut current_node_idx = NodeIndex::from(0);
         debug_assert!(&graph.node_weight(current_node_idx).unwrap().0 == journey.departure_stop());
 
+        let journey_end = *journey.arrival_stop();
         for leg in journey.legs() {
             let end = leg.end();
             let start = leg.start();
@@ -165,19 +168,9 @@ impl TransferPatternsGraphs {
         }
     }
 
-    pub(crate) fn format_as_dot<'a>(&self, stop_id: StopId) -> Dot<'a, &TpGraph> {
-        let graph = &self.dags[stop_id.0 as usize];
-
-        format_graph(graph)
-    }
-    
-    pub(crate) fn print(&self, stop_id: StopId) {
-        println!("{:?}", self.format_as_dot(stop_id));
-    }
-
     #[cfg(debug_assertions)]
     pub(crate) fn validate(&self) {
-        for graph in &self.dags {
+        for graph in self.dags.values() {
             // Validate acyclic property
             debug_assert!(
                 !is_cyclic_directed::<&Graph<(StopId, NodeType), (), Directed>>(graph),
@@ -199,48 +192,68 @@ impl TransferPatternsGraphs {
             );
         }
     }
-
-    pub(self) fn nodes(&self, root: StopId) -> Option<impl Iterator<Item=&(StopId, NodeType)> + Sized> {
-        self.dags.get::<usize>(root.0 as usize)
-            .map(|dag: &Graph<(StopId, NodeType), (), Directed>| {
-                dag.node_weights()
-            })
-    }
-
-    pub(self) fn edges(&self, root: StopId) -> Option<impl Iterator<Item=(&(StopId, NodeType), &(StopId, NodeType))> + Sized + use<'_>> {
-        self.dags.get::<usize>(root.0 as usize)
-            .map(|dag: &Graph<(StopId, NodeType), (), Directed>| {
-                dag.edge_indices()
-                    .map(|i| {
-                        dag.edge_endpoints(i).unwrap()
-                    })
-                    .map(|(start_idx, end_idx)| {
-                        (dag.node_weight(start_idx).unwrap(), dag.node_weight(end_idx).unwrap())
-                    })
-            })
-    }
 }
 
 #[cfg(test)]
 mod tests {
+    use super::{format_graph, NodeType, TpGraph, TransferPatternsGraphs};
     use crate::journey::Journey;
     use crate::journey::Leg::Ride;
-    use super::{NodeType, TransferPatternsGraphs};
     use chrono::{DateTime, TimeDelta};
+    use common::types::errors::UnknownStopIdError;
     use common::types::{StopId, TripId};
     use itertools::{assert_equal, Itertools};
+    use petgraph::{Directed, Graph};
+    use petgraph::dot::Dot;
+
+    impl TransferPatternsGraphs {
+        
+        pub(self) fn format_as_dot<'a>(&self, stop_id: StopId) -> Result<Dot<'a, &TpGraph>, UnknownStopIdError> {
+            match self.dags.get(&stop_id) {
+                Some(graph) => Ok(format_graph(graph)),
+                None => Err(UnknownStopIdError(stop_id))
+            }
+        }
+
+        pub(crate) fn print(&self, stop_id: StopId) {
+            println!("{:?}", self.format_as_dot(stop_id));
+        }
+
+        pub(self) fn nodes(&self, root: StopId) -> Option<impl Iterator<Item=&(StopId, NodeType)> + Sized> {
+            self.dags.get(&root)
+                .map(|dag: &Graph<(StopId, NodeType), (), Directed>| {
+                    dag.node_weights()
+                })
+        }
+
+        pub(self) fn edges(&self, root: StopId) -> Option<impl Iterator<Item=(&(StopId, NodeType), &(StopId, NodeType))> + Sized + use<'_>> {
+            self.dags.get(&root)
+                .map(|dag: &Graph<(StopId, NodeType), (), Directed>| {
+                    dag.edge_indices()
+                        .map(|i| {
+                            dag.edge_endpoints(i).unwrap()
+                        })
+                        .map(|(start_idx, end_idx)| {
+                            (dag.node_weight(start_idx).unwrap(), dag.node_weight(end_idx).unwrap())
+                        })
+                })
+        }
+
+    }
 
     #[test]
     fn test_tp_adding() {
-        // This the same example as what's in the transfer patterns paper in Fig. 1
-        // A corresponds to Stop ID 0, B to 1 and so on...
-        let mut tp = TransferPatternsGraphs::new(5);
-
         let a = StopId(0);
         let b = StopId(1);
         let c = StopId(2);
         let d = StopId(3);
         let e = StopId(4);
+        
+        let stops = vec![a, b, c, d, e];
+        // This the same example as what's in the transfer patterns paper in Fig. 1
+        // A corresponds to Stop ID 0, B to 1 and so on...
+        let mut tp = TransferPatternsGraphs::new(stops);
+
 
         let ab = Ride {
             trip: TripId(41),
@@ -326,7 +339,8 @@ mod tests {
 
     #[test]
     fn test_tp_double_insert() {
-        let mut tp = TransferPatternsGraphs::new(3);
+        let stops = vec![StopId(0), StopId(1), StopId(2)];
+        let mut tp = TransferPatternsGraphs::new(stops);
 
         // Do twice
         for _ in 0..2 {
