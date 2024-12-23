@@ -13,18 +13,21 @@ mod tests;
 type GlobalStopId = StopId;
 type LocalStopId = StopId;
 
-pub type TripAtStopTimeMap = HashMap<(TripId, LocalStopId), DateTime<Utc>>;
+/// <(trip_id, stop_id, visit_idx), time>
+/// the visit_idx is there, since a trip could visit the same stop multiple times (think round trips)
+pub type TripAtStopTimeMap = HashMap<(TripId, LocalStopId, u32), DateTime<Utc>>;
 pub type TripsByLineAndStopMap = HashMap<(LineId, LocalStopId), Vec<(DateTime<Utc>, TripId)>>;
 
 pub struct RaptorAlgorithm {
     pub(crate) stop_mapping: StopMapping,
     
-    pub(crate) stops_by_line: HashMap<LineId, Vec<LocalStopId>>,
+    /// <line_id, [stop_id, visit_idx]>
+    pub(crate) stops_by_line: HashMap<LineId, Vec<(LocalStopId, u32)>>,
     pub(crate) lines_by_stops: HashMap<LocalStopId, HashSet<(LineId, SeqNum)>>,
 
-    // <(trip_id, stop_id), departure_time>
+    // <(trip_id, stop_id, visit_idx), departure_time>
     pub(crate) departures: TripAtStopTimeMap,
-    // <(trip_id, stop_id), arrival_time>
+    // <(trip_id, stop_id, visit_idx), arrival_time>
     pub(crate) arrivals: TripAtStopTimeMap,
 
     // Vec has to be sorted from earliest to latest

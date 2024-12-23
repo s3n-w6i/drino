@@ -23,8 +23,8 @@ impl RaptorAlgorithm {
             })
     }
 
-    fn build_queue(&self, marked_stops: &HashSet<LocalStopId>) -> HashSet<(LineId, LocalStopId)> {
-        let mut queue: HashSet<(LineId, LocalStopId)> = HashSet::new();
+    fn build_queue(&self, marked_stops: &HashSet<LocalStopId>) -> HashSet<(LineId, (LocalStopId, u32))> {
+        let mut queue: HashSet<(LineId, (LocalStopId, u32))> = HashSet::new();
 
         for stop_a in marked_stops {
             if let Some(lines_serving_stop) = self.lines_by_stops.get(stop_a) {
@@ -35,14 +35,14 @@ impl RaptorAlgorithm {
                             "Line {line:?} is in lines_by_stops, so it must also be in stops_by_line."
                         ));
                     // for any stop b that is also on the line
-                    for (seq_num_b, stop_b) in other_stops.iter().enumerate() {
+                    for (seq_num_b, (stop_b, visit_idx)) in other_stops.iter().enumerate() {
                         let seq_num_b = SeqNum(seq_num_b as u32);
                         // if other_stop comes after marked_stop on that line
-                        if queue.contains(&(*line, *stop_b)) && seq_num_a < &seq_num_b {
-                            queue.remove(&(*line, *stop_b));
-                            queue.insert((*line, *stop_a));
+                        if queue.contains(&(*line, (*stop_b, *visit_idx))) && seq_num_a < &seq_num_b {
+                            queue.remove(&(*line, (*stop_b, *visit_idx)));
+                            queue.insert((*line, (*stop_b, *visit_idx)));
                         } else {
-                            queue.insert((*line, *stop_a));
+                            queue.insert((*line, (*stop_b, *visit_idx)));
                         }
                     }
                 }
@@ -52,10 +52,11 @@ impl RaptorAlgorithm {
         queue
     }
 
-    fn stops_on_line_after(&self, line: &LineId, stop: &LocalStopId) -> impl Iterator<Item=&LocalStopId> {
+    fn stops_on_line_after(&self, line: &LineId, stop: &LocalStopId, visit_idx: &u32) -> impl Iterator<Item=&(LocalStopId, u32)> {
         // Get all stops on that line that comes after stop_id (including stop_id)
         let stops_on_line = self.stops_by_line.get(line).unwrap();
-        let a_stop_idx_on_line = stops_on_line.iter().position(|x| x == stop)
+        let a_stop_idx_on_line = stops_on_line.iter()
+            .position(|x| x == &(*stop, *visit_idx))
             .unwrap_or_else(|| panic!( // used instead of expect for performance
                 "Expected Stop with ID {stop:?} to be on line {line:?}. But this line has only these stops: {stops_on_line:?}"
             ));
@@ -64,7 +65,7 @@ impl RaptorAlgorithm {
         #[cfg(debug_assertions)] {
             // stop_id itself is first in line of the stops
             debug_assert!(
-                stops_on_line_after.clone().collect::<Vec<&StopId>>()[0] == stop,
+                stops_on_line_after.clone().collect_vec()[0].0 == *stop,
                 "Line {line:?} does not include stop {stop:?} as a stop after {stop:?}",
             );
         }
@@ -101,11 +102,11 @@ impl RaptorAlgorithm {
 
             // SECOND STAGE: Scan lines
             // Process each line (called "route" in the original paper).
-            for (line, a_stop) in queue.iter() {
+            for (line, (a_stop, a_visit_idx)) in queue.iter() {
                 let mut boarding_stop: Option<StopId> = None;
                 let mut trip: Option<TripId> = None;
 
-                for b_stop in self.stops_on_line_after(line, a_stop) {
+                for (b_stop, b_visit_idx) in self.stops_on_line_after(line, a_stop, a_visit_idx) {
                     // TODO: Fix funky date problems
                     // if t != ⊥ and ...
                     if let Some(trip) = trip {
@@ -120,7 +121,7 @@ impl RaptorAlgorithm {
                         // ...and arr(t, pᵢ) < min{ τ*(pᵢ), τ*(pₜ) }
                         if b_arrival < min(best_b_arrival, best_target_arrival) {
                             let boarding_stop = boarding_stop.expect("Boarding stop must not be None");
-                            let boarding_stop_departure = self.departures.get(&(trip, boarding_stop))
+                            let boarding_stop_departure = self.departures.get(&(trip, boarding_stop, *b_visit_idx))
                                 .unwrap_or_else(|| panic!(
                                     "Expected departure for stop {a_stop:?} to exist on trip {trip:?}"
                                 ));
@@ -131,7 +132,7 @@ impl RaptorAlgorithm {
                     }
 
                     let b_departure = trip.and_then(|trip| {
-                        self.departures.get(&(trip, *b_stop))
+                        self.departures.get(&(trip, *b_stop, *b_visit_idx))
                     }).unwrap_or(&INFINITY);
 
                     let prev_b_arrival = state.previous_tau(b_stop);
@@ -338,17 +339,17 @@ mod tests {
         RaptorAlgorithm {
             stop_mapping: StopMapping(vec![0, 1].into_iter().map(|x| StopId(x)).collect()),
             stops_by_line: HashMap::from([
-                (LineId(0), vec![StopId(0), StopId(1)])
+                (LineId(0), vec![(StopId(0), 0), (StopId(1), 0)])
             ]),
             lines_by_stops: HashMap::from([
                 (StopId(0), HashSet::from([(LineId(0), SeqNum(0))])),
                 (StopId(1), HashSet::from([(LineId(0), SeqNum(1))])),
             ]),
             arrivals: HashMap::from([
-                ((TripId(0), StopId(1)), DateTime::<Utc>::from_timestamp(500, 0).unwrap())
+                ((TripId(0), StopId(1), 0), DateTime::<Utc>::from_timestamp(500, 0).unwrap())
             ]),
             departures: HashMap::from([
-                ((TripId(0), StopId(0)), DateTime::<Utc>::from_timestamp(100, 0).unwrap())
+                ((TripId(0), StopId(0), 0), DateTime::<Utc>::from_timestamp(100, 0).unwrap())
             ]),
             trips_by_line_and_stop: HashMap::from([
                 ((LineId(0), StopId(0)), vec![(DateTime::<Utc>::from_timestamp(100, 0).unwrap(), TripId(0))]),
@@ -377,8 +378,8 @@ mod tests {
         let raptor = RaptorAlgorithm {
             stop_mapping: StopMapping(vec![0, 1, 2].into_iter().map(|x| StopId(x)).collect()),
             stops_by_line: HashMap::from([
-                (LineId(0), vec![StopId(0), StopId(1)]),
-                (LineId(1), vec![StopId(1), StopId(2)]),
+                (LineId(0), vec![(StopId(0), 0), (StopId(1), 0)]),
+                (LineId(1), vec![(StopId(1), 0), (StopId(2), 0)]),
             ]),
             lines_by_stops: HashMap::from([
                 (StopId(0), HashSet::from([(LineId(0), SeqNum(0))])),
@@ -386,12 +387,12 @@ mod tests {
                 (StopId(2), HashSet::from([(LineId(1), SeqNum(1))])),
             ]),
             departures: HashMap::from([
-                ((TripId(0), StopId(0)), DateTime::<Utc>::from_timestamp(100, 0).unwrap()),
-                ((TripId(1), StopId(1)), DateTime::<Utc>::from_timestamp(1000, 0).unwrap()),
+                ((TripId(0), StopId(0), 0), DateTime::<Utc>::from_timestamp(100, 0).unwrap()),
+                ((TripId(1), StopId(1), 0), DateTime::<Utc>::from_timestamp(1000, 0).unwrap()),
             ]),
             arrivals: HashMap::from([
-                ((TripId(0), StopId(1)), DateTime::<Utc>::from_timestamp(500, 0).unwrap()),
-                ((TripId(1), StopId(2)), DateTime::<Utc>::from_timestamp(1500, 0).unwrap()),
+                ((TripId(0), StopId(1), 0), DateTime::<Utc>::from_timestamp(500, 0).unwrap()),
+                ((TripId(1), StopId(2), 0), DateTime::<Utc>::from_timestamp(1500, 0).unwrap()),
             ]),
             trips_by_line_and_stop: HashMap::from([
                 ((LineId(0), StopId(0)), vec![(DateTime::<Utc>::from_timestamp(100, 0).unwrap(), TripId(0))]),

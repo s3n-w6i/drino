@@ -1,6 +1,6 @@
 use crate::algorithm::{PreprocessInit, PreprocessingError, PreprocessingInput, PreprocessingResult};
 use crate::direct_connections::DirectConnections;
-use crate::raptor::{GlobalStopId, RaptorAlgorithm, StopMapping, TripAtStopTimeMap, TripsByLineAndStopMap};
+use crate::raptor::{GlobalStopId, LocalStopId, RaptorAlgorithm, StopMapping, TripAtStopTimeMap, TripsByLineAndStopMap};
 use crate::transfers::crow_fly::CrowFlyTransferProvider;
 use chrono::DateTime;
 use common::types::{LineId, SeqNum, StopId, TripId};
@@ -52,14 +52,17 @@ impl RaptorAlgorithm {
                 let local_stop_id = stop_mapping.translate_to_local(global_stop_id);
                 let seq_num = seq_num.unwrap().into();
 
-                stops_by_line.entry(line_id).or_insert(vec![])
-                    .push(local_stop_id);
+                let stops_by_line_entry = stops_by_line.entry(line_id).or_insert(vec![]);
+                let visit_idx = stops_by_line_entry.iter()
+                    .filter(|(stop_id, _)| stop_id == &local_stop_id)
+                    .count() as u32;
+                stops_by_line_entry.push((local_stop_id, visit_idx));
 
                 lines_by_stops.entry(local_stop_id).or_insert(HashSet::new())
                     .insert((line_id, seq_num));
             }
 
-            Ok::<(HashMap<LineId, Vec<StopId>>, HashMap<StopId, HashSet<(LineId, SeqNum)>>), PreprocessingError>
+            Ok::<(HashMap<LineId, Vec<(LocalStopId, u32)>>, HashMap<StopId, HashSet<(LineId, SeqNum)>>), PreprocessingError>
                 ((stops_by_line, lines_by_stops))
         }?;
         debug_assert!(stop_mapping.0.len() == lines_by_stops.len());
@@ -96,15 +99,29 @@ impl RaptorAlgorithm {
                 // TODO: Fix date time handling
                 let arrival_time = DateTime::from_timestamp_millis(arrival_time).unwrap();
                 let departure_time = DateTime::from_timestamp_millis(departure_time).unwrap();
+                
+                // Determine the how-many-th time this stop is visited. For most, this will be zero,
+                // so this rather inefficient code should do.
+                let mut visit_idx = 0u32;
+                while arrivals.get(&(trip_id, local_stop_id, visit_idx)).is_some() {
+                    visit_idx += 1;
+                }
 
-                arrivals.insert((trip_id, local_stop_id), arrival_time);
-                departures.insert((trip_id, local_stop_id), departure_time);
+                if !cfg!(debug_assertions) {
+                    unsafe {
+                        arrivals.insert_unique_unchecked((trip_id, local_stop_id, visit_idx), arrival_time);
+                        arrivals.insert_unique_unchecked((trip_id, local_stop_id, visit_idx), arrival_time);
+                    }
+                } else {
+                    arrivals.insert((trip_id, local_stop_id, visit_idx), arrival_time);
+                    departures.insert((trip_id, local_stop_id, visit_idx), departure_time);
+                }
             }
 
             #[cfg(debug_assertions)] {
                 // Assert that no arrival at a stop is after the departure
-                arrivals.iter().for_each(|((trip, stop), arrival)| {
-                    let departure = departures.get(&(*trip, *stop))
+                arrivals.iter().for_each(|((trip, stop, visit_idx), arrival)| {
+                    let departure = departures.get(&(*trip, *stop, *visit_idx))
                         .unwrap_or(&INFINITY);
                     debug_assert!(
                         arrival <= departure,
@@ -183,7 +200,9 @@ impl RaptorAlgorithm {
             stops_by_line_a.iter().for_each(|(line, stops_a)| {
                 // Sort so that vecs match
                 // Unique removes double stops, since stops are deduplicated in stops_by_line_b 
-                let stops_a = stops_a.iter().unique().sorted().collect_vec();
+                let stops_a = stops_a.iter()
+                    .map(|(stop_id, _)| stop_id)
+                    .unique().sorted().collect_vec();
                 let stops_b = stops_by_line_b.get(line)
                     .expect(format!("Expected line {line:?} to exist in trips_by_line_and_stop").as_str())
                     .iter().sorted()

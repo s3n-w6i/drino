@@ -36,13 +36,13 @@ pub(crate) fn generate_case_4() -> RaptorAlgorithm {
         stop_mapping: StopMapping(vec![0, 1, 2, 3, 4].into_iter().map(StopId).collect()),
         stops_by_line: HashMap::from([
             // Line 100: 0 --> 2 --> 3
-            (LineId(100), vec![StopId(0), StopId(2), StopId(3)]),
+            (LineId(100), vec![(StopId(0), 0), (StopId(2), 0), (StopId(3), 0)]),
             // Line 101: 1 <-- 2 <-- 3
-            (LineId(101), vec![StopId(3), StopId(2), StopId(1)]),
+            (LineId(101), vec![(StopId(3), 0), (StopId(2), 0), (StopId(1), 0)]),
             // Line 120: 1 --> 2 --> 4
-            (LineId(120), vec![StopId(1), StopId(2), StopId(4)]),
+            (LineId(120), vec![(StopId(1), 0), (StopId(2), 0), (StopId(4), 0)]),
             // Line 130 ("express line"): 0 --> 3
-            (LineId(130), vec![StopId(0), StopId(3)]),
+            (LineId(130), vec![(StopId(0), 0), (StopId(3), 0)]),
         ]),
         lines_by_stops: HashMap::from([
             (StopId(0), HashSet::from([(LineId(100), SeqNum(0)), (LineId(130), SeqNum(0))])),
@@ -53,41 +53,41 @@ pub(crate) fn generate_case_4() -> RaptorAlgorithm {
         ]),
         departures: HashMap::from([
             // Line 100
-            ((TripId(100_1), StopId(0)), dep20),
-            ((TripId(100_1), StopId(2)), dep110),
-            ((TripId(100_2), StopId(0)), dep220),
-            ((TripId(100_2), StopId(2)), dep310),
+            ((TripId(100_1), StopId(0), 0), dep20),
+            ((TripId(100_1), StopId(2), 0), dep110),
+            ((TripId(100_2), StopId(0), 0), dep220),
+            ((TripId(100_2), StopId(2), 0), dep310),
             // Line 101
-            ((TripId(101_1), StopId(3)), dep20),
-            ((TripId(101_1), StopId(2)), dep110),
-            ((TripId(101_2), StopId(3)), dep220),
-            ((TripId(101_2), StopId(2)), dep310),
+            ((TripId(101_1), StopId(3), 0), dep20),
+            ((TripId(101_1), StopId(2), 0), dep110),
+            ((TripId(101_2), StopId(3), 0), dep220),
+            ((TripId(101_2), StopId(2), 0), dep310),
             // Line 120
-            ((TripId(120_1), StopId(1)), dep0),
-            ((TripId(120_1), StopId(2)), dep90),
-            ((TripId(120_2), StopId(1)), dep400),
-            ((TripId(120_2), StopId(2)), dep490),
+            ((TripId(120_1), StopId(1), 0), dep0),
+            ((TripId(120_1), StopId(2), 0), dep90),
+            ((TripId(120_2), StopId(1), 0), dep400),
+            ((TripId(120_2), StopId(2), 0), dep490),
             // Line 130
-            ((TripId(130_1), StopId(0)), dep0),
+            ((TripId(130_1), StopId(0), 0), dep0),
         ]),
         arrivals: HashMap::from([
             // Line 100
-            ((TripId(100_1), StopId(2)), arr100),
-            ((TripId(100_1), StopId(3)), arr300),
-            ((TripId(100_2), StopId(2)), arr150),
-            ((TripId(100_2), StopId(3)), arr350),
+            ((TripId(100_1), StopId(2), 0), arr100),
+            ((TripId(100_1), StopId(3), 0), arr300),
+            ((TripId(100_2), StopId(2), 0), arr150),
+            ((TripId(100_2), StopId(3), 0), arr350),
             // Line 101
-            ((TripId(101_1), StopId(2)), arr100),
-            ((TripId(101_1), StopId(1)), arr150),
-            ((TripId(101_2), StopId(2)), arr300),
-            ((TripId(101_2), StopId(1)), arr350),
+            ((TripId(101_1), StopId(2), 0), arr100),
+            ((TripId(101_1), StopId(1), 0), arr150),
+            ((TripId(101_2), StopId(2), 0), arr300),
+            ((TripId(101_2), StopId(1), 0), arr350),
             // Line 120
-            ((TripId(120_1), StopId(2)), arr80),
-            ((TripId(120_1), StopId(4)), arr300),
-            ((TripId(120_2), StopId(2)), arr480),
-            ((TripId(120_2), StopId(4)), arr700),
+            ((TripId(120_1), StopId(2), 0), arr80),
+            ((TripId(120_1), StopId(4), 0), arr300),
+            ((TripId(120_2), StopId(2), 0), arr480),
+            ((TripId(120_2), StopId(4), 0), arr700),
             // Line 130
-            ((TripId(130_1), StopId(3)), arr250),
+            ((TripId(130_1), StopId(3), 0), arr250),
         ]),
         trips_by_line_and_stop: HashMap::from([
             ((LineId(100), StopId(0)), vec![(dep20, TripId(100_1)), (dep220, TripId(100_2))]),
@@ -125,17 +125,17 @@ macro_rules! earliest_arrival_tests {
             let raptor = RaptorAlgorithm {
                 stop_mapping: StopMapping(vec![0, 1].into_iter().map(|x| StopId(x)).collect()),
                 stops_by_line: HashMap::from([
-                    (LineId(0), vec![StopId(0), StopId(1)])
+                    (LineId(0), vec![(StopId(0), 0), (StopId(1), 0)])
                 ]),
                 lines_by_stops: HashMap::from([
                     (StopId(0), HashSet::from([(LineId(0), SeqNum(0))])),
                     (StopId(1), HashSet::from([(LineId(0), SeqNum(1))])),
                 ]),
                 arrivals: HashMap::from([
-                    ((TripId(0), StopId(1)), DateTime::<Utc>::from_timestamp(500, 0).unwrap())
+                    ((TripId(0), StopId(1), 0), DateTime::<Utc>::from_timestamp(500, 0).unwrap())
                 ]),
                 departures: HashMap::from([
-                    ((TripId(0), StopId(0)), DateTime::<Utc>::from_timestamp(100, 0).unwrap())
+                    ((TripId(0), StopId(0), 0), DateTime::<Utc>::from_timestamp(100, 0).unwrap())
                 ]),
                 trips_by_line_and_stop: HashMap::from([
                     ((LineId(0), StopId(0)), vec![(DateTime::<Utc>::from_timestamp(100, 0).unwrap(), TripId(0))]),
@@ -177,8 +177,8 @@ macro_rules! earliest_arrival_tests {
             let raptor = RaptorAlgorithm {
                 stop_mapping: StopMapping(vec![0, 1, 2].into_iter().map(|x| StopId(x)).collect()),
                 stops_by_line: HashMap::from([
-                    (LineId(0), vec![StopId(0), StopId(1)]),
-                    (LineId(1), vec![StopId(1), StopId(2)]),
+                    (LineId(0), vec![(StopId(0), 0), (StopId(1), 0)]),
+                    (LineId(1), vec![(StopId(1), 0), (StopId(2), 0)]),
                 ]),
                 lines_by_stops: HashMap::from([
                     (StopId(0), HashSet::from([(LineId(0), SeqNum(0))])),
@@ -186,12 +186,12 @@ macro_rules! earliest_arrival_tests {
                     (StopId(2), HashSet::from([(LineId(1), SeqNum(1))])),
                 ]),
                 departures: HashMap::from([
-                    ((TripId(0), StopId(0)), DateTime::<Utc>::from_timestamp(100, 0).unwrap()),
-                    ((TripId(1), StopId(1)), DateTime::<Utc>::from_timestamp(1000, 0).unwrap()),
+                    ((TripId(0), StopId(0), 0), DateTime::<Utc>::from_timestamp(100, 0).unwrap()),
+                    ((TripId(1), StopId(1), 0), DateTime::<Utc>::from_timestamp(1000, 0).unwrap()),
                 ]),
                 arrivals: HashMap::from([
-                    ((TripId(0), StopId(1)), DateTime::<Utc>::from_timestamp(500, 0).unwrap()),
-                    ((TripId(1), StopId(2)), DateTime::<Utc>::from_timestamp(1500, 0).unwrap()),
+                    ((TripId(0), StopId(1), 0), DateTime::<Utc>::from_timestamp(500, 0).unwrap()),
+                    ((TripId(1), StopId(2), 0), DateTime::<Utc>::from_timestamp(1500, 0).unwrap()),
                 ]),
                 trips_by_line_and_stop: HashMap::from([
                     ((LineId(0), StopId(0)), vec![(DateTime::<Utc>::from_timestamp(100, 0).unwrap(), TripId(0))]),
@@ -239,8 +239,8 @@ macro_rules! earliest_arrival_tests {
             let raptor = RaptorAlgorithm {
                 stop_mapping: StopMapping(vec![0, 1, 2, 3].into_iter().map(|x| StopId(x)).collect()),
                 stops_by_line: HashMap::from([
-                    (LineId(0), vec![StopId(0), StopId(1)]),
-                    (LineId(1), vec![StopId(2), StopId(3)]),
+                    (LineId(0), vec![(StopId(0), 0), (StopId(1), 0)]),
+                    (LineId(1), vec![(StopId(2), 0), (StopId(3), 0)]),
                 ]),
                 lines_by_stops: HashMap::from([
                     (StopId(0), HashSet::from([(LineId(0), SeqNum(0))])),
@@ -249,12 +249,12 @@ macro_rules! earliest_arrival_tests {
                     (StopId(3), HashSet::from([(LineId(1), SeqNum(1))])),
                 ]),
                 departures: HashMap::from([
-                    ((TripId(0), StopId(0)), DateTime::<Utc>::from_timestamp(100, 0).unwrap()),
-                    ((TripId(1), StopId(2)), DateTime::<Utc>::from_timestamp(1000, 0).unwrap()),
+                    ((TripId(0), StopId(0), 0), DateTime::<Utc>::from_timestamp(100, 0).unwrap()),
+                    ((TripId(1), StopId(2), 0), DateTime::<Utc>::from_timestamp(1000, 0).unwrap()),
                 ]),
                 arrivals: HashMap::from([
-                    ((TripId(0), StopId(1)), DateTime::<Utc>::from_timestamp(500, 0).unwrap()),
-                    ((TripId(1), StopId(3)), DateTime::<Utc>::from_timestamp(1500, 0).unwrap()),
+                    ((TripId(0), StopId(1), 0), DateTime::<Utc>::from_timestamp(500, 0).unwrap()),
+                    ((TripId(1), StopId(3), 0), DateTime::<Utc>::from_timestamp(1500, 0).unwrap()),
                 ]),
                 trips_by_line_and_stop: HashMap::from([
                     ((LineId(0), StopId(0)), vec![(DateTime::<Utc>::from_timestamp(100, 0).unwrap(), TripId(0))]),
