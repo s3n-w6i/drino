@@ -5,11 +5,10 @@ use crate::stp::preprocessing::clustering::k_means::cluster;
 use crate::stp::ScalableTransferPatternsAlgorithm;
 use crate::tp::transfer_pattern_ds::table::TransferPatternsTable;
 use crate::tp::TransferPatternsAlgorithm;
-use common::util::logging::{run_with_pb, run_with_spinner};
 use common::util::df::{write_file, FileType};
+use common::util::logging::{run_with_pb, run_with_spinner};
 use polars::frame::DataFrame;
-use polars::io::SerWriter;
-use polars::prelude::{col, CsvWriter, IntoLazy, JoinArgs};
+use polars::prelude::{col, IntoLazy, JoinArgs};
 
 impl PreprocessInit for ScalableTransferPatternsAlgorithm {
     fn preprocess(input: PreprocessingInput, save_to_disk: bool) -> PreprocessingResult<Self> {
@@ -17,13 +16,12 @@ impl PreprocessInit for ScalableTransferPatternsAlgorithm {
             let (stop_ids_with_clusters, num_clusters) = cluster(&input.stops)
                 .expect("Clustering failed");
 
-            let mut stops_clustered = input.stops.clone()
+            let stops_clustered = input.stops.clone()
                 .left_join(stop_ids_with_clusters.clone().lazy(), "stop_id", "stop_id")
                 .collect()?;
 
-            // TODO: Switch to parquet and write_tmp_file
-            let mut file = std::fs::File::create("./data/tmp/stp/stops_clustered.csv").unwrap();
-            CsvWriter::new(&mut file).finish(&mut stops_clustered).unwrap();
+            // TODO: Switch to parquet
+            write_file("data/tmp/stp/stops_clustered.csv".into(), FileType::CSV, stops_clustered)?;
 
             Ok::<(DataFrame, u32), PreprocessingError>((stop_ids_with_clusters, num_clusters))
         })?;
