@@ -12,12 +12,12 @@ fn assign_new_ids(
     name: &str
 ) -> Result<DataFrame, SimplifyError> {
     let num = frame.get_columns().first().unwrap().len() as u32;
-    
+
     let mut new_ids = Column::from(Series::from_iter(0..num));
     new_ids.rename(name.into());
-    
+
     frame.with_column(new_ids)?;
-    
+
     Ok(frame)
 }
 
@@ -44,10 +44,10 @@ pub async fn simplify(
             col("stop_lat").alias("lat"),
             col("stop_lon").alias("lon"),
         ]);
-    
+
     // Generate a new stop_id
     let stops = assign_new_ids(stops.collect()?, "stop_id")?;
-    
+
     write_file("data/tmp/simplify/stops.parquet".into(), FileType::PARQUET, stops.clone())?;
     let stops = stops.lazy();
 
@@ -58,7 +58,7 @@ pub async fn simplify(
             col("service_id").alias("service_id_in_dataset"),
             col("dataset_id"),
         ]);
-    
+
     let trips = assign_new_ids(trips.collect()?, "trip_id")?;
 
     write_file("data/tmp/simplify/trips.parquet".into(), FileType::PARQUET, trips.clone())?;
@@ -72,9 +72,9 @@ pub async fn simplify(
             col("thursday"), col("friday"), col("saturday"),
             col("sunday"), col("start_date"), col("end_date")
         ]);
-    
+
     let services = assign_new_ids(services.collect()?, "service_id")?;
-    
+
     write_file("data/tmp/simplify/services.parquet".into(), FileType::PARQUET, services.clone())?;
     let services = services.lazy();
 
@@ -101,9 +101,9 @@ pub async fn simplify(
             [col("dataset_id"), col("trip_id_in_dataset")],
             JoinArgs::new(JoinType::Inner),
         );
-    
+
     write_file("data/tmp/simplify/stop_times.parquet".into(), FileType::PARQUET, stop_times.clone().collect()?)?;
-    
+
     let stop_times = stop_times.drop(["stop_id_in_dataset"])
         .drop(["dataset_id", "trip_id_in_dataset"]);
 
