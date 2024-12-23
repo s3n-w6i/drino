@@ -1,14 +1,15 @@
 mod api;
 
+use crate::api::v1::*;
 use actix_cors::Cors;
 use actix_files::Files;
-use actix_web::{App, HttpServer, Result};
+use actix_web::{web, App, HttpServer, Result};
 use actix_web_static_files::ResourceFiles;
+use common::types::config::Config;
 use common::util::logging;
 use log::{info, LevelFilter};
 use std::fs::File;
 use std::io::BufReader;
-use crate::api::v1::*;
 
 // Import the static dashboard files
 include!(concat!(env!("OUT_DIR"), "/generated.rs"));
@@ -33,14 +34,16 @@ fn tls_cfg() -> rustls::ServerConfig {
         .unwrap()
 }
 
-async fn run_server() -> std::io::Result<()> {
-    HttpServer::new(|| {
+async fn run_server(config: Config) -> std::io::Result<()> {
+    HttpServer::new(move || {
         let cors = Cors::default().allowed_origin("http://localhost:5173");
 
         let frontend_files = generate();
 
         App::new()
             .wrap(cors)
+            // Make config available in all handlers
+            .app_data(web::Data::new(config.clone()))
             // API endpoints
             .service(stats_api)
             .service(config_api)
@@ -58,7 +61,14 @@ async fn run_server() -> std::io::Result<()> {
 async fn main() -> std::io::Result<()> {
     logging::init(LevelFilter::Info);
 
-    run_server().await?;
+    run_server(
+        // TODO
+        Config::Version1 {
+            datasets: vec![],
+            dataset_groups: vec![],
+        },
+    )
+    .await?;
 
     info!("Server shut down");
 
