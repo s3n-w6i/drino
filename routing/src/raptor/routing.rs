@@ -112,8 +112,8 @@ impl RaptorAlgorithm {
                     // TODO: Fix funky date problems
                     // if t != ⊥ and ...
                     if let Some(trip) = trip {
-                        let b_arrival = self.arrivals.get(&(trip, *b_stop))
-                            .unwrap_or(&INFINITY);
+                        let b_arrival = self.arrivals.get(&(trip, *b_stop, *b_visit_idx))
+                            .unwrap_or(&INFINITY); // TODO: Why is this not an error?
                         let best_b_arrival = state.best_arrival(b_stop);
                         let best_target_arrival = target.map(|target| {
                             state.best_arrival(&target)
