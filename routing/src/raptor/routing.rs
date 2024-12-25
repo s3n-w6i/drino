@@ -104,7 +104,8 @@ impl RaptorAlgorithm {
             // SECOND STAGE: Scan lines
             // Process each line (called "route" in the original paper).
             for (line, (a_stop, a_visit_idx)) in queue.iter() {
-                let mut boarding_stop: Option<StopId> = None;
+                // Option<(stop_id, visit_idx)>
+                let mut boarding: Option<(StopId, u32)> = None;
                 let mut trip: Option<TripId> = None;
 
                 for (b_stop, b_visit_idx) in self.stops_on_line_after(line, a_stop, a_visit_idx) {
@@ -121,13 +122,13 @@ impl RaptorAlgorithm {
                         // taking the trip to b it is faster than not taking it
                         // ...and arr(t, pᵢ) < min{ τ*(pᵢ), τ*(pₜ) }
                         if b_arrival < min(best_b_arrival, best_target_arrival) {
-                            let boarding_stop = boarding_stop.expect("Boarding stop must not be None");
-                            let boarding_stop_departure = self.departures.get(&(trip, boarding_stop, *b_visit_idx))
+                            let (boarding_stop, boarding_visit_idx) = boarding.expect("Boarding stop must not be None");
+                            let boarding_departure = self.departures.get(&(trip, boarding_stop, boarding_visit_idx))
                                 .unwrap_or_else(|| panic!(
-                                    "Expected departure for stop {a_stop:?} to exist on trip {trip:?}"
+                                    "Expected departure for stop {a_stop:?} (visit {boarding_visit_idx}) to exist on trip {trip:?}"
                                 ));
 
-                            state.set_ride(boarding_stop, *b_stop, *boarding_stop_departure, *b_arrival, trip);
+                            state.set_ride(boarding_stop, *b_stop, *boarding_departure, *b_arrival, trip);
                             marked_stops.insert(*b_stop);
                         }
                     }
@@ -145,7 +146,7 @@ impl RaptorAlgorithm {
 
                         if next_trip.is_some() {
                             trip = next_trip;
-                            boarding_stop = Some(*b_stop);
+                            boarding = Some((*b_stop, *b_visit_idx));
                         }
                     }
                 }
