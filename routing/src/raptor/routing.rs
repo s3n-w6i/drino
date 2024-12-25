@@ -8,6 +8,7 @@ use common::util::time::INFINITY;
 use hashbrown::HashSet;
 use itertools::Itertools;
 use std::cmp::min;
+use crate::transfers::TransferError;
 
 impl RaptorAlgorithm {
     /// Selects the earliest trip of a line, that departs at `stop` after a given time
@@ -166,18 +167,28 @@ impl RaptorAlgorithm {
                     // This if-clause checks if there is any chance this transfer is faster.
                     // For this approximation, we use a lower bound duration that is cheaper to
                     // calculate than an actual route and duration (at least for large distances)
-                    let lower_bound_duration = transfer_provider.lower_bound_duration(start, end)?;
-                    if lower_bound_duration < max_duration {
-                        // Since we found a candidate, calculate the actual, precise duration it
-                        // will take.
-                        let actual_duration = transfer_provider.duration(start, end)?;
-                        debug_assert!(
-                            actual_duration >= lower_bound_duration,
-                            "Actual duration must be greater than the lower bound."
-                        );
+                    let lower_bound_duration = transfer_provider.lower_bound_duration(start, end);
+                    match lower_bound_duration {
+                        Ok(lower_bound_duration) => {
+                            if lower_bound_duration < max_duration {
+                                // Since we found a candidate, calculate the actual, precise duration it
+                                // will take.
+                                let actual_duration = transfer_provider.duration(start, end)?;
+                                debug_assert!(
+                                    actual_duration >= lower_bound_duration,
+                                    "Actual duration must be greater than the lower bound."
+                                );
 
-                        if actual_duration < max_duration {
-                            state.set_transfer(start, end, actual_duration);
+                                if actual_duration < max_duration {
+                                    state.set_transfer(start, end, actual_duration);
+                                }
+                            }
+                        },
+                        Err(e) => {
+                            match e {
+                                TransferError::OutOfReach => {},
+                                TransferError::StopNotFound => unreachable!("We only queried stops returned in provided transfer stops"),
+                            }
                         }
                     }
 
