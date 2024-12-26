@@ -10,8 +10,12 @@ use common::util::logging;
 use log::{info, LevelFilter};
 use std::fs::File;
 use std::io::BufReader;
+use std::sync::Arc;
+use std::time::Duration;
+use tokio::time::interval;
+use crate::api::v1::status::{Job, StatusBroadcaster, StatusEvent};
 
-// Import the static dashboard files
+// Import the statically built dashboard files
 include!(concat!(env!("OUT_DIR"), "/generated.rs"));
 
 /// This generates a tls configuration for localhost use
@@ -36,17 +40,48 @@ fn tls_cfg() -> rustls::ServerConfig {
 
 async fn run_server(config: Config) -> std::io::Result<()> {
     HttpServer::new(move || {
-        let cors = Cors::default().allowed_origin("http://localhost:5173");
+        let cors = Cors::default()
+            .allowed_origin("http://localhost:5173")
+            .allowed_origin("https://hoppscotch.io");
 
         let frontend_files = generate();
+        
+        let status_broadcaster = StatusBroadcaster::create();
+
+        let broadcaster = Arc::clone(&status_broadcaster);
+        actix_web::rt::spawn(async move {
+            let mut interval = interval(Duration::from_secs(3));
+
+            interval.tick().await;
+            broadcaster.broadcast(StatusEvent::StartedJob(Job::HarvestData).clone()).await.unwrap();
+
+            interval.tick().await;
+            broadcaster.broadcast(StatusEvent::FinishedJob(Job::HarvestData).clone()).await.unwrap();
+            broadcaster.broadcast(StatusEvent::StartedJob(Job::ImportData).clone()).await.unwrap();
+
+            interval.tick().await;
+            broadcaster.broadcast(StatusEvent::FinishedJob(Job::ImportData).clone()).await.unwrap();
+            broadcaster.broadcast(StatusEvent::StartedJob(Job::ValidateData).clone()).await.unwrap();
+
+            interval.tick().await;
+            broadcaster.broadcast(StatusEvent::FinishedJob(Job::ValidateData).clone()).await.unwrap();
+            broadcaster.broadcast(StatusEvent::StartedJob(Job::Preprocessing).clone()).await.unwrap();
+            broadcaster.broadcast(StatusEvent::StartedJob(Job::PreprocessingClustering).clone()).await.unwrap();
+
+            interval.tick().await;
+            broadcaster.broadcast(StatusEvent::FinishedJob(Job::PreprocessingClustering).clone()).await.unwrap();
+        });
 
         App::new()
             .wrap(cors)
             // Make config available in all handlers
             .app_data(web::Data::new(config.clone()))
+            // Build a global channel to send status data
+            .app_data(web::Data::new(Arc::clone(&status_broadcaster)))
             // API endpoints
             .service(stats_api)
             .service(config_api)
+            .service(status_api)
             // Static files
             .service(Files::new("/data-files", "../data").prefer_utf8(true))
             // Serve the frontend. This is a catchall, so it must be defined last.

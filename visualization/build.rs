@@ -7,7 +7,7 @@ fn main() -> io::Result<()> {
 }
 
 fn build_frontend() -> io::Result<()> {
-    // Build the frontend
+    // Build the frontend as static files
     Command::new("pnpm")
         .current_dir("./ui")
         .arg("build")
