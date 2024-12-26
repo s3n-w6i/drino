@@ -146,8 +146,7 @@ fn clean_up(files: Vec<PathBuf>) {
 
 #[derive(thiserror::Error, Debug)]
 pub enum DrinoError {
-    ConfigDeserialization(#[from] serde_yml::Error),
-    ConfigFile(#[from] io::Error),
+    Config(#[from] config::ConfigError),
     Fetch(#[from] FetchError),
     Import(#[from] ImportError),
     Validate(#[from] ValidateError),
@@ -160,8 +159,7 @@ pub enum DrinoError {
 impl Display for DrinoError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let err: &dyn Display = match self {
-            DrinoError::ConfigDeserialization(err) => err,
-            DrinoError::ConfigFile(err) => err,
+            DrinoError::Config(err) => err,
             DrinoError::Fetch(err) => err,
             DrinoError::Import(err) => err,
             DrinoError::Validate(err) => err,
@@ -171,8 +169,7 @@ impl Display for DrinoError {
             DrinoError::Preprocessing(err) => err,
         };
         let prefix = match self {
-            DrinoError::ConfigDeserialization(_) => "Unable to parse config file",
-            DrinoError::ConfigFile(_) => "Error while reading config file",
+            DrinoError::Config(_) => "Error while reading config file",
             DrinoError::Fetch(_) => "Error while fetching a dataset",
             DrinoError::Import(_) => "Error while fetching a dataset",
             DrinoError::Validate(_) => "Error while validating a dataset",
