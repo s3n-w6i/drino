@@ -110,7 +110,8 @@ export default function MapPage() {
 
     React.useEffect(()=> {
         if (clusterId != null) {
-            layers.push(
+            // Prepend the line layer (so it's on the bottom)
+            layers.unshift(
                 new LineLayer<TransferPattern>({
                     id: "transfer-patterns",
                     data: `https://localhost:3001/data-files/tmp/stp/clusters/${clusterId}/tp_vis.csv`,
