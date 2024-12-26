@@ -146,7 +146,7 @@ fn clean_up(files: Vec<PathBuf>) {
 
 #[derive(thiserror::Error, Debug)]
 pub enum DrinoError {
-    ConfigDeserialization(#[from] serde_yaml::Error),
+    ConfigDeserialization(#[from] serde_yml::Error),
     ConfigFile(#[from] io::Error),
     Fetch(#[from] FetchError),
     Import(#[from] ImportError),

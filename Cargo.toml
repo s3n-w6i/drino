@@ -20,8 +20,8 @@ polars = { workspace = true }
 tempfile = { workspace = true }
 thiserror = { workspace = true }
 serde = { workspace = true }
-serde_yaml = "0.9.31"
-tokio = { version = "1.0.0", features = ["rt", "rt-multi-thread", "macros"] }
+serde_yml = "0.0.12"
+tokio = { workspace = true }
 futures = { version = "0.3.30", features = [] }
 log = { workspace = true }
 indicatif = { workspace = true }
@@ -40,6 +40,7 @@ log = "0.4"
 serde = { version = "1.0.196", features = ["derive"] }
 env_logger = "0.11.5"
 geo = "0.29.2"
+tokio = { version = "1.0.0", features = ["rt", "rt-multi-thread", "macros"] }
 
 [workspace.dependencies.polars]
 version = "0.44.2"

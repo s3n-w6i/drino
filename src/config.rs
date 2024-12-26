@@ -9,7 +9,7 @@ pub(super) fn load_config(bootstrap_config: BootstrapConfig) -> Result<Config, D
     let path: &Path = &Path::new(&bootstrap_config.config_file);
     
     let config_file = File::open(path)?;
-    let config: Config = serde_yaml::from_reader(config_file)?;
+    let config: Config = serde_yml::from_reader(config_file)?;
 
     info!(target: "main", "Config read successfully from {path:?}");
 
