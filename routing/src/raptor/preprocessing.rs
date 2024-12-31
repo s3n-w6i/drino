@@ -117,6 +117,9 @@ impl RaptorAlgorithm {
             let arrival_times = arrival_times.duration()?;
             let departure_times = departure_times.duration()?;
 
+            debug_assert!(arrival_times.time_unit() == TimeUnit::Milliseconds);
+            debug_assert!(departure_times.time_unit() == TimeUnit::Milliseconds);
+
             let mut arrivals = hashbrown::HashMap::default();
             let mut departures = hashbrown::HashMap::default();
             for (trip_id, global_stop_id, arrival_time, departure_time) in

@@ -91,7 +91,7 @@ mod tests {
     fn test_case1() {
         // We need to initialize logging, because the preprocessing function uses a progress bar
         logging::init(LevelFilter::Debug);
-        
+
         let input = generate_preprocessing_input().unwrap();
 
         let expected_patterns = TransferPatternsTable(hashbrown::HashSet::from([
@@ -99,7 +99,7 @@ mod tests {
         ]));
         let actual_patterns = TransferPatternsAlgorithm::preprocess(input.clone(), false)
             .unwrap().transfer_patterns;
-        
+
         assert_eq!(expected_patterns, actual_patterns);
         // This test does not validate correctness of direct connections, this is done in other tests
     }

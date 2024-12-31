@@ -1,7 +1,8 @@
 #[cfg(test)]
 pub(crate) mod case_1 {
     use crate::algorithm::PreprocessingInput;
-    use chrono::{NaiveDate, TimeDelta};
+    use chrono::NaiveDate;
+    use polars::datatypes::{AnyValue, TimeUnit};
     use polars::df;
     use polars::error::PolarsResult;
     use polars::prelude::IntoLazy;
@@ -32,8 +33,8 @@ pub(crate) mod case_1 {
             stop_times: df![
             "trip_id" => [0u32, 0],
             "stop_id" => [0u32, 1],
-            "arrival_time" => [TimeDelta::seconds(100), TimeDelta::seconds(500)],
-            "departure_time" => [TimeDelta::seconds(100), TimeDelta::seconds(500)],
+            "arrival_time" => [AnyValue::Duration(100, TimeUnit::Milliseconds), AnyValue::Duration(500, TimeUnit::Milliseconds)],
+            "departure_time" => [AnyValue::Duration(100, TimeUnit::Milliseconds), AnyValue::Duration(500, TimeUnit::Milliseconds)],
             "stop_sequence" => [0u32, 1],
         ]?.lazy(),
         })
