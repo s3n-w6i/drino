@@ -166,7 +166,7 @@ impl <'a> RaptorState<'a> {
             }
         }
 
-        // TODO: Return pareto-set of k's versus duration        
+        // TODO: Return pareto-set of k's versus duration
         // Determine the fastest route by calculating the final arrival time at the destination
         let fastest_journey = journeys.into_iter()
             .min_by_key(|journey| journey.arrival_when_starting_at(departure));
