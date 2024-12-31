@@ -1,5 +1,6 @@
 mod api;
 
+use crate::api::v1::status::{Job, JobStatus, StatusBroadcaster};
 use crate::api::v1::*;
 use actix_cors::Cors;
 use actix_files::Files;
@@ -10,10 +11,13 @@ use common::util::logging;
 use log::{info, LevelFilter};
 use std::fs::File;
 use std::io::BufReader;
+use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::time::interval;
-use crate::api::v1::status::{Job, StatusBroadcaster, StatusEvent};
+use common::types::dataset::{DataSource, Dataset, DatasetConsistency, DatasetFormat, DatasetGroup, GeoPointConsistency, IdConsistency, License};
+use url::Url;
+use common::util::distance::Distance;
 
 // Import the statically built dashboard files
 include!(concat!(env!("OUT_DIR"), "/generated.rs"));
@@ -45,31 +49,35 @@ async fn run_server(config: Config) -> std::io::Result<()> {
             .allowed_origin("https://hoppscotch.io");
 
         let frontend_files = generate();
-        
+
         let status_broadcaster = StatusBroadcaster::create();
 
         let broadcaster = Arc::clone(&status_broadcaster);
         actix_web::rt::spawn(async move {
-            let mut interval = interval(Duration::from_secs(3));
+            let mut interval = interval(Duration::from_secs(6));
+
+            broadcaster.update_silently(Job::HarvestData, JobStatus::Running);
+            broadcaster.broadcast().await.unwrap();
 
             interval.tick().await;
-            broadcaster.broadcast(StatusEvent::StartedJob(Job::HarvestData).clone()).await.unwrap();
+            broadcaster.update_silently(Job::HarvestData, JobStatus::Succeeded);
+            broadcaster.update_silently(Job::ImportData, JobStatus::Running);
+            broadcaster.broadcast().await.unwrap();
 
             interval.tick().await;
-            broadcaster.broadcast(StatusEvent::FinishedJob(Job::HarvestData).clone()).await.unwrap();
-            broadcaster.broadcast(StatusEvent::StartedJob(Job::ImportData).clone()).await.unwrap();
+            broadcaster.update_silently(Job::ImportData, JobStatus::Succeeded);
+            broadcaster.update_silently(Job::ValidateData, JobStatus::Running);
+            broadcaster.broadcast().await.unwrap();
 
             interval.tick().await;
-            broadcaster.broadcast(StatusEvent::FinishedJob(Job::ImportData).clone()).await.unwrap();
-            broadcaster.broadcast(StatusEvent::StartedJob(Job::ValidateData).clone()).await.unwrap();
+            broadcaster.update_silently(Job::ValidateData, JobStatus::Succeeded);
+            broadcaster.update_silently(Job::PreprocessingClustering, JobStatus::Running);
+            broadcaster.broadcast().await.unwrap();
 
             interval.tick().await;
-            broadcaster.broadcast(StatusEvent::FinishedJob(Job::ValidateData).clone()).await.unwrap();
-            broadcaster.broadcast(StatusEvent::StartedJob(Job::Preprocessing).clone()).await.unwrap();
-            broadcaster.broadcast(StatusEvent::StartedJob(Job::PreprocessingClustering).clone()).await.unwrap();
-
             interval.tick().await;
-            broadcaster.broadcast(StatusEvent::FinishedJob(Job::PreprocessingClustering).clone()).await.unwrap();
+            broadcaster.update_silently(Job::PreprocessingClustering, JobStatus::Failed);
+            broadcaster.broadcast().await.unwrap();
         });
 
         App::new()
