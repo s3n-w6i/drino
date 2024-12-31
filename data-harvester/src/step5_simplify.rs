@@ -1,5 +1,5 @@
 use crate::step4_merge_data::DatasetMergeOutput;
-use common::util::df::{write_file, FileType};
+use common::util::df::{write_df_to_file, FileType};
 use polars::frame::DataFrame;
 use polars::prelude::{col, Column, IntoLazy, JoinArgs, JoinType};
 use polars::series::Series;
@@ -48,7 +48,7 @@ pub async fn simplify(
     // Generate a new stop_id
     let stops = assign_new_ids(stops.collect()?, "stop_id")?;
 
-    write_file("data/tmp/simplify/stops.parquet".into(), FileType::PARQUET, stops.clone())?;
+    write_df_to_file("data/tmp/simplify/stops.parquet".into(), FileType::PARQUET, stops.clone())?;
     let stops = stops.lazy();
 
     let trips = trips
@@ -61,7 +61,7 @@ pub async fn simplify(
 
     let trips = assign_new_ids(trips.collect()?, "trip_id")?;
 
-    write_file("data/tmp/simplify/trips.parquet".into(), FileType::PARQUET, trips.clone())?;
+    write_df_to_file("data/tmp/simplify/trips.parquet".into(), FileType::PARQUET, trips.clone())?;
     let trips = trips.lazy();
 
     let services = services
@@ -75,7 +75,7 @@ pub async fn simplify(
 
     let services = assign_new_ids(services.collect()?, "service_id")?;
 
-    write_file("data/tmp/simplify/services.parquet".into(), FileType::PARQUET, services.clone())?;
+    write_df_to_file("data/tmp/simplify/services.parquet".into(), FileType::PARQUET, services.clone())?;
     let services = services.lazy();
 
     let stop_times = stop_times
@@ -102,7 +102,7 @@ pub async fn simplify(
             JoinArgs::new(JoinType::Inner),
         );
 
-    write_file("data/tmp/simplify/stop_times.parquet".into(), FileType::PARQUET, stop_times.clone().collect()?)?;
+    write_df_to_file("data/tmp/simplify/stop_times.parquet".into(), FileType::PARQUET, stop_times.clone().collect()?)?;
 
     let stop_times = stop_times.drop(["stop_id_in_dataset"])
         .drop(["dataset_id", "trip_id_in_dataset"]);

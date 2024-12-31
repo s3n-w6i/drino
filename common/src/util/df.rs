@@ -21,7 +21,7 @@ pub enum FileType {
     PARQUET,
 }
 
-pub fn write_file(
+pub fn write_df_to_file(
     path: PathBuf,
     format: FileType,
     mut df: DataFrame
