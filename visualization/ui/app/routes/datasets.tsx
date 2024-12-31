@@ -4,6 +4,8 @@ import {Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle} f
 import {Badge} from "~/components/ui/badge";
 import type {Route} from "../../.react-router/types/app/routes/+types/home";
 import {useEffect, useState} from "react";
+import {LoadingSpinner} from "~/components/ui/spinner";
+import {Skeleton} from "~/components/ui/skeleton";
 
 export function meta({}: Route.MetaArgs) {
     return [
@@ -24,9 +26,14 @@ interface Dataset {
     src: any;
 }
 
+interface DatasetGroup {
+    id: string;
+}
+
 export default function DatasetsPage() {
     let [configLoaded, setConfigLoaded] = useState(false);
     let [datasets, setDatasets] = useState<Dataset[]>([]);
+    let [datasetGroups, setDatasetGroups] = useState<DatasetGroup[]>([]);
 
     useEffect(() => {
         fetch("https://localhost:3001/api/v1/config")
@@ -39,6 +46,7 @@ export default function DatasetsPage() {
             })
             .then(data => {
                 setDatasets(data.datasets);
+                setDatasetGroups(data.dataset_groups);
             })
             .finally(() => setConfigLoaded(true));
     }, []);
@@ -67,7 +75,7 @@ export default function DatasetsPage() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {datasets.map(dataset => (
+                                {configLoaded && datasets.map(dataset => (
                                     <TableRow onClick={() => {
                                         alert("on click")
                                     }}>
@@ -82,12 +90,69 @@ export default function DatasetsPage() {
                                         </TableCell>
                                     </TableRow>
                                 ))}
+                                {!configLoaded &&
+                                    <>
+                                        <TableRow>
+                                            <TableCell colSpan={3} className="p-0">
+                                                <Skeleton className="w-full h-9 rounded-none delay-0" />
+                                            </TableCell>
+                                        </TableRow>
+                                        <TableRow>
+                                            <TableCell colSpan={3} className="p-0">
+                                                <Skeleton className="w-full h-9 rounded-none delay-200" />
+                                            </TableCell>
+                                        </TableRow>
+                                        <TableRow>
+                                            <TableCell colSpan={3} className="p-0">
+                                                <Skeleton className="w-full h-9 rounded-none delay-400" />
+                                            </TableCell>
+                                        </TableRow>
+                                    </>
+                                }
                             </TableBody>
                         </Table>
                     </CardContent>
                     <CardFooter>
                         <div className="text-xs text-muted-foreground">
-                            <b>1 dataset</b> imported from config.yaml
+                            <b>{datasets.length} datasets</b> imported from config.yaml
+                        </div>
+                    </CardFooter>
+                </Card>
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Dataset groups</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Group ID</TableHead>
+                                    <TableHead>Datasets</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {datasetGroups.map(group => (
+                                    <TableRow>
+                                        <TableCell>{group.id}</TableCell>
+                                        <TableCell>
+                                            <div className="flex flex-row gap-1">
+                                            {datasets
+                                                .filter(d => (d.groups.includes(group.id)))
+                                                .map(d => (
+                                                    <Badge variant="secondary">
+                                                        {d.id}
+                                                    </Badge>
+                                                ))}
+                                            </div>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </CardContent>
+                    <CardFooter>
+                        <div className="text-xs text-muted-foreground">
+                            <b>{datasetGroups.length} dataset groups</b> imported from config.yaml
                         </div>
                     </CardFooter>
                 </Card>
