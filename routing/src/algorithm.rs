@@ -34,6 +34,10 @@ pub type PreprocessingResult<T> = Result<T, PreprocessingError>;
 pub enum PreprocessingError {
     Polars(#[from] polars::error::PolarsError),
     KMeans(#[from] linfa_clustering::KMeansError),
+    IO(#[from] std::io::Error),
+    GeoArrow(#[from] geoarrow::error::GeoArrowError),
+    Arrow(#[from] arrow_schema::ArrowError),
+    BuildLines(#[from] common::util::geoarrow_lines::Error),
 }
 
 impl Display for PreprocessingError {
@@ -41,6 +45,10 @@ impl Display for PreprocessingError {
         let err: &dyn Display = match self {
             PreprocessingError::Polars(err) => err,
             PreprocessingError::KMeans(err) => err,
+            PreprocessingError::IO(err) => err,
+            PreprocessingError::GeoArrow(err) => err,
+            PreprocessingError::Arrow(err) => err,
+            PreprocessingError::BuildLines(err) => err,
         };
         write!(f, "{}", err)
     }
