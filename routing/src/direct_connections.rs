@@ -32,8 +32,13 @@ use common::util::geoarrow_lines::build_geoarrow_lines;
 /// | ...     | ...          | ...     | ...     | ...       |           ... |
 pub type ExpandedLinesFrame = DataFrame;
 
-/// | line_id | stop_id | stop_sequence   |
-/// | ------- | ------- | --------------- |
+/// | line_id | stop_id  | stop_sequence   |
+/// | ------- | -------- | --------------- |
+/// | 0       | 5        | 0               |
+/// | 0       | 2        | 1               |
+/// | 1       | 3        | 0               |
+/// | 1       | ...      | ...             |
+/// | ...     | ...      | ...             |
 pub type LineProgressionFrame = DataFrame;
 
 /// | stop_id | incidences                                                     |
@@ -77,7 +82,8 @@ impl TryFrom<PreprocessingInput> for DirectConnections {
 
             let line_progressions = lines.clone().lazy()
                 .select([col("line_id"), col("stop_ids"), col("stop_sequence")])
-                .explode([col("stop_ids"), col("stop_sequence")]); // TODO
+                .explode([col("stop_ids"), col("stop_sequence")])
+                .rename(["stop_ids"], ["stop_id"], true); // TODO
 
             let exploded_lines = lines.lazy()
                 // Disaggregate trips of a line
