@@ -39,10 +39,10 @@ impl RaptorAlgorithm {
         }: DirectConnections,
     ) -> PreprocessingResult<RaptorAlgorithm> {
         let stops_vec: Vec<GlobalStopId> = stops.clone()
-            .select(&[col("stop_id")])
-            .collect()?.column("stop_id")?
-            .u32()?.to_vec()
-            .into_iter().filter_map(|x| x.map(StopId))
+            .select(&[col("stop_id")]).collect()?
+            .column("stop_id")?.u32()?
+            .to_vec().into_iter()
+            .filter_map(|x| x.map(StopId))
             .collect();
 
         let stop_mapping = StopMapping(stops_vec);
@@ -78,7 +78,7 @@ impl RaptorAlgorithm {
                     .count() as u32;
                 stops_by_line_entry.push((local_stop_id, visit_idx));
 
-                lines_by_stops.entry(local_stop_id).or_insert(HashSet::new())
+                lines_by_stops.entry(local_stop_id).or_insert(hashbrown::HashSet::new())
                     .insert((line_id, seq_num));
             }
 
@@ -153,27 +153,36 @@ impl RaptorAlgorithm {
             #[cfg(debug_assertions)]
             {
                 // Assert that no arrival at a stop is after the departure
-                arrivals.iter().for_each(|((trip, stop, visit_idx), arrival)| {
-                    let departure = departures.get(&(*trip, *stop, *visit_idx))
-                        .unwrap_or(&INFINITY);
-                    debug_assert!(
-                        arrival <= departure,
-                        "Departure at stop {stop:?} must be after arrival. Issue found on {trip:?}"
-                    );
-                });
+                arrivals.iter()
+                    .for_each(|((trip, stop, visit_idx), arrival)| {
+                        let departure = departures
+                            .get(&(*trip, *stop, *visit_idx))
+                            .unwrap_or(&INFINITY);
+                        debug_assert!(
+                            arrival <= departure,
+                            "Departure at stop {stop:?} must be after arrival. Issue found on {trip:?}"
+                        );
+                    });
             }
 
             Ok::<(TripAtStopTimeMap, TripAtStopTimeMap), PreprocessingError>((arrivals, departures))
         }?;
 
-
         let trips_by_line_and_stop_df = lines.clone().lazy()
-            .sort(["departure_time"], SortMultipleOptions::default().with_maintain_order(false))
+            .sort(
+                ["departure_time"],
+                SortMultipleOptions::default().with_maintain_order(false),
+            )
             .group_by(&[col("line_id"), col("stop_id")])
             .agg(&[col("trip_id"), col("departure_time")])
             .collect()?;
-        let [line_ids, global_stop_ids, trips_ids, departures_times] = trips_by_line_and_stop_df.get_columns()
-        else { return Err(PreprocessingError::Polars(PolarsError::ColumnNotFound("".into()))); };
+        let [line_ids, global_stop_ids, trips_ids, departures_times] =
+            trips_by_line_and_stop_df.get_columns()
+        else {
+            return Err(PreprocessingError::Polars(PolarsError::ColumnNotFound(
+                "".into(),
+            )));
+        };
         let line_ids = line_ids.u32()?;
         let global_stop_ids = global_stop_ids.u32()?;
         let trips_ids = trips_ids.list()?;
@@ -186,7 +195,9 @@ impl RaptorAlgorithm {
         {
             let trips = trips.unwrap();
             let departures = departures.unwrap();
-            let departures_trips = departures.duration()?.iter().zip(trips.u32()?)
+            let departures_trips = departures
+                .duration()?.iter()
+                .zip(trips.u32()?)
                 .filter_map(|(departure, trip)| {
                     departure.map(|departure| {
                         // TODO: Fix date conversion
