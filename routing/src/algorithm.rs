@@ -1,12 +1,11 @@
+use crate::journey::Journey;
+use crate::transfers::TransferError;
 use chrono::{DateTime, TimeDelta, Utc};
+use common::types::StopId;
 use hashbrown::HashSet;
 use polars::prelude::LazyFrame;
 use std::fmt;
 use std::fmt::{Debug, Display};
-
-use crate::journey::Journey;
-use crate::transfers::TransferError;
-use common::types::StopId;
 
 pub trait RoutingAlgorithm {}
 

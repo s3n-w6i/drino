@@ -43,7 +43,8 @@ pub fn run_with_spinner<'a, F, Out>(
     let out = function();
 
     pb.finish_and_clear();
-    unsafe { MULTI.clone().unwrap().remove(&pb); }
+    unsafe { MULTI.clone().unwrap().remove(&pb); };
+    
     let elapsed = indicatif::HumanDuration(start_time.elapsed().unwrap());
     info!(target: target, "{} finished (took {})", task_desc, elapsed);
 
@@ -67,12 +68,13 @@ pub fn run_with_pb<'a, F, Out>(
     
     unsafe {
         MULTI.clone().unwrap().add(pb.clone());
-    }
+    };
     
     let out = function(pb.clone());
     
     pb.finish_and_clear();
-    unsafe { MULTI.clone().unwrap().remove(&pb); }
+    unsafe { MULTI.clone().unwrap().remove(&pb); };
+    
     if print_message {
         let elapsed = indicatif::HumanDuration(start_time.elapsed().unwrap());
         info!(target: target, "{} finished (took {})", task_desc, elapsed);
