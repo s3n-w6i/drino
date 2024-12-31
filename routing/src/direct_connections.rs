@@ -160,3 +160,52 @@ impl DirectConnections {
         Ok(earliest)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::tests::case_1::generate_preprocessing_input;
+    use chrono::{NaiveDateTime, TimeDelta};
+    use polars::datatypes::AnyValue::List;
+
+    #[test]
+    fn test_case_1() {
+        let input = generate_preprocessing_input().unwrap();
+
+        let expected = DirectConnections {
+            line_progressions: df![
+                "line_id" => [0u32, 0],
+                "stop_id" => [0u32, 1],
+                "stop_sequence" => [0u32, 1],
+            ].unwrap(),
+            expanded_lines: df![
+                "line_id" => [0u32, 0],
+                "trip_id" => [0u32, 0],
+                "stop_id" => [0u32, 1],
+                "arrival" => [NaiveDateTime::UNIX_EPOCH + TimeDelta::seconds(100), NaiveDateTime::UNIX_EPOCH + TimeDelta::seconds(500)],
+                "departure" => [NaiveDateTime::UNIX_EPOCH + TimeDelta::seconds(100), NaiveDateTime::UNIX_EPOCH + TimeDelta::seconds(500)],
+                "stop_sequence" => [0u32, 1],
+            ].unwrap(),
+            stop_incidence: df![
+                "stop_id" => [0u32, 1],
+                "incidences" => [
+                    List(
+                        df![
+                            "line_id" => [0u32],
+                            "stop_sequence" => [0u32],
+                        ].unwrap().into_struct("_".into()).into_series()
+                    ),
+                    List(
+                        df![
+                            "line_id" => [0u32],
+                            "stop_sequence" => [1u32],
+                        ].unwrap().into_struct("_".into()).into_series()
+                    ),
+                ]
+            ].unwrap(),
+        };
+        let actual = DirectConnections::try_from(input).unwrap();
+
+        assert_eq!(expected, actual);
+    }
+}
