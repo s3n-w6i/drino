@@ -107,8 +107,41 @@ async fn main() -> std::io::Result<()> {
     run_server(
         // TODO
         Config::Version1 {
-            datasets: vec![],
-            dataset_groups: vec![],
+            datasets: vec![
+                Dataset {
+                    id: "dataset-1".into(),
+                    format: DatasetFormat::Gtfs,
+                    group_ids: vec![ "group-a".into() ],
+                    license: Some(License::Cc0_1_0),
+                    src: DataSource::URL { url: Url::from_str("https://asdf.com").unwrap(), headers: Default::default() }
+                },
+                Dataset {
+                    id: "dataset-2".into(),
+                    format: DatasetFormat::Gtfs,
+                    group_ids: vec![ "group-a".into(), "group-b".into() ],
+                    license: Some(License::Cc0_1_0),
+                    src: DataSource::URL { url: Url::from_str("https://asdf.com").unwrap(), headers: Default::default() }
+                },
+                Dataset {
+                    id: "dataset-3".into(),
+                    format: DatasetFormat::GtfsRt,
+                    group_ids: vec![ "group-b".into() ],
+                    license: Some(License::Cc0_1_0),
+                    src: DataSource::URL { url: Url::from_str("https://asdf.com").unwrap(), headers: Default::default() }
+                },
+            ],
+            dataset_groups: vec![
+                DatasetGroup {
+                    id: "group-a".into(),
+                    consistency: DatasetConsistency {
+                        trip_ids: IdConsistency::Fully(true),
+                        stop_ids: IdConsistency::Fully(true),
+                        stop_coordinates: GeoPointConsistency::HardCutoff {
+                            radius: Distance(10f32)
+                        }
+                    }
+                }
+            ],
         },
     )
     .await?;
