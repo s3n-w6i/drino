@@ -128,7 +128,7 @@ fn build_neighbourhood<D: Data<Elem=f32>>(data: &ArrayBase<D, Ix2>, index: &Ball
 
 #[derive(thiserror::Error, Debug)]
 pub enum OpticsClusterError {
-    Polars(#[from] polars::error::PolarsError),
+    Polars(#[from] PolarsError),
     Optics(#[from] linfa_clustering::OpticsError),
     NN(#[from] linfa_nn::NnError),
 }

@@ -1,22 +1,29 @@
-use crate::algorithm::{PreprocessInit, PreprocessingError, PreprocessingInput, PreprocessingResult};
+use crate::algorithm::{
+    PreprocessInit, PreprocessingError, PreprocessingInput, PreprocessingResult,
+};
 use crate::direct_connections::DirectConnections;
-use crate::raptor::{GlobalStopId, LocalStopId, RaptorAlgorithm, StopMapping, TripAtStopTimeMap, TripsByLineAndStopMap};
+use crate::raptor::{
+    GlobalStopId, LinesByStopMap, RaptorAlgorithm, StopMapping, StopsByLineMap, TripAtStopTimeMap,
+    TripsByLineAndStopMap,
+};
 use crate::transfers::crow_fly::CrowFlyTransferProvider;
 use chrono::DateTime;
-use common::types::{LineId, SeqNum, StopId, TripId};
+use common::types::{LineId, StopId, TripId};
 use common::util::time::INFINITY;
-use hashbrown::{HashMap, HashSet};
 use itertools::{izip, Itertools};
 use polars::error::PolarsError;
 use polars::prelude::*;
 use std::ops::{BitAnd, BitOr};
 
 impl PreprocessInit for RaptorAlgorithm {
-    fn preprocess(input: PreprocessingInput, save_to_disk: bool) -> PreprocessingResult<RaptorAlgorithm> {
+    fn preprocess(
+        input: PreprocessingInput,
+        save_to_disk: bool,
+    ) -> PreprocessingResult<RaptorAlgorithm> {
         if save_to_disk {
             unimplemented!()
         }
-        
+
         let direct_connections = DirectConnections::try_from(input.clone())?;
         Self::preprocess(input, direct_connections)
     }
@@ -25,7 +32,11 @@ impl PreprocessInit for RaptorAlgorithm {
 impl RaptorAlgorithm {
     pub fn preprocess(
         PreprocessingInput { stops, .. }: PreprocessingInput,
-        DirectConnections { expanded_lines, line_progressions, .. }: DirectConnections,
+        DirectConnections {
+            expanded_lines,
+            line_progressions,
+            ..
+        }: DirectConnections,
     ) -> PreprocessingResult<RaptorAlgorithm> {
         let stops_vec: Vec<GlobalStopId> = stops.clone()
             .select(&[col("stop_id")])
@@ -35,18 +46,27 @@ impl RaptorAlgorithm {
             .collect();
 
         let stop_mapping = StopMapping(stops_vec);
-        
+
         let (stops_by_line, lines_by_stops) = {
-            let mut stops_by_line = HashMap::new();
-            let mut lines_by_stops = HashMap::new();
+            let mut stops_by_line = hashbrown::HashMap::default();
+            let mut lines_by_stops = hashbrown::HashMap::default();
 
             let [line_ids, global_stop_ids, sequence_numbers] = line_progressions.get_columns()
-            else { return Err(PreprocessingError::Polars(PolarsError::ColumnNotFound("".into()))); };
+            else {
+                return Err(PreprocessingError::Polars(PolarsError::ColumnNotFound(
+                    "".into(),
+                )));
+            };
 
-            let [line_ids, global_stop_ids, sequence_numbers] =
-                [line_ids.u32()?, global_stop_ids.u32()?, sequence_numbers.u32()?];
+            let [line_ids, global_stop_ids, sequence_numbers] = [
+                line_ids.u32()?,
+                global_stop_ids.u32()?,
+                sequence_numbers.u32()?,
+            ];
 
-            for (line_id, global_stop_id, seq_num) in izip!(line_ids, global_stop_ids, sequence_numbers) {
+            for (line_id, global_stop_id, seq_num) in
+                izip!(line_ids, global_stop_ids, sequence_numbers)
+            {
                 let line_id = line_id.unwrap().into();
                 let global_stop_id = global_stop_id.unwrap().into();
                 let local_stop_id = stop_mapping.translate_to_local(global_stop_id);
@@ -62,14 +82,21 @@ impl RaptorAlgorithm {
                     .insert((line_id, seq_num));
             }
 
-            Ok::<(HashMap<LineId, Vec<(LocalStopId, u32)>>, HashMap<StopId, HashSet<(LineId, SeqNum)>>), PreprocessingError>
-                ((stops_by_line, lines_by_stops))
+            Ok::<(StopsByLineMap, LinesByStopMap), PreprocessingError>((
+                stops_by_line,
+                lines_by_stops,
+            ))
         }?;
         debug_assert!(stop_mapping.0.len() == lines_by_stops.len());
 
-
-        let lines = expanded_lines.clone()
-            .select(["line_id", "stop_id", "stop_sequence", "trip_id", "arrival_time", "departure_time"])?;
+        let lines = expanded_lines.clone().select([
+            "line_id",
+            "stop_id",
+            "stop_sequence",
+            "trip_id",
+            "arrival_time",
+            "departure_time",
+        ])?;
 
         let (arrivals, departures) = {
             let sorted_lines = lines.clone().sort(
@@ -80,16 +107,21 @@ impl RaptorAlgorithm {
             )?;
             let [_line_ids, global_stop_ids, _sequence_numbers, trip_ids, arrival_times, departure_times] =
                 sorted_lines.get_columns()
-            else { return Err(PreprocessingError::Polars(PolarsError::ColumnNotFound("".into()))); };
+            else {
+                return Err(PreprocessingError::Polars(PolarsError::ColumnNotFound(
+                    "".into(),
+                )));
+            };
 
-            let [global_stop_ids, trip_ids] =
-                [global_stop_ids.u32()?, trip_ids.u32()?];
+            let [global_stop_ids, trip_ids] = [global_stop_ids.u32()?, trip_ids.u32()?];
             let arrival_times = arrival_times.duration()?;
             let departure_times = departure_times.duration()?;
 
-            let mut arrivals = HashMap::new();
-            let mut departures = HashMap::new();
-            for (trip_id, global_stop_id, arrival_time, departure_time) in izip!(trip_ids, global_stop_ids, arrival_times.iter(), departure_times.iter()) {
+            let mut arrivals = hashbrown::HashMap::default();
+            let mut departures = hashbrown::HashMap::default();
+            for (trip_id, global_stop_id, arrival_time, departure_time) in
+                izip!(trip_ids, global_stop_ids, arrival_times.iter(), departure_times.iter())
+            {
                 let trip_id = TripId(trip_id.unwrap());
                 let global_stop_id = StopId(global_stop_id.unwrap());
                 let local_stop_id = stop_mapping.translate_to_local(global_stop_id);
@@ -99,7 +131,7 @@ impl RaptorAlgorithm {
                 // TODO: Fix date time handling
                 let arrival_time = DateTime::from_timestamp_millis(arrival_time).unwrap();
                 let departure_time = DateTime::from_timestamp_millis(departure_time).unwrap();
-                
+
                 // Determine the how-many-th time this stop is visited. For most, this will be zero,
                 // so this rather inefficient code should do.
                 let mut visit_idx = 0u32;
@@ -118,7 +150,8 @@ impl RaptorAlgorithm {
                 }
             }
 
-            #[cfg(debug_assertions)] {
+            #[cfg(debug_assertions)]
+            {
                 // Assert that no arrival at a stop is after the departure
                 arrivals.iter().for_each(|((trip, stop, visit_idx), arrival)| {
                     let departure = departures.get(&(*trip, *stop, *visit_idx))
@@ -130,8 +163,7 @@ impl RaptorAlgorithm {
                 });
             }
 
-            Ok::<(TripAtStopTimeMap, TripAtStopTimeMap), PreprocessingError>
-                ((arrivals, departures))
+            Ok::<(TripAtStopTimeMap, TripAtStopTimeMap), PreprocessingError>((arrivals, departures))
         }?;
 
 
@@ -147,16 +179,21 @@ impl RaptorAlgorithm {
         let trips_ids = trips_ids.list()?;
         let departures_times = departures_times.list()?;
 
-        let mut trips_by_line_and_stop: TripsByLineAndStopMap = HashMap::new();
+        let mut trips_by_line_and_stop: TripsByLineAndStopMap = hashbrown::HashMap::default();
 
-        for (line_id, global_stop_id, trips, departures) in izip!(line_ids, global_stop_ids, trips_ids, departures_times) {
+        for (line_id, global_stop_id, trips, departures) in
+            izip!(line_ids, global_stop_ids, trips_ids, departures_times)
+        {
             let trips = trips.unwrap();
             let departures = departures.unwrap();
             let departures_trips = departures.duration()?.iter().zip(trips.u32()?)
                 .filter_map(|(departure, trip)| {
                     departure.map(|departure| {
                         // TODO: Fix date conversion
-                        (DateTime::from_timestamp_millis(departure).unwrap(), TripId(trip.unwrap()))
+                        (
+                            DateTime::from_timestamp_millis(departure).unwrap(),
+                            TripId(trip.unwrap()),
+                        )
                     })
                 })
                 .collect();
@@ -167,7 +204,8 @@ impl RaptorAlgorithm {
             trips_by_line_and_stop.insert((line_id, local_stop_id), departures_trips);
         }
 
-        #[cfg(debug_assertions)] {
+        #[cfg(debug_assertions)]
+        {
             // Assert monotonous increase in departure time within a trip
             for ((line, _), departures) in trips_by_line_and_stop.iter() {
                 // We can only check increase for trips that have at least two stops
@@ -194,8 +232,7 @@ impl RaptorAlgorithm {
 
             // Assert that stop sequences of lines match across trips_by_line_and_stop and stops_by_line
             let stops_by_line_a = &stops_by_line;
-            let stops_by_line_b = &trips_by_line_and_stop.clone().into_keys()
-                .into_group_map();
+            let stops_by_line_b = &trips_by_line_and_stop.clone().into_keys().into_group_map();
 
             stops_by_line_a.iter().for_each(|(line, stops_a)| {
                 // Sort so that vecs match
@@ -215,7 +252,7 @@ impl RaptorAlgorithm {
                 );
             });
         }
-        
+
         Ok(Self {
             stop_mapping,
             stops_by_line,
@@ -227,7 +264,6 @@ impl RaptorAlgorithm {
         })
     }
 }
-
 
 #[cfg(test)]
 mod tests {
