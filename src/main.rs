@@ -47,9 +47,11 @@ fn run() -> Result<(), DrinoError> {
 
     let config = load_config(bootstrap_config)?;
 
-    let algorithm = match config {
+    match config {
         Config::Version1 { datasets, .. } => {
-            preprocess(datasets)?
+            let algorithm = preprocess(datasets)?;
+            
+            serve(algorithm)?;
         }
     };
 
@@ -156,6 +158,10 @@ fn clean_up(files: Vec<PathBuf>) {
 
         debug!("Temporary files cleaned up");
     }
+}
+
+fn serve(algorithm: ALGORITHM) -> Result<(), DrinoError> {
+    todo!()
 }
 
 

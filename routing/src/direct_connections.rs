@@ -48,7 +48,7 @@ pub type LineProgressionFrame = DataFrame;
 pub type StopIncidenceFrame = DataFrame;
 
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct DirectConnections {
     pub expanded_lines: ExpandedLinesFrame,
     pub line_progressions: LineProgressionFrame,
@@ -140,7 +140,8 @@ impl DirectConnections {
                 .select(["incidences"])?
                 .clone().lazy() // todo: remove this clone
                 .explode([col("incidences")])
-                .unnest(["incidences"]))
+                .unnest(["incidences"])
+            )
         }
 
         // Only select those that start at from_stop

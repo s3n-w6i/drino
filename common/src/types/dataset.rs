@@ -12,11 +12,11 @@ pub struct DatasetGroup {
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct DatasetConsistency {
     #[serde(default)]
-    stop_ids: IdConsistency,
+    pub stop_ids: IdConsistency,
     #[serde(default)]
-    stop_coordinates: GeoPointConsistency,
+    pub stop_coordinates: GeoPointConsistency,
     #[serde(default)]
-    trip_ids: IdConsistency,
+    pub trip_ids: IdConsistency,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
