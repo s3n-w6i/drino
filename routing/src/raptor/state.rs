@@ -256,7 +256,7 @@ mod tests {
     fn test_new_round() {
         let departure = DateTime::from_str("2042-06-24T12:00:00Z").unwrap();
         let stop_mapping = StopMapping(vec![StopId(42), StopId(31)]);
-        let mut state = RaptorState::init(2, StopId(42), departure, &stop_mapping);
+        let mut state = RaptorState::init(2, StopId(0), departure, &stop_mapping);
 
         assert_eq!(state.tau(&StopId(0)), Some(&departure));
         assert_eq!(state.tau(&StopId(1)), Some(&DateTime::<Utc>::MAX_UTC));
