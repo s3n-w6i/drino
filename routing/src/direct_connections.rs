@@ -216,7 +216,6 @@ impl DirectConnections {
 mod tests {
     use super::*;
     use crate::tests::case_1::generate_preprocessing_input;
-    use chrono::{NaiveDateTime, TimeDelta};
     use polars::datatypes::AnyValue::List;
 
     #[test]
@@ -233,8 +232,8 @@ mod tests {
                 "line_id" => [0u32, 0],
                 "trip_id" => [0u32, 0],
                 "stop_id" => [0u32, 1],
-                "arrival" => [NaiveDateTime::UNIX_EPOCH + TimeDelta::seconds(100), NaiveDateTime::UNIX_EPOCH + TimeDelta::seconds(500)],
-                "departure" => [NaiveDateTime::UNIX_EPOCH + TimeDelta::seconds(100), NaiveDateTime::UNIX_EPOCH + TimeDelta::seconds(500)],
+                "arrival" => [AnyValue::Duration(100, TimeUnit::Milliseconds), AnyValue::Duration(500, TimeUnit::Milliseconds)],
+                "departure" => [AnyValue::Duration(100, TimeUnit::Milliseconds), AnyValue::Duration(500, TimeUnit::Milliseconds)],
                 "stop_sequence" => [0u32, 1],
             ].unwrap(),
             stop_incidence: df![
