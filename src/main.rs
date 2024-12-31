@@ -6,7 +6,6 @@ use log::{debug, error, info};
 use polars::error::PolarsError;
 use polars::prelude::IntoLazy;
 use std::fmt::{Display, Formatter};
-use std::io;
 use std::path::PathBuf;
 use std::time::SystemTime;
 use tempfile::TempPath;
@@ -16,6 +15,7 @@ use crate::config::load_config;
 use bootstrap_config::BootstrapConfig;
 use common::types::config::Config;
 use common::types::dataset::Dataset;
+use common::util::df::{write_geoarrow_to_file, FileType};
 use common::util::logging;
 use common::util::speed::Speed;
 use data_harvester::step1_fetch_data::{fetch_dataset, FetchError};
@@ -25,6 +25,7 @@ use data_harvester::step4_merge_data::{merge, MergeError};
 use data_harvester::step5_simplify::{simplify, SimplifyError};
 use routing::algorithm::{PreprocessInit, PreprocessingError, PreprocessingInput};
 use routing::stp::ScalableTransferPatternsAlgorithm;
+use routing::direct_connections::DirectConnections;
 
 type ALGORITHM = ScalableTransferPatternsAlgorithm;
 
@@ -119,6 +120,18 @@ fn preprocess_inner(datasets: Vec<Dataset>, files_to_clean_up: &mut Vec<PathBuf>
             stop_times: preprocessing_input.stop_times.collect()?.lazy(),
             ..preprocessing_input
         })
+    })?;
+    
+    // Build visualization of lines
+    logging::run_with_spinner("visualization", "Building visualization for lines", || {
+        let direct_connections = DirectConnections::try_from(cached_input.clone())?;
+        let table = direct_connections.to_geoarrow_lines(cached_input.stops.clone())
+            .map_err(|e| PreprocessingError::BuildLines(e))?;
+        
+        write_geoarrow_to_file("./data/tmp/global/lines.arrow".into(), FileType::IPC, table)
+            .map_err(|e| PreprocessingError::GeoArrow(e))?;
+        
+        Ok::<(), DrinoError>(())
     })?;
 
     let preprocessing_result = ALGORITHM::preprocess(cached_input, true)?;

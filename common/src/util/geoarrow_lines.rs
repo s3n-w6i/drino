@@ -1,15 +1,15 @@
-use std::fmt::Display;
 use crate::types::{f64_from_any_value, StopId};
 use arrow_array::RecordBatch;
 use arrow_schema::{ArrowError, Schema, SchemaRef};
 use geo::{coord, LineString};
 use geoarrow::array::LineStringBuilder;
 use geoarrow::datatypes::Dimension;
+use geoarrow::error::GeoArrowError;
 use geoarrow::table::Table;
 use geoarrow::ArrayBase;
-use geoarrow::error::GeoArrowError;
 use polars::error::PolarsError;
 use polars::prelude::{col, LazyFrame};
+use std::fmt::Display;
 
 pub fn build_geoarrow_lines(
     stop_chains: Vec<Vec<StopId>>,

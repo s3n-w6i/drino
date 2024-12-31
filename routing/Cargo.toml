@@ -22,3 +22,6 @@ linfa-nn = "0.7.0"
 ndarray = "0.15.6" # this must match linfa's ndarray version!
 tokio = { version = "1.0.0", features = ["rt", "rt-multi-thread", "macros"] }
 petgraph = "0.6.4"
+geoarrow = { workspace = true }
+arrow-schema = { workspace = true }
+arrow-array = { workspace = true }

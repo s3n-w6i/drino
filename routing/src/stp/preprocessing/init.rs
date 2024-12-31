@@ -86,30 +86,44 @@ impl ScalableTransferPatternsAlgorithm {
 
         let result = TransferPatternsAlgorithm::preprocess(input.clone(), false)?;
 
-        let TransferPatternsAlgorithm { transfer_patterns, direct_connections } =
-            result;
+        let TransferPatternsAlgorithm { transfer_patterns, direct_connections } = result;
 
-        write_file(
-            format!("./data/tmp/stp/clusters/{cluster_id}/transfer_patterns.parquet").into(),
-            FileType::PARQUET,
-            transfer_patterns.0.clone()
-        )?;
-
-        // Build transfer pattern visualization file
+        // Build transfer patterns visualization
         {
-            let vis_df = transfer_patterns.0.clone().lazy()
-                .join(input.stops.clone(), [col("start")], [col("stop_id")], JoinArgs::default())
-                .rename(["lat", "lon"], ["start_lat", "start_lon"], true)
-                .join(input.stops.clone(), [col("target")], [col("stop_id")], JoinArgs::default())
-                .rename(["lat", "lon"], ["target_lat", "target_lon"], true)
-                .drop(["intermediates"]);
-            
-            println!("{}", vis_df.clone().collect()?);
+            let stop_chains = transfer_patterns.0.iter()
+                .map(|tp| [vec![tp.0], tp.1.clone(), vec![tp.2]].concat());
 
-            write_file(
-                format!("./data/tmp/stp/clusters/{cluster_id}/tp_vis.csv").into(),
-                FileType::CSV,
-                vis_df.collect()?
+            let mut table = build_geoarrow_lines(
+                stop_chains.collect(),
+                input.stops.clone(),
+            )?;
+
+            let start_field = Field::new("start", DataType::UInt32, false);
+            let target_field = Field::new("target", DataType::UInt32, false);
+            let start_id_array = UInt32Array::from_iter(
+                transfer_patterns.0.iter().map(|tp| tp.0.0)
+            );
+            let target_id_array = UInt32Array::from_iter(
+                transfer_patterns.0.iter().map(|tp| tp.2.0)
+            );
+            table.append_column(start_field.into(), vec![Arc::new(start_id_array)])?;
+            table.append_column(target_field.into(), vec![Arc::new(target_id_array)])?;
+
+            write_geoarrow_to_file(
+                format!("./data/tmp/stp/clusters/{cluster_id}/transfer_patterns.arrow").into(),
+                FileType::IPC,
+                table,
+            )?;
+        }
+
+        // Build lines visualization
+        {
+            let table = direct_connections.to_geoarrow_lines(input.stops)?;
+
+            write_geoarrow_to_file(
+                format!("./data/tmp/stp/clusters/{cluster_id}/lines_geo.arrow").into(),
+                FileType::IPC,
+                table,
             )?;
         }
 

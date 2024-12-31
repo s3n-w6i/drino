@@ -1,5 +1,7 @@
-use std::fs::{create_dir_all, File};
-use std::path::PathBuf;
+use geoarrow::error::GeoArrowError;
+use geoarrow::io::ipc::write_ipc;
+use geoarrow::table::Table;
+use itertools::Itertools;
 use polars::datatypes::AnyValue;
 use polars::error::{PolarsError, PolarsResult};
 use polars::frame::DataFrame;
@@ -68,11 +70,7 @@ pub fn write_df_to_file(
     format: FileType,
     mut df: DataFrame
 ) -> Result<(), PolarsError> {
-    if let Some(parent) = path.parent() {
-        create_dir_all(parent)?;
-    }
-
-    let mut file = File::create(path)?;
+    let mut file = prepare_file(path)?;
 
     match format {
         FileType::CSV => {
@@ -90,4 +88,36 @@ pub fn write_df_to_file(
     }?;
 
     Ok(())
+}
+
+pub fn write_geoarrow_to_file(
+    path: PathBuf,
+    format: FileType,
+    table: Table
+) -> Result<(), GeoArrowError> {
+    let file = prepare_file(path)?;
+    
+    match format {
+        FileType::IPC => {
+            write_ipc(table.into_record_batch_reader(), file)?;
+        }
+        _ => {
+            panic!("Unsupported file type");
+        }
+    }
+    
+    Ok(())
+}
+
+
+fn prepare_file(
+    path: PathBuf,
+) -> Result<File, std::io::Error> {
+    if let Some(parent) = path.parent() {
+        create_dir_all(parent)?;
+    }
+
+    let file = File::create(path)?;
+    
+    Ok(file)
 }

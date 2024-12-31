@@ -1,9 +1,13 @@
+use geoarrow::table::Table;
+use itertools::Itertools;
 use polars::frame::DataFrame;
 use polars::prelude::*;
 use polars::series::IntoSeries;
 
 use crate::algorithm::{PreprocessingError, PreprocessingInput};
 use common::types::StopId;
+use common::util::df;
+use common::util::geoarrow_lines::build_geoarrow_lines;
 
 /// In the transfer patterns paper, lines are represented like this:
 ///
@@ -158,6 +162,36 @@ impl DirectConnections {
             .sort(["departure_time"], Default::default())
             .first();
         Ok(earliest)
+    }
+
+    pub fn to_geoarrow_lines(
+        &self,
+        stops_df: LazyFrame,
+    ) -> Result<Table, common::util::geoarrow_lines::Error> {
+        let stop_chains = self.line_progressions.clone().lazy()
+            .sort(["stop_sequence"], SortMultipleOptions::default())
+            .group_by([col("line_id")])
+            .agg([col("stop_id")])
+            .select([col("stop_id")])
+            .collect()?;
+
+        let [stop_chains] = stop_chains.get_columns()
+        else { unreachable!("we only selected a single column") };
+
+        let stop_chains: Vec<Vec<StopId>> = stop_chains.list()?.into_iter()
+            .map(|l| {
+                let l = l.unwrap();
+                let l = l.u32().unwrap();
+                l.into_iter().map(|id| StopId::from(id.unwrap())).collect_vec()
+            })
+            .collect_vec();
+
+        let table = build_geoarrow_lines(
+            stop_chains,
+            stops_df,
+        )?;
+
+        Ok(table)
     }
 }
 

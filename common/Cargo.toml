@@ -15,3 +15,8 @@ env_logger = { workspace = true }
 thiserror = { workspace = true }
 either = { version = "1.13.0", features = ["serde"] }
 regex = { version = "1.11.1", features = [] }
+geo = { workspace = true }
+geoarrow = { workspace = true }
+arrow-array = { workspace = true }
+arrow-schema = { workspace = true }
+itertools = "0.13.0"

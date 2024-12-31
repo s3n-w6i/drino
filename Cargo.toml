@@ -42,6 +42,11 @@ serde = { version = "1.0.196", features = ["derive"] }
 env_logger = "0.11.5"
 geo = "0.29.2"
 tokio = { version = "1.0.0", features = ["rt", "rt-multi-thread", "macros"] }
+geoarrow = { version = "0.4.0-beta.3", features = ["parquet"] }
+# arrow-schema, arrow-array need to have matching version for geoarrow
+arrow-schema = "53.3.0"
+arrow-array = "53.3.0"
+# pyo3 = { version = "0.23.3", features = ["auto-initialize"] }
 
 [workspace.dependencies.polars]
 version = "0.44.2"
