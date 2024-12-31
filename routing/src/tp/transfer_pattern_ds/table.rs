@@ -1,17 +1,13 @@
 use crate::algorithm::{PreprocessingResult, RangeOutput};
 use crate::journey::Journey;
-use polars::datatypes::DataType;
-use polars::error::{PolarsError, PolarsResult};
-use polars::frame::row::Row;
-use polars::frame::{DataFrame, UniqueKeepStrategy};
-use polars::prelude::{AnyValue, Column};
-use polars::series::Series;
+use common::types::StopId;
+use hashbrown::HashSet;
 
 /// columns:
 /// - "start" (stop id)
 /// - "target" (stop id)
 /// - "intermediates" (array of stop ids)
-#[derive(Debug)]
+/*#[derive(Debug)]
 pub(crate) struct TransferPatternsTable(pub(crate) DataFrame);
 
 impl TransferPatternsTable {
@@ -31,7 +27,6 @@ impl TransferPatternsTable {
     }
 
     pub(crate) fn add_journey(&mut self, journey: Journey) -> PreprocessingResult<()> {
-        // All these IDs are still with cluster-local IDs. They will be replaced in `rename_stops`.
         let start_id = *journey.departure_stop();
         let start_val: AnyValue = start_id.into();
         let target_id = *journey.arrival_stop();
@@ -53,6 +48,36 @@ impl TransferPatternsTable {
     pub(crate) fn reduce(&mut self) -> PreprocessingResult<()> {        
         // Remove duplicate transfer patterns
         self.0 = self.0.unique::<PolarsError, PolarsError>(None, UniqueKeepStrategy::Any, None)?;
+        
+        Ok(())
+    }
+}*/
+
+#[derive(Debug, PartialEq)]
+pub(crate) struct TransferPatternsTable(pub(crate) HashSet<(StopId, Vec<StopId>, StopId)>);
+
+impl TransferPatternsTable {
+    pub(crate) fn new() -> Self {
+        Self(HashSet::new())
+    }
+
+    pub(crate) fn add(&mut self, result: RangeOutput) -> PreprocessingResult<()> {
+        for journey in result.journeys {
+            self.add_journey(journey)?;
+        }
+        Ok(())
+    }
+
+    pub(crate) fn add_journey(&mut self, journey: Journey) -> PreprocessingResult<()> {
+        let start_id = *journey.departure_stop();
+        let target_id = *journey.arrival_stop();
+
+        let intermediates = journey.legs()
+            .skip(1) // Skip first leg. For the last one, we will just take its departure, so skipping its arrival
+            .map(|l| StopId(l.start().0))
+            .collect();
+        
+        self.0.insert((start_id, intermediates, target_id));
         
         Ok(())
     }
