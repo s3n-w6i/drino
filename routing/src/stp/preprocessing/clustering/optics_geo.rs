@@ -54,6 +54,7 @@ pub fn cluster(
 
     let stops_clustered = stops.clone()
         .select([col("stop_id")])
+        // TODO: Replace with a stable id?
         .with_row_index("index", None)
         .left_join(clusters.lazy(), "index", "stop_index")
         .drop(["index"])
