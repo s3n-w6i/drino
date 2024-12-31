@@ -79,7 +79,9 @@ fn preprocess_inner(datasets: Vec<Dataset>, files_to_clean_up: &mut Vec<PathBuf>
     let preprocessing_input = logging::run_with_spinner("preprocessing", "Fetching and importing datasets", || {
         let rt = Runtime::new().unwrap();
         rt.block_on(async {
-            // TODO: Process all datasets
+            if datasets.len() > 1 {
+                todo!("Using multiple datasets is not yet supported")
+            }
             let datasets = datasets.into_iter().take(1);
 
             let results = futures::stream::iter(datasets)
