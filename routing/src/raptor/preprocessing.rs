@@ -314,7 +314,8 @@ mod tests {
             ).unwrap().lazy(),
         };
 
-        let preprocessing_out = <RaptorAlgorithm as PreprocessInit>::preprocess(preprocessing_in, false).unwrap();
+        let preprocessing_out =
+            <RaptorAlgorithm as PreprocessInit>::preprocess(preprocessing_in, false).unwrap();
 
         assert!(list_eq(
             &preprocessing_out.stop_mapping.0,
