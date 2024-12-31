@@ -4,10 +4,21 @@ use std::fmt::{Debug, Display, Formatter};
 
 pub mod dataset;
 pub mod config;
+pub mod errors;
 
-fn u32_from_any_value(value: AnyValue) -> Result<u32, ()> {
+pub fn u32_from_any_value(value: AnyValue) -> Result<u32, ()> {
     match value {
         AnyValue::UInt32(value) => Ok(value),
+        AnyValue::UInt16(value) => Ok(value as u32),
+        AnyValue::UInt8(value) => Ok(value as u32),
+        _ => Err(())
+    }
+}
+
+pub fn f64_from_any_value(value: AnyValue) -> Result<f64, ()> {
+    match value {
+        AnyValue::Float64(value) => Ok(value),
+        AnyValue::Float32(value) => Ok(value as f64),
         _ => Err(())
     }
 }
@@ -48,6 +59,12 @@ impl<'a> TryFrom<AnyValue<'a>> for StopId {
 impl From<u32> for StopId {
     fn from(value: u32) -> Self {
         Self(value)
+    }
+}
+
+impl Into<u32> for StopId {
+    fn into(self) -> u32 {
+        self.0
     }
 }
 
@@ -102,7 +119,7 @@ impl From<u32> for TripId {
 #[derive(Debug, Clone, Copy, Hash, Eq, PartialEq)]
 pub enum IndividualTrip {
     Calendar { id: TripId, start_day_utc: NaiveDate },
-    Frequency { id: TripId, start_time: DateTime::<Utc> },
+    Frequency { id: TripId, start_time: DateTime<Utc> },
 }
 
 
