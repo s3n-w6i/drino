@@ -16,11 +16,11 @@ impl PreprocessInit for TransferPatternsAlgorithm {
         if save_to_disk {
             unimplemented!()
         }
-        
+
         let direct_connections = DirectConnections::try_from(input.clone())?;
         let raptor = Arc::new(RaptorAlgorithm::preprocess(input.clone(), direct_connections.clone())?);
 
-        let tp_table = Arc::new(Mutex::new(TransferPatternsTable::new()?));
+        let tp_table = Arc::new(Mutex::new(TransferPatternsTable::new()));
 
         // Also keep a graph representation when in debugging mode. This is useful for checking the
         // validity of what we build.
@@ -69,11 +69,9 @@ impl PreprocessInit for TransferPatternsAlgorithm {
             tp_graph.validate();
         }
 
-        let mut tp_table = Arc::try_unwrap(tp_table)
+        let tp_table = Arc::try_unwrap(tp_table)
             .expect("Lock is still owned by others").into_inner().unwrap();
-        
-        tp_table.reduce()?;
-        
+
         Ok(Self {
             direct_connections,
             transfer_patterns: tp_table,
