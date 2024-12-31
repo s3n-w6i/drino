@@ -113,6 +113,16 @@ impl TryFrom<PreprocessingInput> for DirectConnections {
     }
 }
 
+/// Custom implementation of equality. This is needed, since the column order could be different for
+/// dataframes. They are still equivalent, but a strict eq would fail.
+impl PartialEq for DirectConnections {
+    fn eq(&self, other: &Self) -> bool {
+        df::equivalent(&self.expanded_lines, &other.expanded_lines, true, true).unwrap()
+            && df::equivalent(&self.line_progressions, &other.line_progressions, true, true).unwrap()
+            && df::equivalent(&self.stop_incidence, &other.stop_incidence, true, true).unwrap()
+    }
+}
+
 
 impl DirectConnections {
     pub(crate) fn query_direct(&self, from: StopId, to: StopId) -> Result<LazyFrame, PreprocessingError> {
