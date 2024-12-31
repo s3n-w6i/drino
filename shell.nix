@@ -16,6 +16,7 @@ pkgs.mkShell {
     # Analysis tools
     valgrind
     cargo-flamegraph
+    hyperfine
     # Node.js
     nodejs_20
     pnpm
