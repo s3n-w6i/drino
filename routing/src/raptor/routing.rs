@@ -93,7 +93,7 @@ impl RaptorAlgorithm {
             // FIRST STAGE: Build queue of lines and stops to scan
             // queue is called "Q" in the original paper
             let queue = self.build_queue(&marked_stops);
-            debug_assert!(!queue.is_empty());
+            debug_assert!(!queue.is_empty(), "Queue must not be empty, since termination condition was not met");
 
             // unmark previously marked stops
             // In the original paper, this is done for each element of marked_stops individually
