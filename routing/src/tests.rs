@@ -114,8 +114,8 @@ pub(crate) mod case_3 {
             ]?.lazy(),
             stops: df![
                 "stop_id" => [0u32, 1, 2, 3],
-                "lat" => [0f32, 45.0, 45.005, 45.0],
-                "lon" => [0f32, 45.0, 45.005, -45.0],
+                "lat" => [0f32, 45.0, 45.01, 45.0],
+                "lon" => [0f32, 45.0, 45.01, -45.0],
             ]?.lazy(),
             trips: df![
                 "trip_id" => [0u32, 1],
@@ -133,6 +133,6 @@ pub(crate) mod case_3 {
 }
 
 /// Helper function for generating arrival and departure times more concisely
-fn duration<'a>(ms: i64) -> AnyValue<'a> {
-    AnyValue::Duration(ms, TimeUnit::Milliseconds)
+fn duration<'a>(seconds: i64) -> AnyValue<'a> {
+    AnyValue::Duration(seconds * 1_000, TimeUnit::Milliseconds)
 }

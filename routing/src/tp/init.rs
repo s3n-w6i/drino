@@ -96,7 +96,7 @@ mod tests {
             ]))
         );
     }
-    
+
     #[test]
     fn test_case2() {
         test_single_case(
@@ -108,7 +108,7 @@ mod tests {
             ]))
         );
     }
-    
+
     #[test]
     fn test_case3() {
         test_single_case(
@@ -123,7 +123,7 @@ mod tests {
             ]))
         );
     }
-    
+
     /// Helper for executing the test on a specific problem instance
     fn test_single_case(
         input: PreprocessingInput,
@@ -131,7 +131,7 @@ mod tests {
     ) {
         // We need to initialize logging, because the preprocessing function uses a progress bar
         logging::init(LevelFilter::Debug);
-        
+
         let actual_patterns = TransferPatternsAlgorithm::preprocess(input.clone(), false)
             .unwrap().transfer_patterns;
 
