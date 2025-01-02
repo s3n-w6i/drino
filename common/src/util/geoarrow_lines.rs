@@ -26,6 +26,7 @@ pub fn build_geoarrow_lines(
 
     for stops in stop_chains {
         let locations = stops.into_iter().map(|stop| {
+            // TODO: This is really wasteful and increases runtime complexity by a whole factor
             let idx = &stop_ids.iter().position(|s| s.unwrap() == stop.0)
                 .unwrap_or_else(|| panic!("stop {} not found in provided stops_df", stop.0));
             

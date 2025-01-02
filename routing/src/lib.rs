@@ -6,4 +6,4 @@ pub mod algorithm;
 pub mod direct_connections;
 mod journey;
 mod algorithms;
-mod tests;
+#[cfg(test)] mod tests;
