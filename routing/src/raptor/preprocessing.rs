@@ -255,7 +255,7 @@ impl RaptorAlgorithm {
                     .map(|(stop_id, _)| stop_id)
                     .unique().sorted().collect_vec();
                 let stops_b = stops_by_line_b.get(line)
-                    .expect(format!("Expected line {line:?} to exist in trips_by_line_and_stop").as_str())
+                    .unwrap_or_else(|| panic!("Expected line {line:?} to exist in trips_by_line_and_stop"))
                     .iter().sorted()
                     .collect_vec();
 

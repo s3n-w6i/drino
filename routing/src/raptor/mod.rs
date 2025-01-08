@@ -45,7 +45,7 @@ impl RoutingAlgorithm for RaptorAlgorithm {}
 
 impl RaptorAlgorithm {
     fn local_stop_ids(&self) -> impl Iterator<Item = LocalStopId> {
-        (0..self.num_stops()).map(|x| StopId(x as u32)).into_iter()
+        (0..self.num_stops()).map(|x| StopId(x as u32))
     }
 
     pub(crate) fn num_stops(&self) -> usize {
