@@ -62,12 +62,6 @@ impl From<u32> for StopId {
     }
 }
 
-impl Into<u32> for StopId {
-    fn into(self) -> u32 {
-        self.0
-    }
-}
-
 
 #[derive(Debug, Clone, Copy, Hash, Eq, PartialEq)]
 pub struct LineId(pub u32);
