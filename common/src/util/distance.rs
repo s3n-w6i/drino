@@ -41,7 +41,7 @@ impl TryFrom<SerializedDistance> for Distance {
         let meters = match value.meters {
             Either::Right(value) => {
                 let regex = Regex::new(r"^(\d+\.?\d*)m?$").unwrap();
-                let cleaned_value = regex.captures(&*value)
+                let cleaned_value = regex.captures(&value)
                     .map(|caps| Ok(caps[1].to_string()))
                     .unwrap_or(Err(DistanceError))?;
                 

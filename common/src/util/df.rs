@@ -36,7 +36,7 @@ pub fn equivalent(lhs: &DataFrame, rhs: &DataFrame, ignore_col_order: bool, igno
         frame.clone().lazy()
             // Sort by all columns
             .sort(
-                frame.get_columns().into_iter()
+                frame.get_columns().iter()
                     // Lists are not sortable. This is a hack, since order of lists might be important.
                     .filter(|col| !col.dtype().is_list())
                     .map(|col| col.name()).cloned()
