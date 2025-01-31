@@ -13,7 +13,7 @@ members = [
 
 [dependencies]
 data-harvester = { path = "data-harvester", package = "drino-data-harvester" }
-visualization = { path = "visualization", package = "drino-visualization" }
+visualization = { path = "visualization", package = "drino_visualization" }
 routing = { workspace = true }
 common = { workspace = true }
 polars = { workspace = true }
