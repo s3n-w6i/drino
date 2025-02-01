@@ -52,7 +52,8 @@ async fn main() -> std::io::Result<()> {
                 }
             ],
         },
-        "../data".into()
+        "../data".into(),
+        false
     ).await?
     .await?;
 

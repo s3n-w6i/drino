@@ -54,7 +54,7 @@ fn run() -> Result<(), DrinoError> {
             .expect("Could not create actix runtime");
         let vis_server_handle = vis_server_rt.spawn(async move {
             let vis_server = visualization::build_server(
-                vis_server_config, "./data".into()
+                vis_server_config, "./data".into(), true
             ).await.expect("Error building visualization server");
             
             vis_server.await.expect("Error running visualization server");

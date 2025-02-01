@@ -19,8 +19,9 @@ include!(concat!(env!("OUT_DIR"), "/generated.rs"));
 pub async fn build_server(
     config: Config,
     data_path: PathBuf,
+    disable_signals: bool
 ) -> std::io::Result<Server> {
-    Ok(HttpServer::new(move || {
+    let mut http_server = HttpServer::new(move || {
         let cors = Cors::default()
             .allowed_origin("http://localhost:5173")
             .allowed_origin("https://hoppscotch.io");
@@ -72,6 +73,11 @@ pub async fn build_server(
             // Serve the frontend. This is a catchall, so it must be defined last.
             .service(ResourceFiles::new("/", frontend_files).resolve_not_found_to_root())
     })
-        .bind("127.0.0.1:3001")?
-        .run())
+        .bind("127.0.0.1:3001")?;
+    
+    if disable_signals {
+        http_server = http_server.disable_signals();
+    }
+    
+    Ok(http_server.run())
 }
