@@ -16,6 +16,7 @@ members = [
 
 data-harvester = { path = "data-harvester", package = "drino-data-harvester" }
 visualization = { path = "visualization", package = "drino_visualization" }
+server = { path = "server", package = "drino_server" }
 routing = { workspace = true }
 common = { workspace = true }
 actix-web = { workspace = true }

@@ -62,7 +62,7 @@ fn run() -> Result<(), DrinoError> {
         Config::Version1 { datasets, .. } => {
             let algorithm = preprocess(datasets)?;
 
-            serve(algorithm)?;
+            server::serve(algorithm)?;
         }
     };
     
@@ -73,21 +73,6 @@ fn run() -> Result<(), DrinoError> {
 
 fn print_startup_message() {
     info!("\n      _      _             \n   __| |_ __(_)_ __   ___  \n  / _` | '__| | '_ \\ / _ \\ \n | (_| | |  | | | | | (_) |\n  \\__,_|_|  |_|_| |_|\\___/ \n                           \n R O U T I N G   E N G I N E\n");
-}
-
-fn serve(algorithm: ALGORITHM) -> Result<(), DrinoError> {
-    let rt = actix_web::rt::Runtime::new()
-        .expect("Unable to create server runtime");
-
-    let server_handle = rt.spawn(async move {
-        /*HttpServer::new(move || {})
-            .bind("127.0.0.1:8080");*/
-    });
-
-    rt.block_on(server_handle).unwrap();
-
-
-    todo!()
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -101,6 +86,7 @@ pub enum DrinoError {
     Polars(#[from] PolarsError),
     Preprocessing(#[from] PreprocessingError),
     IO(#[from] std::io::Error),
+    Server(#[from] server::ServerError),
 }
 
 impl Display for DrinoError {
@@ -115,6 +101,7 @@ impl Display for DrinoError {
             DrinoError::Polars(err) => err,
             DrinoError::Preprocessing(err) => err,
             DrinoError::IO(err) => err,
+            DrinoError::Server(err) => err,
         };
         let prefix = match self {
             DrinoError::Config(_) => "Error while reading config file",
@@ -126,6 +113,7 @@ impl Display for DrinoError {
             DrinoError::Polars(_) => "Error while processing dataset data",
             DrinoError::Preprocessing(_) => "Error while preprocessing data",
             DrinoError::IO(_) => "Error during IO",
+            DrinoError::Server(_) => "Error in server",
         };
         write!(f, "{}: {}", prefix, err)
     }
