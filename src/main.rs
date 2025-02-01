@@ -1,15 +1,5 @@
-mod config;
 pub mod bootstrap_config;
-
-use futures::{StreamExt, TryStreamExt};
-use log::{debug, error, info};
-use polars::error::PolarsError;
-use polars::prelude::IntoLazy;
-use std::fmt::{Display, Formatter};
-use std::path::PathBuf;
-use std::time::SystemTime;
-use tempfile::TempPath;
-use tokio::runtime::Runtime;
+mod config;
 
 use crate::config::load_config;
 use bootstrap_config::BootstrapConfig;
@@ -23,9 +13,19 @@ use data_harvester::step2_import_data::{import_data, ImportError, ImportStepExtr
 use data_harvester::step3_validate_data::{validate_data, ValidateError, ValidateStepOutput};
 use data_harvester::step4_merge_data::{merge, MergeError};
 use data_harvester::step5_simplify::{simplify, SimplifyError};
+use futures::{StreamExt, TryStreamExt};
+use log::{debug, error, info};
+use polars::error::PolarsError;
+use polars::prelude::IntoLazy;
 use routing::algorithm::{PreprocessInit, PreprocessingError, PreprocessingInput};
-use routing::stp::ScalableTransferPatternsAlgorithm;
 use routing::direct_connections::DirectConnections;
+use routing::stp::ScalableTransferPatternsAlgorithm;
+use std::fmt::{Display, Formatter};
+use std::path::PathBuf;
+use std::thread;
+use std::time::SystemTime;
+use tempfile::TempPath;
+use tokio::runtime::Runtime;
 
 type ALGORITHM = ScalableTransferPatternsAlgorithm;
 
@@ -46,16 +46,35 @@ fn run() -> Result<(), DrinoError> {
     debug!(target: "main", "Using temporary folder at {}", std::env::temp_dir().to_str().unwrap());
 
     let config = load_config(bootstrap_config)?;
+    
+    info!(target: "visualization", "Launching visualization server");
+    let vis_server_config = config.clone();
+    let vis_server_thread = thread::spawn(move || {
+        let vis_server_rt = actix_web::rt::Runtime::new()
+            .expect("Could not create actix runtime");
+        let vis_server_handle = vis_server_rt.spawn(async move {
+            let vis_server = visualization::build_server(
+                vis_server_config, "./data".into()
+            ).await.expect("Error building visualization server");
+            
+            vis_server.await.expect("Error running visualization server");
+        });
+        
+        vis_server_rt.block_on(vis_server_handle).unwrap();
+        
+        info!(target: "visualization", "Visualization server shut down");
+    });
 
     match config {
         Config::Version1 { datasets, .. } => {
             let algorithm = preprocess(datasets)?;
-            
+
             serve(algorithm)?;
         }
     };
+    
+    vis_server_thread.join().expect("Visualization server thread join error");
 
-    // Since we cleaned up in preprocess already, provide empty array of files here
     Ok(())
 }
 
@@ -74,67 +93,77 @@ fn preprocess(datasets: Vec<Dataset>) -> Result<ALGORITHM, DrinoError> {
     result
 }
 
-fn preprocess_inner(datasets: Vec<Dataset>, files_to_clean_up: &mut Vec<PathBuf>) -> Result<ALGORITHM, DrinoError> {
+fn preprocess_inner(
+    datasets: Vec<Dataset>,
+    files_to_clean_up: &mut Vec<PathBuf>,
+) -> Result<ALGORITHM, DrinoError> {
     info!(target: "preprocessing", "Starting preprocessing");
     let preprocessing_start_time = SystemTime::now();
 
-    let preprocessing_input = logging::run_with_spinner("preprocessing", "Fetching and importing datasets", || {
-        let rt = Runtime::new().unwrap();
-        rt.block_on(async {
-            if datasets.len() > 1 {
-                todo!("Using multiple datasets is not yet supported")
-            }
-            let datasets = datasets.into_iter().take(1);
-
-            let results = futures::stream::iter(datasets)
-                .then(|dataset| async move {
-                    let fetch_out = fetch_dataset(dataset).await?;
-                    let import_out = import_data(fetch_out).await?;
-                    let validated = validate_data(import_out).await?;
-                    Ok::<ValidateStepOutput, DrinoError>(validated)
-                })
-                .inspect_err(|err| {
-                    error!("{}", err);
-                })
-                .collect::<Vec<Result<ValidateStepOutput, DrinoError>>>()
-                .await.into_iter()
-                .collect::<Result<Vec<ValidateStepOutput>, DrinoError>>()?;
-
-            results.iter().for_each(|result| {
-                match &result.extra {
-                    ImportStepExtra::Gtfs { temporary_files, .. } => {
-                        temporary_files.iter().for_each(|f| files_to_clean_up.push(f.clone()))
-                    }
+    let preprocessing_input =
+        logging::run_with_spinner("preprocessing", "Fetching and importing datasets", || {
+            let rt = Runtime::new().unwrap();
+            rt.block_on(async {
+                if datasets.len() > 1 {
+                    todo!("Using multiple datasets is not yet supported")
                 }
-            });
+                let datasets = datasets.into_iter().take(1);
 
-            let merged = merge(results).await?;
-            let simplified = simplify(merged).await?;
+                let results = futures::stream::iter(datasets)
+                    .then(|dataset| async move {
+                        let fetch_out = fetch_dataset(dataset).await?;
+                        let import_out = import_data(fetch_out).await?;
+                        let validated = validate_data(import_out).await?;
+                        Ok::<ValidateStepOutput, DrinoError>(validated)
+                    })
+                    .inspect_err(|err| {
+                        error!("{}", err);
+                    })
+                    .collect::<Vec<Result<ValidateStepOutput, DrinoError>>>()
+                    .await
+                    .into_iter()
+                    .collect::<Result<Vec<ValidateStepOutput>, DrinoError>>()?;
 
-            Ok::<PreprocessingInput, DrinoError>(simplified)
-        })
-    })?;
+                results.iter().for_each(|result| match &result.extra {
+                    ImportStepExtra::Gtfs {
+                        temporary_files, ..
+                    } => temporary_files
+                        .iter()
+                        .for_each(|f| files_to_clean_up.push(f.clone())),
+                });
+
+                let merged = merge(results).await?;
+                let simplified = simplify(merged).await?;
+
+                Ok::<PreprocessingInput, DrinoError>(simplified)
+            })
+        })?;
 
     // TODO: Merge datasets (with deduplication) and frequency reduce calender times
 
     // Cache important (and small) tables like stops to speed up computation
-    let cached_input = logging::run_with_spinner("preprocessing", "Reading and caching timetable data", move || {
-        Ok::<PreprocessingInput, DrinoError>(PreprocessingInput {
-            stops: preprocessing_input.stops.collect()?.lazy(),
-            stop_times: preprocessing_input.stop_times.collect()?.lazy(),
-            ..preprocessing_input
-        })
-    })?;
-    
+    let cached_input = logging::run_with_spinner(
+        "preprocessing",
+        "Reading and caching timetable data",
+        move || {
+            Ok::<PreprocessingInput, DrinoError>(PreprocessingInput {
+                stops: preprocessing_input.stops.collect()?.lazy(),
+                stop_times: preprocessing_input.stop_times.collect()?.lazy(),
+                ..preprocessing_input
+            })
+        },
+    )?;
+
     // Build visualization of lines
     logging::run_with_spinner("visualization", "Building visualization for lines", || {
         let direct_connections = DirectConnections::try_from(cached_input.clone())?;
-        let table = direct_connections.to_geoarrow_lines(cached_input.stops.clone())
+        let table = direct_connections
+            .to_geoarrow_lines(cached_input.stops.clone())
             .map_err(|e| PreprocessingError::BuildLines(e))?;
-        
+
         write_geoarrow_to_file("./data/tmp/global/lines.arrow".into(), FileType::IPC, table)
             .map_err(|e| PreprocessingError::GeoArrow(e))?;
-        
+
         Ok::<(), DrinoError>(())
     })?;
 
@@ -148,13 +177,12 @@ fn preprocess_inner(datasets: Vec<Dataset>, files_to_clean_up: &mut Vec<PathBuf>
 
 fn clean_up(files: Vec<PathBuf>) {
     if !files.is_empty() {
-        files.into_iter()
-            .for_each(|file| {
-                TempPath::from_path(file.clone()).close()
-                    .expect(format!(
-                        "Unable to clean up temp file at {file:?}. Please clean up manually."
-                    ).as_str());
-            });
+        files.into_iter().for_each(|file| {
+            TempPath::from_path(file.clone()).close().expect(
+                format!("Unable to clean up temp file at {file:?}. Please clean up manually.")
+                    .as_str(),
+            );
+        });
 
         debug!("Temporary files cleaned up");
     }
@@ -163,7 +191,6 @@ fn clean_up(files: Vec<PathBuf>) {
 fn serve(algorithm: ALGORITHM) -> Result<(), DrinoError> {
     todo!()
 }
-
 
 #[derive(thiserror::Error, Debug)]
 pub enum DrinoError {
@@ -175,6 +202,7 @@ pub enum DrinoError {
     Simplify(#[from] SimplifyError),
     Polars(#[from] PolarsError),
     Preprocessing(#[from] PreprocessingError),
+    IO(#[from] std::io::Error),
 }
 
 impl Display for DrinoError {
@@ -188,6 +216,7 @@ impl Display for DrinoError {
             DrinoError::Simplify(err) => err,
             DrinoError::Polars(err) => err,
             DrinoError::Preprocessing(err) => err,
+            DrinoError::IO(err) => err,
         };
         let prefix = match self {
             DrinoError::Config(_) => "Error while reading config file",
@@ -198,6 +227,7 @@ impl Display for DrinoError {
             DrinoError::Simplify(_) => "Error while simplifying a dataset",
             DrinoError::Polars(_) => "Error while processing dataset data",
             DrinoError::Preprocessing(_) => "Error while preprocessing data",
+            DrinoError::IO(_) => "Error during IO",
         };
         write!(f, "{}: {}", prefix, err)
     }
