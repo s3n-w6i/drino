@@ -2,13 +2,12 @@ use crate::algorithm::*;
 use crate::journey::Journey;
 use crate::raptor::state::RaptorState;
 use crate::raptor::{LocalStopId, RaptorAlgorithm};
+use crate::transfers::TransferError;
 use chrono::{DateTime, Duration, TimeDelta, Utc};
 use common::types::{LineId, SeqNum, StopId, TripId};
 use common::util::time::INFINITY;
 use hashbrown::HashSet;
 use itertools::Itertools;
-use std::cmp::min;
-use crate::transfers::TransferError;
 
 impl RaptorAlgorithm {
     /// Selects the earliest trip of a line, that departs at `stop` after a given time
@@ -77,7 +76,6 @@ impl RaptorAlgorithm {
     fn run(
         &self,
         start: LocalStopId,
-        target: Option<LocalStopId>,
         departure: DateTime<Utc>,
     ) -> QueryResult<RaptorState> {
         let mut state = RaptorState::init(self.num_stops(), start, departure, &self.stop_mapping);
@@ -115,13 +113,10 @@ impl RaptorAlgorithm {
                         let b_arrival = self.arrivals.get(&(trip, *b_stop, *b_visit_idx))
                             .unwrap_or(&INFINITY); // TODO: Why is this not an error?
                         let best_b_arrival = state.best_arrival(b_stop);
-                        let best_target_arrival = target.map(|target| {
-                            state.best_arrival(&target)
-                        }).unwrap_or(&INFINITY);
 
                         // taking the trip to b it is faster than not taking it
-                        // ...and arr(t, pᵢ) < min{ τ*(pᵢ), τ*(pₜ) }
-                        if b_arrival < min(best_b_arrival, best_target_arrival) {
+                        // ...and arr(t, pᵢ) < τ*(pᵢ)
+                        if b_arrival < best_b_arrival {
                             let (boarding_stop, boarding_visit_idx) = boarding.expect("Boarding stop must not be None");
                             let boarding_departure = self.departures.get(&(trip, boarding_stop, boarding_visit_idx))
                                 .unwrap_or_else(|| panic!(
@@ -205,7 +200,6 @@ impl RaptorAlgorithm {
     fn run_range(
         &self,
         start: StopId,
-        target: Option<StopId>,
         earliest_departure: DateTime<Utc>,
         range: TimeDelta,
     ) -> QueryResult<RangeOutput> {
@@ -216,45 +210,29 @@ impl RaptorAlgorithm {
 
         let mut departure = earliest_departure;
         while departure <= last_departure {
-            let res_after_departure = self.run(start, target, departure);
+            let res_after_departure = self.run(start, departure);
 
             match res_after_departure {
                 // There is a valid output of the earliest arrival query
                 Ok(state) => {
-                    match target {
-                        // If we have a target (this is a one-to-one query)
-                        Some(target) => {
-                            if let Ok(journey) = state.backtrace(target, departure) {
-                                let journey_departure = journey.departure().unwrap_or(departure);
+                    let new_journeys = self.backtrace_all(state, departure)
+                        .unwrap_or_default()
+                        .into_iter()
+                        .filter(|j| { j.departure().unwrap_or(departure) <= last_departure });
 
-                                if journey_departure <= last_departure {
-                                    journeys.insert(journey.clone());
-                                }
-                                departure = journey_departure + Duration::seconds(1); // TODO: Find a better way than this hack
-                            } else { break; }
-                        }
-                        // We have no specific target (this is a one-to-all query)
-                        None => {
-                            let new_journeys = self.backtrace_all(state, departure)
-                                .unwrap_or_default()
-                                .into_iter()
-                                .filter(|j| { j.departure().unwrap_or(departure) <= last_departure });
+                    journeys.extend(new_journeys.clone());
 
-                            journeys.extend(new_journeys.clone());
+                    let earliest_departure = new_journeys
+                        .filter_map(|journey| journey.departure())
+                        .min();
 
-                            let earliest_departure = new_journeys
-                                .filter_map(|journey| journey.departure())
-                                .min();
-
-                            if let Some(earliest_departure) = earliest_departure {
-                                departure = earliest_departure + Duration::seconds(1);
-                            } else {
-                                // There is no earliest departure, so there is no departure at all
-                                // after this point in time
-                                break;
-                            }
-                        }
-                    };
+                    if let Some(earliest_departure) = earliest_departure {
+                        departure = earliest_departure + Duration::seconds(1);
+                    } else {
+                        // There is no earliest departure, so there is no departure at all
+                        // after this point in time
+                        break;
+                    }
                 }
                 // There were no (more) trips found: stop searching
                 Err(QueryError::NoRouteFound) => break,
@@ -287,35 +265,11 @@ impl RaptorAlgorithm {
     }
 }
 
-impl SingleEarliestArrival for RaptorAlgorithm {
-    fn query_ea(
-        &self,
-        EarliestArrival { start, earliest_departure }: EarliestArrival,
-        Single { target }: Single,
-    ) -> QueryResult<EarliestArrivalOutput> {
-        let start = self.stop_mapping.translate_to_local(start);
-        let target = self.stop_mapping.translate_to_local(target);
-
-        let res_state = self.run(start, Some(target), earliest_departure)?;
-        let journey = res_state.backtrace(target, earliest_departure)?;
-        Ok(EarliestArrivalOutput { journey })
-    }
-}
-
-impl SingleRange for RaptorAlgorithm {
-    fn query_range(&self, Range { start, earliest_departure, range }: Range, Single { target }: Single) -> QueryResult<RangeOutput> {
-        let start = self.stop_mapping.translate_to_local(start);
-        let target = self.stop_mapping.translate_to_local(target);
-        
-        self.run_range(start, Some(target), earliest_departure, range)
-    }
-}
-
 impl AllEarliestArrival for RaptorAlgorithm {
     fn query_ea_all(&self, EarliestArrival { start, earliest_departure }: EarliestArrival) -> MultiQueryResult<EarliestArrivalOutput> {
         let start = self.stop_mapping.translate_to_local(start);
 
-        let res_state = self.run(start, None, earliest_departure)?;
+        let res_state = self.run(start, earliest_departure)?;
         let journeys = self.backtrace_all(res_state, earliest_departure)?;
         let result = journeys.into_iter()
             .map(|journey| EarliestArrivalOutput { journey })
@@ -328,7 +282,7 @@ impl AllRange for RaptorAlgorithm {
     fn query_range_all(&self, Range { earliest_departure, range, start }: Range) -> QueryResult<RangeOutput> {
         let start = self.stop_mapping.translate_to_local(start);
 
-        self.run_range(start, None, earliest_departure, range)
+        self.run_range(start, earliest_departure, range)
     }
 }
 
