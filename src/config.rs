@@ -1,6 +1,6 @@
 use std::fmt::Display;
 use common::types::config::Config;
-use log::info;
+use log::{debug, info};
 use std::fs::File;
 use std::io;
 use std::path::Path;
@@ -26,6 +26,7 @@ pub(super) fn load_config(bootstrap_config: BootstrapConfig) -> Result<Config, C
         };
 
         info!(target: "main", "Config read successfully from {path:?}");
+        debug!(target: "main", "Using config: {:?}", config);
 
         Ok(config)
     } else {
@@ -39,7 +40,8 @@ pub enum ConfigError {
     DeserializationYaml(#[from] serde_yml::Error),
     DeserializationJson(#[from] serde_json::Error),
     MissingFileExtension(),
-    UnknownFileExtension()
+    UnknownFileExtension(),
+    NoDatasets()
 }
 
 impl Display for ConfigError {
@@ -50,6 +52,7 @@ impl Display for ConfigError {
             ConfigError::DeserializationJson(err) => write!(f, "{}", err),
             ConfigError::MissingFileExtension() => write!(f, "File extension not provided. Please provide .yml, .yaml or .json in the file path."),
             ConfigError::UnknownFileExtension() => write!(f, "File extension not recognized. Please provide .yml, .yaml or .json in the file path."),
+            ConfigError::NoDatasets() => write!(f, "No datasets provided."),
         }?;
         
         Ok(())

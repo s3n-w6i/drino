@@ -1,7 +1,7 @@
 pub mod bootstrap_config;
 mod config;
 
-use crate::config::load_config;
+use crate::config::{load_config, ConfigError};
 use bootstrap_config::BootstrapConfig;
 use common::types::config::Config;
 use common::types::dataset::Dataset;
@@ -107,35 +107,45 @@ fn preprocess_inner(
                 if datasets.len() > 1 {
                     todo!("Using multiple datasets is not yet supported")
                 }
-                let datasets = datasets.into_iter().take(1);
+                match datasets.len() {
+                    0 => {
+                        Err(DrinoError::Config(ConfigError::NoDatasets()))
+                    }
+                    2.. => {
+                        todo!("Using multiple datasets is not yet supported")
+                    },
+                    1 => {
+                        let datasets = datasets.into_iter().take(1);
 
-                let results = futures::stream::iter(datasets)
-                    .then(|dataset| async move {
-                        let fetch_out = fetch_dataset(dataset).await?;
-                        let import_out = import_data(fetch_out).await?;
-                        let validated = validate_data(import_out).await?;
-                        Ok::<ValidateStepOutput, DrinoError>(validated)
-                    })
-                    .inspect_err(|err| {
-                        error!("{}", err);
-                    })
-                    .collect::<Vec<Result<ValidateStepOutput, DrinoError>>>()
-                    .await
-                    .into_iter()
-                    .collect::<Result<Vec<ValidateStepOutput>, DrinoError>>()?;
+                        let results = futures::stream::iter(datasets)
+                            .then(|dataset| async move {
+                                let fetch_out = fetch_dataset(dataset).await?;
+                                let import_out = import_data(fetch_out).await?;
+                                let validated = validate_data(import_out).await?;
+                                Ok::<ValidateStepOutput, DrinoError>(validated)
+                            })
+                            .inspect_err(|err| {
+                                error!("{}", err);
+                            })
+                            .collect::<Vec<Result<ValidateStepOutput, DrinoError>>>()
+                            .await
+                            .into_iter()
+                            .collect::<Result<Vec<ValidateStepOutput>, DrinoError>>()?;
 
-                results.iter().for_each(|result| match &result.extra {
-                    ImportStepExtra::Gtfs {
-                        temporary_files, ..
-                    } => temporary_files
-                        .iter()
-                        .for_each(|f| files_to_clean_up.push(f.clone())),
-                });
+                        results.iter().for_each(|result| match &result.extra {
+                            ImportStepExtra::Gtfs {
+                                temporary_files, ..
+                            } => temporary_files
+                                .iter()
+                                .for_each(|f| files_to_clean_up.push(f.clone())),
+                        });
 
-                let merged = merge(results).await?;
-                let simplified = simplify(merged).await?;
+                        let merged = merge(results).await?;
+                        let simplified = simplify(merged).await?;
 
-                Ok::<PreprocessingInput, DrinoError>(simplified)
+                        Ok::<PreprocessingInput, DrinoError>(simplified)
+                    }
+                }
             })
         })?;
 
