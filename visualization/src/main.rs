@@ -7,13 +7,13 @@ use std::str::FromStr;
 use common::types::dataset::{DataSource, Dataset, DatasetConsistency, DatasetFormat, DatasetGroup, GeoPointConsistency, IdConsistency, License};
 use url::Url;
 use common::util::distance::Distance;
-use drino_visualization::run_server;
+use drino_visualization::build_server;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     logging::init(LevelFilter::Info);
 
-    run_server(
+    build_server(
         // TODO
         Config::Version1 {
             datasets: vec![
@@ -52,7 +52,8 @@ async fn main() -> std::io::Result<()> {
                 }
             ],
         },
-    )
+        "../data".into()
+    ).await?
     .await?;
 
     info!("Server shut down");
