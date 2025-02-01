@@ -1470,6 +1470,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "drino_server"
+version = "0.1.0"
+dependencies = [
+ "actix-web",
+ "drino-routing",
+]
+
+[[package]]
 name = "drino_visualization"
 version = "0.1.0"
 dependencies = [

@@ -8,7 +8,8 @@ members = [
     "data-harvester",
     "visualization",
     "routing",
-    "common"
+    "common",
+    "server"
 ]
 
 [dependencies]
