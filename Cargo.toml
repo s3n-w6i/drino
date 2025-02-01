@@ -12,10 +12,12 @@ members = [
 ]
 
 [dependencies]
+
 data-harvester = { path = "data-harvester", package = "drino-data-harvester" }
 visualization = { path = "visualization", package = "drino_visualization" }
 routing = { workspace = true }
 common = { workspace = true }
+actix-web = { workspace = true }
 polars = { workspace = true }
 tempfile = { workspace = true }
 thiserror = { workspace = true }
@@ -31,6 +33,7 @@ clap = { version = "4.5.18", features = ["env", "derive"] }
 [workspace.dependencies]
 common = { path = "common", package = "drino-common" }
 routing = { path = "routing", package = "drino-routing" }
+actix-web = { version = "4.9.0" }
 thiserror = "1.0.56"
 chrono = "0.4.38"
 tempfile = "3.12.0"
@@ -41,7 +44,7 @@ log = "0.4"
 serde = { version = "1.0.196", features = ["derive"] }
 env_logger = "0.11.5"
 geo = "0.29.2"
-tokio = { version = "1.0.0", features = ["rt", "rt-multi-thread", "macros"] }
+tokio = { version = "1.43.0", features = ["rt", "rt-multi-thread", "macros"] }
 geoarrow = { version = "0.4.0-beta.3", features = ["parquet"] }
 # arrow-schema, arrow-array need to have matching version for geoarrow
 arrow-schema = "53.3.0"
