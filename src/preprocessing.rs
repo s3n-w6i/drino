@@ -6,15 +6,13 @@ use polars::prelude::IntoLazy;
 use tempfile::TempPath;
 use tokio::runtime::Runtime;
 use common::types::dataset::Dataset;
-use common::util::df::{write_geoarrow_to_file, FileType};
 use common::util::logging;
 use data_harvester::step1_fetch_data::fetch_dataset;
 use data_harvester::step2_import_data::{import_data, ImportStepExtra};
 use data_harvester::step3_validate_data::{validate_data, ValidateStepOutput};
 use data_harvester::step4_merge_data::merge;
 use data_harvester::step5_simplify::simplify;
-use routing::algorithm::{PreprocessInit, PreprocessingError, PreprocessingInput};
-use routing::direct_connections::DirectConnections;
+use routing::algorithm::{PreprocessInit, PreprocessingInput};
 use crate::{DrinoError, ALGORITHM};
 use crate::config::ConfigError;
 
@@ -100,19 +98,6 @@ fn preprocess_inner(
             })
         },
     )?;
-
-    // Build visualization of lines
-    logging::run_with_spinner("visualization", "Building visualization for lines", || {
-        let direct_connections = DirectConnections::try_from(cached_input.clone())?;
-        let table = direct_connections
-            .to_geoarrow_lines(cached_input.stops.clone())
-            .map_err(|e| PreprocessingError::BuildLines(e))?;
-
-        write_geoarrow_to_file("./data/tmp/global/lines.arrow".into(), FileType::IPC, table)
-            .map_err(|e| PreprocessingError::GeoArrow(e))?;
-
-        Ok::<(), DrinoError>(())
-    })?;
 
     let preprocessing_result = ALGORITHM::preprocess(cached_input, true)?;
 
