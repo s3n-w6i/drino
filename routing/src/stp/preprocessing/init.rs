@@ -1,7 +1,7 @@
 use crate::algorithm::{
     PreprocessInit, PreprocessingError, PreprocessingInput, PreprocessingResult,
 };
-use crate::direct_connections::DirectConnections;
+use crate::direct_connections::{DirectConnections, LineProgressionFrame};
 use crate::stp::preprocessing::clustering::filter_for_cluster;
 use crate::stp::preprocessing::clustering::k_means::cluster;
 use crate::stp::ScalableTransferPatternsAlgorithm;
@@ -16,7 +16,9 @@ use polars::frame::{DataFrame, UniqueKeepStrategy};
 use polars::prelude::{col, lit, Column, IntoLazy, LazyFrame};
 use std::sync::Arc;
 use geo::{coord, point, Distance, Haversine};
+use hashbrown::HashSet;
 use log::debug;
+use common::types::StopId;
 
 // The minimum average distance between stations for a line to be considered long-distance. In
 // meters.
@@ -79,8 +81,22 @@ impl PreprocessInit for ScalableTransferPatternsAlgorithm {
 
         let long_distance_stations =
             run_with_spinner("preprocessing", "Finding long-distance stations", || {
-                Self::find_long_distance_stations(direct_connections, input.stops)
+                Ok::<DataFrame, PreprocessingError>(
+                    Self::find_long_distance_stations(
+                        direct_connections.line_progressions.clone(), input.stops
+                    )?.collect()?
+                )
             })?;
+        debug!(target: "preprocessing", "Found {} long distance stations", long_distance_stations.column("stop_id")?.len());
+
+        let border_stations =
+            run_with_spinner("preprocessing", "Finding border stations", || {
+                Self::find_border_stations(
+                    direct_connections.line_progressions,
+                    &stop_ids_with_clusters
+                )
+            })?;
+        debug!(target: "preprocessing", "Found {} border stations", border_stations.len());
 
         // TODO
         Ok(Self {})
@@ -183,10 +199,12 @@ impl ScalableTransferPatternsAlgorithm {
 
         Ok(())
     }
-    
-    fn find_long_distance_stations(direct_connections: DirectConnections, stops: LazyFrame) -> Result<LazyFrame, PreprocessingError> {
+
+    fn find_long_distance_stations(
+        line_progressions: LineProgressionFrame, stops: LazyFrame
+    ) -> Result<LazyFrame, PreprocessingError> {
         // Add lat and lon from stops df to the lines df
-        let mut lines_with_coordinates = direct_connections.line_progressions.lazy()
+        let mut lines_with_coordinates = line_progressions.lazy()
             .inner_join(stops, col("stop_id"), col("stop_id"))
             .collect()?;
 
@@ -230,7 +248,7 @@ impl ScalableTransferPatternsAlgorithm {
                     .over(["line_id"])
                     .alias("average_distance"),
             ]);
-        
+
         // Keep the long-distance stations
         let long_distance_stations = lines_with_average_distance
             .filter(col("average_distance").gt_eq(lit(LONG_DISTANCE_AVG_DISTANCE)))
@@ -238,5 +256,44 @@ impl ScalableTransferPatternsAlgorithm {
             .unique(None, UniqueKeepStrategy::Any);
 
         Ok(long_distance_stations)
+    }
+    
+    fn find_border_stations(
+        line_progressions: LineProgressionFrame,
+        stop_ids_with_clusters: &DataFrame,
+    ) -> Result<HashSet<StopId>, PreprocessingError> {
+        // Join lines with cluster numbers so that we can determine whether the cluster is left
+        let line_progressions_with_cluster = line_progressions.lazy()
+            .inner_join(stop_ids_with_clusters.clone().lazy(), col("stop_id"), col("stop_id"))
+            .collect()?;
+        
+        let line_ids = line_progressions_with_cluster.column("line_id")?.u32()?;
+        let stop_ids = line_progressions_with_cluster.column("stop_id")?.u32()?;
+        let cluster_ids = line_progressions_with_cluster.column("cluster_id")?.u32()?;
+        // This will be the final value returned. Initialize with the hash set with capacity, to
+        // avoid resizes. The capacity provided is just some estimate of the actual final length.
+        let mut border_stations = HashSet::with_capacity(stop_ids.len() / 4);
+        
+        // Iterate over all entries to find a consecutive pair of stations that spans across two
+        // different clusters. Then, both stations of that pair are border stations.
+        for i in 1..stop_ids.len() {
+            let prev_line_id = &line_ids.get(i - 1).unwrap();
+            let curr_line_id = &line_ids.get(i).unwrap();
+            // Check if we are still on the same line. If not, do nothing, because there is no
+            // connection between the stations
+            if curr_line_id == prev_line_id {
+                let prev_cluster_id = &cluster_ids.get(i - 1).unwrap();
+                let curr_cluster_id = &cluster_ids.get(i).unwrap();
+                // Check if we passed the border between clusters. If true, both are border stations
+                if prev_cluster_id != curr_cluster_id {
+                    let prev_station_id = &stop_ids.get(i - 1).unwrap();
+                    let curr_station_id = &stop_ids.get(i).unwrap();
+                    border_stations.insert(StopId(*prev_station_id));
+                    border_stations.insert(StopId(*curr_station_id));
+                }
+            }
+        }
+        
+        Ok(border_stations)
     }
 }
