@@ -290,7 +290,6 @@ impl AllRange for RaptorAlgorithm {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::earliest_arrival_tests;
     use crate::journey::Leg;
     use crate::raptor::tests::generate_case_4;
     use crate::raptor::StopMapping;
@@ -298,9 +297,7 @@ mod tests {
     use common::util::duration;
     use hashbrown::{HashMap, HashSet};
     use ndarray::array;
-
-    earliest_arrival_tests!(RaptorAlgorithm);
-
+    
     fn case1() -> RaptorAlgorithm {
         RaptorAlgorithm {
             stop_mapping: StopMapping(vec![0, 1].into_iter().map(|x| StopId(x)).collect()),
@@ -328,20 +325,9 @@ mod tests {
             }),
         }
     }
-
-    fn case1_journey0_leg0() -> Leg {
-        Leg::Ride {
-            trip: TripId(0),
-            boarding_stop: StopId(0),
-            alight_stop: StopId(1),
-            boarding_time: DateTime::<Utc>::from_timestamp(100, 0).unwrap(),
-            alight_time: DateTime::<Utc>::from_timestamp(500, 0).unwrap(),
-        }
-    }
-
-    #[test]
-    fn test_earliest_trip_function() {
-        let raptor = RaptorAlgorithm {
+    
+    fn case2() -> RaptorAlgorithm {
+        RaptorAlgorithm {
             stop_mapping: StopMapping(vec![0, 1, 2].into_iter().map(|x| StopId(x)).collect()),
             stops_by_line: HashMap::from([
                 (LineId(0), vec![(StopId(0), 0), (StopId(1), 0)]),
@@ -371,7 +357,22 @@ mod tests {
                     [duration::INFINITY, duration::INFINITY, Duration::zero(),],
                 ]
             }),
-        };
+        }
+    }
+
+    fn case1_trip0_leg0() -> Leg {
+        Leg::Ride {
+            trip: TripId(0),
+            boarding_stop: StopId(0),
+            alight_stop: StopId(1),
+            boarding_time: DateTime::<Utc>::from_timestamp(100, 0).unwrap(),
+            alight_time: DateTime::<Utc>::from_timestamp(500, 0).unwrap(),
+        }
+    }
+
+    #[test]
+    fn test_earliest_trip_function() {
+        let raptor = case2();
 
         assert_eq!(
             raptor.earliest_trip(LineId(0), StopId(0), DateTime::<Utc>::from_timestamp(0, 0).unwrap()),
@@ -403,7 +404,7 @@ mod tests {
         let dep0 = DateTime::<Utc>::from_timestamp(0, 0).unwrap();
 
         let raptor = generate_case_4();
-        let res = raptor.run(StopId(0), None, dep0).unwrap();
+        let res = raptor.run(StopId(0), dep0).unwrap();
 
         // The k value that is reached after finding a way to all other stops
         // It's 3 since going to 1 or 4 takes two legs, going to 2 or 3 just takes one leg, and we
@@ -431,15 +432,6 @@ mod tests {
         );
 
         // TODO: Test connection index
-
-        for i in 0u32..3 {
-            let stop_id = StopId(i);
-            let res_single = raptor.run(StopId(0), Some(StopId(4)), dep0).expect("expected this to work");
-            assert_eq!(
-                res.best_arrivals[i as usize], res_single.best_arrivals[i as usize],
-                "Best arrivals were different between one to one and one to all for StopId(0) to {stop_id:?}"
-            );
-        }
     }
 
     #[test]
@@ -468,7 +460,7 @@ mod tests {
                 (
                     StopId(1),
                     HashMap::from([
-                        (1, case1_journey0_leg0())
+                        (1, case1_trip0_leg0())
                     ])
                 )
             ]),
@@ -477,35 +469,10 @@ mod tests {
 
         let res = case1().backtrace_all(state, DateTime::UNIX_EPOCH).unwrap();
 
-        assert_eq!(res, vec![Journey::from(vec![case1_journey0_leg0()])]);
+        assert_eq!(res, vec![Journey::from(vec![case1_trip0_leg0()])]);
     }
 
-    #[test]
-    fn test_query_range_single_1() {
-        let raptor = case1();
-
-        // Query a too short range starting from 0
-        let res = raptor.query_range(
-            Range { earliest_departure: DateTime::UNIX_EPOCH, range: Duration::seconds(98), start: StopId(0) },
-            Single { target: StopId(1) },
-        );
-        assert!(matches!(res, Err(QueryError::NoRouteFound)));
-
-        // Query a longer range starting from 0
-        let res = raptor.query_range(
-            Range { earliest_departure: DateTime::UNIX_EPOCH, range: Duration::seconds(101), start: StopId(0) },
-            Single { target: StopId(1) },
-        ).unwrap();
-        assert_eq!(res.journeys, HashSet::from([Journey::from(vec![case1_journey0_leg0()])]));
-
-        // query later, after missing the only connection there is
-        let res = raptor.query_range(
-            Range { earliest_departure: DateTime::<Utc>::from_timestamp(300, 0).unwrap(), range: Duration::weeks(42), start: StopId(0) },
-            Single { target: StopId(1) },
-        );
-        assert!(matches!(res, Err(QueryError::NoRouteFound)));
-    }
-
+    /// 0 --Ride--> 1
     #[test]
     fn test_query_range_all_1() {
         let raptor = case1();
@@ -520,12 +487,212 @@ mod tests {
         let res = raptor.query_range_all(
             Range { earliest_departure: DateTime::UNIX_EPOCH, range: Duration::seconds(101), start: StopId(0) },
         ).unwrap();
-        assert_eq!(res.journeys, HashSet::from([Journey::from( vec![case1_journey0_leg0()] )]));
+        assert_eq!(res.journeys, HashSet::from([Journey::from( vec![case1_trip0_leg0()] )]));
 
         // query later, after missing the only connection there is
         let res = raptor.query_range_all(
             Range { earliest_departure: DateTime::<Utc>::from_timestamp(300, 0).unwrap(), range: Duration::weeks(42), start: StopId(0) },
         );
         assert!(matches!(res, Err(QueryError::NoRouteFound)));
+    }
+
+    ///   0 ---Ride--> 1
+    ///   0 ---Ride--> 1 ---Ride--> 2
+    #[tokio::test]
+    async fn test_query_range_all_2() {
+        let raptor = case2();
+
+        let actual = raptor.query_range_all(
+            Range { start: StopId(0), earliest_departure: DateTime::UNIX_EPOCH, range: Duration::seconds(98) },
+        ).unwrap();
+        
+        let case2_trip0_leg0 = Leg::Ride {
+            boarding_stop: StopId(0),
+            alight_stop: StopId(1),
+            boarding_time: DateTime::<Utc>::from_timestamp(100, 0).unwrap(),
+            alight_time: DateTime::<Utc>::from_timestamp(500, 0).unwrap(),
+            trip: TripId(0),
+        };
+        
+        let expected = RangeOutput {
+            journeys: HashSet::from([
+                Journey::from(vec![
+                    case2_trip0_leg0.clone(),
+                    Leg::Ride {
+                        boarding_stop: StopId(1),
+                        alight_stop: StopId(2),
+                        boarding_time: DateTime::<Utc>::from_timestamp(1000, 0).unwrap(),
+                        alight_time: DateTime::<Utc>::from_timestamp(1500, 0).unwrap(),
+                        trip: TripId(1),
+                    },
+                ]),
+                Journey::from(vec![
+                    case2_trip0_leg0
+                ])
+            ])
+        };
+
+        assert_eq!(actual, expected);
+    }
+
+    ///   0 ---Ride--> 1
+    ///   0 ---Ride--> 1 ---Transfer--> 2
+    ///   0 ---Ride--> 1 ---Transfer--> 2 ---Ride--> 3
+    #[tokio::test]
+    async fn test_query_range_all_3() {
+        let duration_1_to_2 = Duration::seconds(10);
+
+        let raptor = RaptorAlgorithm {
+            stop_mapping: StopMapping(vec![0, 1, 2, 3].into_iter().map(|x| StopId(x)).collect()),
+            stops_by_line: HashMap::from([
+                (LineId(0), vec![(StopId(0), 0), (StopId(1), 0)]),
+                (LineId(1), vec![(StopId(2), 0), (StopId(3), 0)]),
+            ]),
+            lines_by_stops: HashMap::from([
+                (StopId(0), HashSet::from([(LineId(0), SeqNum(0))])),
+                (StopId(1), HashSet::from([(LineId(0), SeqNum(1))])),
+                (StopId(2), HashSet::from([(LineId(1), SeqNum(0))])),
+                (StopId(3), HashSet::from([(LineId(1), SeqNum(1))])),
+            ]),
+            departures: HashMap::from([
+                ((TripId(0), StopId(0), 0), DateTime::<Utc>::from_timestamp(100, 0).unwrap()),
+                ((TripId(1), StopId(2), 0), DateTime::<Utc>::from_timestamp(1000, 0).unwrap()),
+            ]),
+            arrivals: HashMap::from([
+                ((TripId(0), StopId(1), 0), DateTime::<Utc>::from_timestamp(500, 0).unwrap()),
+                ((TripId(1), StopId(3), 0), DateTime::<Utc>::from_timestamp(1500, 0).unwrap()),
+            ]),
+            trips_by_line_and_stop: HashMap::from([
+                ((LineId(0), StopId(0)), vec![(DateTime::<Utc>::from_timestamp(100, 0).unwrap(), TripId(0))]),
+                ((LineId(1), StopId(2)), vec![(DateTime::<Utc>::from_timestamp(1000, 0).unwrap(), TripId(1))]),
+            ]),
+            transfer_provider: Box::new(FixedTimeTransferProvider {
+                duration_matrix: array![
+                        [Duration::zero(),   duration::INFINITY, duration::INFINITY, duration::INFINITY],
+                        [duration::INFINITY, Duration::zero(),   duration_1_to_2,    duration::INFINITY],
+                        [duration::INFINITY, duration_1_to_2,    Duration::zero(),   duration::INFINITY],
+                        [duration::INFINITY, duration::INFINITY, duration::INFINITY, Duration::zero()  ],
+                    ]
+            }),
+        };
+
+        let actual = raptor.query_range_all(
+            Range { start: StopId(0), earliest_departure: DateTime::UNIX_EPOCH, range: Duration::seconds(101) },
+        ).unwrap();
+        
+        let case3_journey0_leg0 = Leg::Ride {
+            boarding_stop: StopId(0),
+            alight_stop: StopId(1),
+            boarding_time: DateTime::<Utc>::from_timestamp(100, 0).unwrap(),
+            alight_time: DateTime::<Utc>::from_timestamp(500, 0).unwrap(),
+            trip: TripId(0),
+        };
+        let case3_journey0_leg1 = Leg::Transfer {
+            start: StopId(1),
+            end: StopId(2),
+            duration: duration_1_to_2,
+        };
+        
+        let expected = RangeOutput { journeys: HashSet::from([
+            Journey::from(vec![case3_journey0_leg0.clone()]),
+            Journey::from(vec![case3_journey0_leg0.clone(), case3_journey0_leg1.clone()]),
+            Journey::from(vec![
+                case3_journey0_leg0,
+                case3_journey0_leg1,
+                Leg::Ride {
+                    boarding_stop: StopId(2),
+                    alight_stop: StopId(3),
+                    boarding_time: DateTime::<Utc>::from_timestamp(1000, 0).unwrap(),
+                    alight_time: DateTime::<Utc>::from_timestamp(1500, 0).unwrap(),
+                    trip: TripId(1),
+                },
+            ])
+        ]) };
+
+        assert_eq!(actual, expected);
+    }
+
+    #[tokio::test]
+    async fn test_query_earliest_4() {
+        let dep20 = DateTime::<Utc>::from_timestamp(20, 0).unwrap();
+        let dep220 = DateTime::<Utc>::from_timestamp(220, 0).unwrap();
+        let dep110 = DateTime::<Utc>::from_timestamp(110, 0).unwrap();
+        let dep310 = DateTime::<Utc>::from_timestamp(310, 0).unwrap();
+        let dep0 = DateTime::<Utc>::from_timestamp(0, 0).unwrap();
+        let dep400 = DateTime::<Utc>::from_timestamp(400, 0).unwrap();
+        let dep490 = DateTime::<Utc>::from_timestamp(490, 0).unwrap();
+        let dep150 = DateTime::<Utc>::from_timestamp(150, 0).unwrap();
+        let dep550 = DateTime::<Utc>::from_timestamp(550, 0).unwrap();
+
+        let arr100 = DateTime::<Utc>::from_timestamp(100, 0).unwrap();
+        let arr300 = DateTime::<Utc>::from_timestamp(300, 0).unwrap();
+        let arr150 = DateTime::<Utc>::from_timestamp(150, 0).unwrap();
+        let arr350 = DateTime::<Utc>::from_timestamp(350, 0).unwrap();
+        let arr200 = DateTime::<Utc>::from_timestamp(200, 0).unwrap();
+        let arr600 = DateTime::<Utc>::from_timestamp(600, 0).unwrap();
+        let arr700 = DateTime::<Utc>::from_timestamp(700, 0).unwrap();
+        let arr250 = DateTime::<Utc>::from_timestamp(250, 0).unwrap();
+
+        let raptor = generate_case_4();
+
+        // 0 ---Ride(130_1)--> 3 ---Transfer--> 4
+        // Takes 250s + 410s = 660s
+        let actual = raptor.query_range_all(
+            Range { start: StopId(0), earliest_departure: dep0, range: Duration::seconds(100) },
+        ).unwrap();
+        
+        let case4_journey_0_leg0 = Leg::Ride {
+            trip: TripId(130_1),
+            boarding_stop: StopId(0),
+            alight_stop: StopId(3),
+            boarding_time: dep0,
+            alight_time: arr250,
+        };
+        
+        let expected = RangeOutput { journeys: HashSet::from([
+            Journey::from(vec![case4_journey_0_leg0.clone()]),
+            Journey::from(vec![
+                case4_journey_0_leg0,
+                Leg::Transfer {
+                    start: StopId(3),
+                    end: StopId(4),
+                    duration: Duration::seconds(410),
+                },
+            ])
+        ])};
+        
+        assert_eq!(actual, expected);
+
+        // Start 1s second later than the last case. Now, we can't take 130_1 anymore, since it
+        // departs at 0s. Instead, we have to take this slower connection:
+        // 0@20s   ---Ride(100_1)-->   2@100s, 2@490s   ---Ride(120_2)-->   4@700s
+        // this connection arrives well before the following, which would arrive at 710s instead
+        // of 700s:
+        // 0@20s   ---Ride(100_1)-->   3@300s   ---Transfer-->   4@710s
+        let actual = raptor.query_range_all(
+            Range { start: StopId(0), earliest_departure: DateTime::<Utc>::from_timestamp(1, 0).unwrap(), range: Duration::seconds(100) },
+        ).unwrap();
+        
+        let case4_journey1_leg0 = Leg::Ride {
+            trip: TripId(100_1),
+            boarding_stop: StopId(0), alight_stop: StopId(2),
+            boarding_time: dep20, alight_time: arr100,
+        };
+        
+        let expected = RangeOutput { journeys: HashSet::from([
+            Journey::from(vec![case4_journey1_leg0.clone()]),
+            Journey::from(vec![
+                case4_journey1_leg0,
+                Leg::Ride {
+                    trip: TripId(120_2),
+                    boarding_stop: StopId(2), alight_stop: StopId(4),
+                    boarding_time: dep490, alight_time: arr700,
+                },
+            ])
+        ])};
+
+        assert_eq!(actual, expected);
+
+        // TODO: More cases
     }
 }
