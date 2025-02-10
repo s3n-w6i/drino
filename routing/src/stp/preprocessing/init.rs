@@ -41,6 +41,8 @@ impl PreprocessInit for ScalableTransferPatternsAlgorithm {
 
             Ok::<DirectConnections, PreprocessingError>(direct_connections)
         })?;
+        
+        // TODO: Re-use direct connections in processing of clusters
 
         let (stop_ids_with_clusters, num_clusters) =
             run_with_spinner("preprocessing", "Clustering stops", || {
@@ -257,7 +259,7 @@ impl ScalableTransferPatternsAlgorithm {
 
         Ok(long_distance_stations)
     }
-    
+
     fn find_border_stations(
         line_progressions: LineProgressionFrame,
         stop_ids_with_clusters: &DataFrame,
@@ -266,14 +268,14 @@ impl ScalableTransferPatternsAlgorithm {
         let line_progressions_with_cluster = line_progressions.lazy()
             .inner_join(stop_ids_with_clusters.clone().lazy(), col("stop_id"), col("stop_id"))
             .collect()?;
-        
+
         let line_ids = line_progressions_with_cluster.column("line_id")?.u32()?;
         let stop_ids = line_progressions_with_cluster.column("stop_id")?.u32()?;
         let cluster_ids = line_progressions_with_cluster.column("cluster_id")?.u32()?;
         // This will be the final value returned. Initialize with the hash set with capacity, to
         // avoid resizes. The capacity provided is just some estimate of the actual final length.
         let mut border_stations = HashSet::with_capacity(stop_ids.len() / 4);
-        
+
         // Iterate over all entries to find a consecutive pair of stations that spans across two
         // different clusters. Then, both stations of that pair are border stations.
         for i in 1..stop_ids.len() {
@@ -293,7 +295,7 @@ impl ScalableTransferPatternsAlgorithm {
                 }
             }
         }
-        
+
         Ok(border_stations)
     }
 }
