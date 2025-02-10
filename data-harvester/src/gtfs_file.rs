@@ -76,7 +76,6 @@ pub fn gtfs_time_to_ms(times: Column) -> Result<Column, PolarsError> {
 
 #[derive(Debug)]
 pub struct GtfsFile {
-    pub name: &'static str,
     pub required_fields: Vec<Field>,
 }
 
@@ -92,14 +91,12 @@ pub struct GtfsDataset {
 pub fn gtfs_schemas() -> GtfsDataset {
     GtfsDataset {
         agency: GtfsFile {
-            name: "agency",
             required_fields: vec![
                 Field { name: "agency_id".into(), dtype: DataType::String },
                 Field { name: "agency_timezone".into(), dtype: DataType::String },
             ],
         },
         calendar: GtfsFile {
-            name: "calendar",
             required_fields: vec![
                 Field { name: "service_id".into(), dtype: DataType::String },
                 Field { name: "monday".into(), dtype: DataType::UInt32 },
@@ -114,14 +111,12 @@ pub fn gtfs_schemas() -> GtfsDataset {
             ],
         },
         routes: GtfsFile {
-            name: "routes",
             required_fields: vec![
                 Field { name: "route_id".into(), dtype: DataType::String },
                 Field { name: "agency_id".into(), dtype: DataType::String },
             ],
         },
         stop_times: GtfsFile {
-            name: "stop_times",
             required_fields: vec![
                 Field { name: "trip_id".into(), dtype: DataType::String },
                 Field { name: "arrival_time".into(), dtype: DataType::String },
@@ -130,7 +125,6 @@ pub fn gtfs_schemas() -> GtfsDataset {
             ],
         },
         stops: GtfsFile {
-            name: "stops",
             required_fields: vec![
                 Field { name: "stop_id".into(), dtype: DataType::String },
                 Field { name: "stop_lat".into(), dtype: DataType::Float32 }, // f32 for coordinates might be too little (~2m precision?)
@@ -138,7 +132,6 @@ pub fn gtfs_schemas() -> GtfsDataset {
             ],
         },
         trips: GtfsFile {
-            name: "trips",
             required_fields: vec![
                 Field { name: "route_id".into(), dtype: DataType::String },
                 Field { name: "service_id".into(), dtype: DataType::String },
