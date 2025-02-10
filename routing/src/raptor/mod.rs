@@ -8,7 +8,7 @@ use hashbrown::{HashMap, HashSet};
 mod preprocessing;
 mod routing;
 mod state;
-mod tests;
+#[cfg(test)] mod tests;
 
 type GlobalStopId = StopId;
 type LocalStopId = StopId;

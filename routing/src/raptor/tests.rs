@@ -1,12 +1,11 @@
-use crate::raptor::{RaptorAlgorithm, StopMapping};
-use crate::transfers::fixed_time::FixedTimeTransferProvider;
 use chrono::{DateTime, Duration, Utc};
-use common::types::{LineId, SeqNum, StopId, TripId};
-use common::util::duration::INFINITY;
 use hashbrown::{HashMap, HashSet};
 use ndarray::array;
+use common::types::{LineId, SeqNum, StopId, TripId};
+use common::util::duration::INFINITY;
+use crate::raptor::{RaptorAlgorithm, StopMapping};
+use crate::transfers::fixed_time::FixedTimeTransferProvider;
 
-#[cfg(test)]
 #[allow(clippy::inconsistent_digit_grouping)]
 /// Test case 4 has some specialties:
 /// - Stop 3 and 4 are quite close together, so walking between them is feasible
