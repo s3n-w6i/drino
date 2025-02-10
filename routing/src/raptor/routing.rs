@@ -503,7 +503,7 @@ mod tests {
         let raptor = case2();
 
         let actual = raptor.query_range_all(
-            Range { start: StopId(0), earliest_departure: DateTime::UNIX_EPOCH, range: Duration::seconds(98) },
+            Range { start: StopId(0), earliest_departure: DateTime::UNIX_EPOCH, range: Duration::seconds(100) },
         ).unwrap();
         
         let case2_trip0_leg0 = Leg::Ride {
