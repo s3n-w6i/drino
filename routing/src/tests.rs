@@ -3,7 +3,22 @@ use chrono::NaiveDate;
 use polars::datatypes::{AnyValue, TimeUnit};
 use polars::df;
 use polars::error::PolarsResult;
-use polars::prelude::IntoLazy;
+use polars::prelude::{IntoLazy, LazyFrame};
+
+fn single_all_week_service() -> PolarsResult<LazyFrame> {
+    Ok(df![
+        "service_id" => [0u32],
+        "monday" => [true],
+        "tuesday" => [true],
+        "wednesday" => [true],
+        "thursday" => [true],
+        "friday" => [true],
+        "saturday" => [true],
+        "sunday" => [true],
+        "start_date" => [NaiveDate::from_ymd_opt(1970, 1, 1)],
+        "end_date" => [NaiveDate::from_ymd_opt(2070, 1, 1)],
+    ]?.lazy())
+}
 
 /// Test case 1 is probably the most simple case (that would still make sense):
 /// - 2 stops
@@ -15,18 +30,7 @@ pub(crate) mod case_1 {
 
     pub(crate) fn generate_preprocessing_input() -> PolarsResult<PreprocessingInput> {
         Ok(PreprocessingInput {
-            services: df![
-                "service_id" => [0u32],
-                "monday" => [true],
-                "tuesday" => [true],
-                "wednesday" => [true],
-                "thursday" => [true],
-                "friday" => [true],
-                "saturday" => [true],
-                "sunday" => [true],
-                "start_date" => [NaiveDate::from_ymd_opt(1970, 1, 1)],
-                "end_date" => [NaiveDate::from_ymd_opt(2070, 1, 1)],
-            ]?.lazy(),
+            services: single_all_week_service()?,
             stops: df![
                 "stop_id" => [0u32, 1],
                 "lat" => [0f32, 45.0],
@@ -57,18 +61,7 @@ pub(crate) mod case_2 {
 
     pub(crate) fn generate_preprocessing_input() -> PolarsResult<PreprocessingInput> {
         Ok(PreprocessingInput {
-            services: df![
-                "service_id" => [0u32],
-                "monday" => [true],
-                "tuesday" => [true],
-                "wednesday" => [true],
-                "thursday" => [true],
-                "friday" => [true],
-                "saturday" => [true],
-                "sunday" => [true],
-                "start_date" => [NaiveDate::from_ymd_opt(1970, 1, 1)],
-                "end_date" => [NaiveDate::from_ymd_opt(2070, 1, 1)],
-            ]?.lazy(),
+            services: single_all_week_service()?,
             stops: df![
                 "stop_id" => [0u32, 1, 2],
                 "lat" => [0f32, 45.0, -45.0],
@@ -91,8 +84,8 @@ pub(crate) mod case_2 {
 
 /// Test case 3 has
 /// - 4 stops
-/// - 2 trips
-/// - 1 feasible walking connection (between stops 1 and 3)
+/// - 2 trips (one from stop 0 to 1, one from 2 to 3)
+/// - 1 feasible walking connection (between stops 1 and 2)
 /// The longest journey one can take is: 0 ---Ride--> 1 ---Transfer--> 2 ---Ride--> 3. Going
 /// backwards is not a thing.
 pub(crate) mod case_3 {
@@ -100,18 +93,7 @@ pub(crate) mod case_3 {
     
     pub(crate) fn generate_preprocessing_input() -> PolarsResult<PreprocessingInput> {
         Ok(PreprocessingInput {
-            services: df![
-                "service_id" => [0u32],
-                "monday" => [true],
-                "tuesday" => [true],
-                "wednesday" => [true],
-                "thursday" => [true],
-                "friday" => [true],
-                "saturday" => [true],
-                "sunday" => [true],
-                "start_date" => [NaiveDate::from_ymd_opt(1970, 1, 1)],
-                "end_date" => [NaiveDate::from_ymd_opt(2070, 1, 1)],
-            ]?.lazy(),
+            services: single_all_week_service()?,
             stops: df![
                 "stop_id" => [0u32, 1, 2, 3],
                 "lat" => [0f32, 45.0, 45.01, 45.0],
