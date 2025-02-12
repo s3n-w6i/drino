@@ -57,6 +57,7 @@ async fn validate_gtfs(dataset: &Dataset) -> Result<(), ValidateError> {
     };
 
     let gtfstidy_out = Command::new("gtfstidy")
+        .arg("-v")
         .arg(filepath)
         .output()?;
     
