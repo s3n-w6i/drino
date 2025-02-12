@@ -1,15 +1,15 @@
+use crate::step2_import::ImportStepExtra;
+use crate::step3_validate::ValidateStepOutput;
+use polars::prelude::{lit, LazyFrame};
 use std::fmt;
 use std::fmt::Display;
-use polars::prelude::{LazyFrame, lit};
-use crate::step2_import_data::ImportStepExtra;
-use crate::step3_validate_data::ValidateStepOutput;
 
 pub async fn merge(input: Vec<ValidateStepOutput>) -> Result<DatasetMergeOutput, MergeError> {
     // TODO: Actually merge datasets
     let first = input.into_iter()
         .filter(|data| !data.skip)
         .next()
-        .expect("No valid dataset provided");
+        .ok_or(MergeError::NoDatasets())?;
     let dataset_id = first.dataset.id;
 
     match first.extra.clone() { ImportStepExtra::Gtfs {
@@ -44,13 +44,15 @@ pub struct DatasetMergeOutput {
 #[derive(thiserror::Error, Debug)]
 pub enum MergeError {
     Polars(#[from] polars::error::PolarsError),
+    NoDatasets(),
 }
 
 impl Display for MergeError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let err: &dyn Display = match self {
-            MergeError::Polars(err) => err,
+        let err = match self {
+            MergeError::Polars(err) => err.fmt(f),
+            MergeError::NoDatasets { .. } => write!(f, "No datasets were provided"),
         };
-        write!(f, "{}", err)
+        err
     }
 }

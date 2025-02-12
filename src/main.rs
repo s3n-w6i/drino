@@ -7,10 +7,9 @@ use bootstrap_config::BootstrapConfig;
 use common::types::config::Config;
 use common::util::logging;
 use common::util::speed::Speed;
-use data_harvester::step1_fetch_data::FetchError;
-use data_harvester::step2_import_data::ImportError;
-use data_harvester::step3_validate_data::ValidateError;
-use data_harvester::step4_merge_data::MergeError;
+use data_harvester::step1_fetch::FetchError;
+use data_harvester::step2_import::ImportError;
+use data_harvester::step4_merge::MergeError;
 use data_harvester::step5_simplify::SimplifyError;
 use log::{debug, error, info};
 use polars::error::PolarsError;
@@ -18,6 +17,7 @@ use routing::algorithm::PreprocessingError;
 use routing::stp::ScalableTransferPatternsAlgorithm;
 use std::fmt::{Display, Formatter};
 use std::thread;
+use data_harvester::step3_validate::ValidateError;
 use preprocessing::preprocess;
 
 type ALGORITHM = ScalableTransferPatternsAlgorithm;
@@ -27,7 +27,7 @@ type ALGORITHM = ScalableTransferPatternsAlgorithm;
 pub const MAX_SPEED: Speed = Speed(500.0);
 
 fn main() {
-    let _ = run().inspect_err(|err| error!("{}", err));
+    let _ = run().inspect_err(|err| error!(target: "main", "{}", err));
 }
 
 fn run() -> Result<(), DrinoError> {
@@ -104,14 +104,14 @@ impl Display for DrinoError {
             DrinoError::Server(err) => err,
         };
         let prefix = match self {
-            DrinoError::Config(_) => "Error while reading config file",
-            DrinoError::Fetch(_) => "Error while fetching a dataset",
-            DrinoError::Import(_) => "Error while fetching a dataset",
-            DrinoError::Validate(_) => "Error while validating a dataset",
-            DrinoError::Merge(_) => "Error while merging datasets",
-            DrinoError::Simplify(_) => "Error while simplifying a dataset",
-            DrinoError::Polars(_) => "Error while processing dataset data",
-            DrinoError::Preprocessing(_) => "Error while preprocessing data",
+            DrinoError::Config(_) => "Reading config file",
+            DrinoError::Fetch(_) => "Fetching datasets",
+            DrinoError::Import(_) => "Importing datasets",
+            DrinoError::Validate(_) => "Validating datasets",
+            DrinoError::Merge(_) => "Merging datasets",
+            DrinoError::Simplify(_) => "Simplifying datasets",
+            DrinoError::Polars(_) => "Processing dataset data",
+            DrinoError::Preprocessing(_) => "Preprocessing data",
             DrinoError::IO(_) => "Error during IO",
             DrinoError::Server(_) => "Error in server",
         };

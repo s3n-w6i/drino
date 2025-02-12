@@ -1,7 +1,7 @@
 mod gtfs;
 
-use crate::step1_fetch_data::FetchStepOutput;
-use crate::step2_import_data::gtfs::import_gtfs_data;
+use crate::step1_fetch::FetchStepOutput;
+use crate::step2_import::gtfs::import_gtfs;
 use common::types::dataset::{Dataset, DatasetFormat};
 use polars::prelude::LazyFrame;
 use std::fmt::Display;
@@ -13,7 +13,7 @@ pub async fn import_data(
 ) -> Result<ImportStepOutput, ImportError> {
     match prev_step_out.dataset.format {
         DatasetFormat::Gtfs => {
-            let result = import_gtfs_data(prev_step_out).await?;
+            let result = import_gtfs(prev_step_out).await?;
             Ok(result)
         }
         DatasetFormat::GtfsRt => {
@@ -29,7 +29,6 @@ pub enum ImportError {
     Polars(#[from] polars::error::PolarsError),
     PathPersist(#[from] tempfile::PathPersistError),
     MissingFile,
-    //RuleViolations(Vec<Box<dyn RuleViolations/*<dyn Rule<dyn Severity>, dyn Severity>*/>>)
 }
 
 impl Display for ImportError {
@@ -40,7 +39,6 @@ impl Display for ImportError {
             ImportError::Polars(err) => err,
             ImportError::PathPersist(err) => err,
             ImportError::MissingFile => &"Missing file",
-            //ImportError::RuleViolations(violations) => violations
         };
         write!(f, "{}", err)
     }

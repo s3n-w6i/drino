@@ -1,16 +1,16 @@
 use std::path::PathBuf;
 use std::time::SystemTime;
-use futures::{StreamExt, TryStreamExt};
-use log::{debug, error, info};
+use futures::StreamExt;
+use log::{debug, info};
 use polars::prelude::IntoLazy;
 use tempfile::TempPath;
 use tokio::runtime::Runtime;
 use common::types::dataset::Dataset;
 use common::util::logging;
-use data_harvester::step1_fetch_data::fetch_dataset;
-use data_harvester::step2_import_data::{import_data, ImportStepExtra};
-use data_harvester::step3_validate_data::{validate_data, ValidateStepOutput};
-use data_harvester::step4_merge_data::merge;
+use data_harvester::step1_fetch::fetch_dataset;
+use data_harvester::step2_import::{import_data, ImportStepExtra};
+use data_harvester::step3_validate::{validate_data, ValidateStepOutput};
+use data_harvester::step4_merge::merge;
 use data_harvester::step5_simplify::simplify;
 use routing::algorithm::{PreprocessInit, PreprocessingInput};
 use crate::{DrinoError, ALGORITHM};
@@ -58,9 +58,6 @@ fn preprocess_inner(
                                 let import_out = import_data(fetch_out).await?;
                                 let validated = validate_data(import_out).await?;
                                 Ok::<ValidateStepOutput, DrinoError>(validated)
-                            })
-                            .inspect_err(|err| {
-                                error!("{}", err);
                             })
                             .collect::<Vec<Result<ValidateStepOutput, DrinoError>>>()
                             .await

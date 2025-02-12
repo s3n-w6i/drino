@@ -11,3 +11,4 @@ tempfile = { workspace = true }
 zip = { version = "2.2.0", default-features = false, features = ["deflate"] }
 thiserror = { workspace = true }
 reqwest = "0.12.7"
+log = "0.4.22"

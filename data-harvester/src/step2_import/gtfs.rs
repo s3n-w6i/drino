@@ -9,10 +9,10 @@ use tempfile::NamedTempFile;
 use zip::ZipArchive;
 
 use crate::gtfs_file::*;
-use crate::step1_fetch_data::FetchStepOutput;
-use crate::step2_import_data::{ImportError, ImportStepExtra, ImportStepOutput};
+use crate::step1_fetch::FetchStepOutput;
+use crate::step2_import::{ImportError, ImportStepExtra, ImportStepOutput};
 
-pub(crate) async fn import_gtfs_data(
+pub(crate) async fn import_gtfs(
     FetchStepOutput {
         path,
         dataset
