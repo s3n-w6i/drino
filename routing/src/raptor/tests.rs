@@ -73,7 +73,7 @@ pub(crate) fn generate_case_4() -> RaptorAlgorithm {
             // Line 100
             ((TripId(100_1), StopId(2), 0), arr100),
             ((TripId(100_1), StopId(3), 0), arr300),
-            ((TripId(100_2), StopId(2), 0), arr150),
+            ((TripId(100_2), StopId(2), 0), arr250),
             ((TripId(100_2), StopId(3), 0), arr350),
             // Line 101
             ((TripId(101_1), StopId(2), 0), arr100),

@@ -298,7 +298,7 @@ mod tests {
     use common::util::duration;
     use hashbrown::{HashMap, HashSet};
     use ndarray::array;
-    
+
     fn case1() -> RaptorAlgorithm {
         RaptorAlgorithm {
             stop_mapping: StopMapping(vec![0, 1].into_iter().map(|x| StopId(x)).collect()),
@@ -326,7 +326,7 @@ mod tests {
             }),
         }
     }
-    
+
     fn case2() -> RaptorAlgorithm {
         RaptorAlgorithm {
             stop_mapping: StopMapping(vec![0, 1, 2].into_iter().map(|x| StopId(x)).collect()),
@@ -506,7 +506,7 @@ mod tests {
         let actual = raptor.query_range_all(
             Range { start: StopId(0), earliest_departure: DateTime::UNIX_EPOCH, range: Duration::seconds(100) },
         ).unwrap();
-        
+
         let case2_trip0_leg0 = Leg::Ride {
             boarding_stop: StopId(0),
             alight_stop: StopId(1),
@@ -514,7 +514,7 @@ mod tests {
             alight_time: DateTime::<Utc>::from_timestamp(500, 0).unwrap(),
             trip: TripId(0),
         };
-        
+
         let expected = RangeOutput {
             journeys: HashSet::from([
                 Journey::from(vec![
@@ -580,7 +580,7 @@ mod tests {
         let actual = raptor.query_range_all(
             Range { start: StopId(0), earliest_departure: DateTime::UNIX_EPOCH, range: Duration::seconds(101) },
         ).unwrap();
-        
+
         let case3_journey0_leg0 = Leg::Ride {
             boarding_stop: StopId(0),
             alight_stop: StopId(1),
@@ -593,7 +593,7 @@ mod tests {
             end: StopId(2),
             duration: duration_1_to_2,
         };
-        
+
         let expected = RangeOutput { journeys: HashSet::from([
             Journey::from(vec![case3_journey0_leg0.clone()]),
             Journey::from(vec![case3_journey0_leg0.clone(), case3_journey0_leg1.clone()]),
@@ -614,7 +614,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_query_earliest_4() {
+    async fn test_query_range_all_4() {
         let dep20 = DateTime::<Utc>::from_timestamp(20, 0).unwrap();
         let dep220 = DateTime::<Utc>::from_timestamp(220, 0).unwrap();
         let dep110 = DateTime::<Utc>::from_timestamp(110, 0).unwrap();
@@ -639,9 +639,9 @@ mod tests {
         // 0 ---Ride(130_1)--> 3 ---Transfer--> 4
         // Takes 250s + 410s = 660s
         let actual = raptor.query_range_all(
-            Range { start: StopId(0), earliest_departure: dep0, range: Duration::seconds(100) },
+            Range { start: StopId(0), earliest_departure: dep0, range: Duration::seconds(1) },
         ).unwrap();
-        
+
         let case4_journey_0_leg0 = Leg::Ride {
             trip: TripId(130_1),
             boarding_stop: StopId(0),
@@ -649,7 +649,7 @@ mod tests {
             boarding_time: dep0,
             alight_time: arr250,
         };
-        
+
         let expected = RangeOutput { journeys: HashSet::from([
             Journey::from(vec![case4_journey_0_leg0.clone()]),
             Journey::from(vec![
@@ -661,27 +661,45 @@ mod tests {
                 },
             ])
         ])};
-        
+
         assert_eq!(actual, expected);
 
         // Start 1s second later than the last case. Now, we can't take 130_1 anymore, since it
         // departs at 0s. Instead, we have to take this slower connection:
         // 0@20s   ---Ride(100_1)-->   2@100s, 2@490s   ---Ride(120_2)-->   4@700s
-        // this connection arrives well before the following, which would arrive at 710s instead
-        // of 700s:
+        // this connection arrives before the following, which would arrive at 710s instead of 700s:
         // 0@20s   ---Ride(100_1)-->   3@300s   ---Transfer-->   4@710s
         let actual = raptor.query_range_all(
-            Range { start: StopId(0), earliest_departure: DateTime::<Utc>::from_timestamp(1, 0).unwrap(), range: Duration::seconds(100) },
+            Range { start: StopId(0), earliest_departure: DateTime::<Utc>::from_timestamp(1, 0).unwrap(), range: Duration::seconds(20) },
         ).unwrap();
-        
+
         let case4_journey1_leg0 = Leg::Ride {
             trip: TripId(100_1),
             boarding_stop: StopId(0), alight_stop: StopId(2),
             boarding_time: dep20, alight_time: arr100,
         };
-        
+
         let expected = RangeOutput { journeys: HashSet::from([
+            // 0 to 1
+            Journey::from(vec![
+                case4_journey1_leg0.clone(),
+                Leg::Ride {
+                    trip: TripId(101_1),
+                    boarding_stop: StopId(2), alight_stop: StopId(1),
+                    boarding_time: dep110, alight_time: arr150,
+                }
+            ]),
+            // 0 to 2
             Journey::from(vec![case4_journey1_leg0.clone()]),
+            // 0 to 3
+            Journey::from(vec![
+                Leg::Ride {
+                    trip: TripId(100_1),
+                    boarding_stop: StopId(0), alight_stop: StopId(3),
+                    boarding_time: dep20, alight_time: arr300,
+                }
+            ]),
+            // 0 to 4
             Journey::from(vec![
                 case4_journey1_leg0,
                 Leg::Ride {
