@@ -111,7 +111,9 @@ impl RaptorAlgorithm {
                     // if t != ⊥ and ...
                     if let Some(trip) = trip {
                         let b_arrival = self.arrivals.get(&(trip, *b_stop, *b_visit_idx))
-                            .unwrap_or(&INFINITY); // TODO: Why is this not an error?
+                            .unwrap_or_else(|| panic!(
+                                "Expected arrival for stop {b_stop:?} (visit {b_visit_idx}) to exist on trip {trip:?}"
+                            ));
                         let best_b_arrival = state.best_arrival(b_stop);
 
                         // taking the trip to b it is faster than not taking it
