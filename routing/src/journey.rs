@@ -31,11 +31,11 @@ impl Leg {
         );
 
         match self {
-            Leg::Ride { boarding_time, alight_time, .. } => {
+            Leg::Ride { boarding_time, alight_time, trip, .. } => {
                 debug_assert!(
                     boarding_time <= alight_time,
-                    "Start of leg ({} @{}) must not be after end ({} @{}).",
-                    self.start(), boarding_time, self.end(), alight_time
+                    "Start of leg ({} @{}) must not be after end ({} @{}). Trip: {:?}",
+                    self.start(), boarding_time, self.end(), alight_time, trip
                 );
             }
             Leg::Transfer { duration, .. } => {
