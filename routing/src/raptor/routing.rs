@@ -139,10 +139,9 @@ impl RaptorAlgorithm {
                     // Initialize trip if its None. Also execute when we can catch an earlier trip
                     // of the same line at stop b.
                     if prev_b_arrival <= b_departure {
-                        let next_trip = self.earliest_trip(*line, *b_stop, *prev_b_arrival);
+                        trip = self.earliest_trip(*line, *b_stop, *prev_b_arrival);
 
-                        if next_trip.is_some() {
-                            trip = next_trip;
+                        if trip.is_some() {
                             boarding = Some((*b_stop, *b_visit_idx));
                         }
                     }
