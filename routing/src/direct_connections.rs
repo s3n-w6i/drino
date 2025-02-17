@@ -215,12 +215,12 @@ impl DirectConnections {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::tests::case_1::generate_preprocessing_input;
+    use crate::tests::case_1;
     use polars::datatypes::AnyValue::List;
 
     #[test]
     fn test_case_1() {
-        let input = generate_preprocessing_input().unwrap();
+        let input = case_1::generate_preprocessing_input().unwrap();
 
         let expected = DirectConnections {
             line_progressions: df![
@@ -232,8 +232,8 @@ mod tests {
                 "line_id" => [0u32, 0],
                 "trip_id" => [0u32, 0],
                 "stop_id" => [0u32, 1],
-                "arrival" => [AnyValue::Duration(100, TimeUnit::Milliseconds), AnyValue::Duration(500, TimeUnit::Milliseconds)],
-                "departure" => [AnyValue::Duration(100, TimeUnit::Milliseconds), AnyValue::Duration(500, TimeUnit::Milliseconds)],
+                "arrival" => [AnyValue::Duration(100_000, TimeUnit::Milliseconds), AnyValue::Duration(500_000, TimeUnit::Milliseconds)],
+                "departure" => [AnyValue::Duration(100_000, TimeUnit::Milliseconds), AnyValue::Duration(500_000, TimeUnit::Milliseconds)],
                 "stop_sequence" => [0u32, 1],
             ].unwrap(),
             stop_incidence: df![
