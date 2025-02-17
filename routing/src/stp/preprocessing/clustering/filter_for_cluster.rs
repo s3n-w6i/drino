@@ -113,17 +113,16 @@ mod tests {
             .u32().unwrap()
             .to_vec();
         assert_eq!(filtered_stops_ids.len(), 2);
-        // The new stop ids are continuous starting from 0
-        assert!(filtered_stops_ids.contains(&Some(0)));
-        assert!(filtered_stops_ids.contains(&Some(1)));
+        assert!(filtered_stops_ids.contains(&Some(2)));
+        assert!(filtered_stops_ids.contains(&Some(3)));
 
         let filtered_stop_times_station_ids = filtered_stop_times.clone().collect().unwrap()
             .column("stop_id").unwrap()
             .u32().unwrap()
             .to_vec();
         assert_eq!(filtered_stop_times_station_ids.len(), 3);
-        assert!(filtered_stop_times_station_ids.contains(&Some(0)));
-        assert!(filtered_stop_times_station_ids.contains(&Some(1)));
+        assert!(filtered_stop_times_station_ids.contains(&Some(2)));
+        assert!(filtered_stop_times_station_ids.contains(&Some(3)));
         let filtered_stop_times_trip_ids = filtered_stop_times.collect().unwrap()
             .column("trip_id").unwrap()
             .u32().unwrap()
