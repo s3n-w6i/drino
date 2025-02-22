@@ -2,6 +2,7 @@ use chrono::{DateTime, Duration, TimeDelta, Utc};
 use common::types::{StopId, TripId};
 use std::fmt::{Debug, Formatter};
 use std::slice::Iter;
+#[cfg(debug_assertions)] use itertools::Itertools;
 
 #[derive(Clone, Eq, PartialEq, Hash)]
 pub enum Leg {
