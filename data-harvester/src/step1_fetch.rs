@@ -2,7 +2,7 @@ use std::fmt;
 use std::fmt::Display;
 use std::io::{Cursor};
 use std::time::{SystemTime, UNIX_EPOCH};
-use common::types::dataset::{Dataset, DataSource};
+use common::types::config::dataset::{Dataset, DataSource};
 use std::fs::{create_dir_all, File};
 use std::path::{Path, PathBuf};
 

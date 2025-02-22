@@ -2,7 +2,6 @@ use chrono::{DateTime, NaiveDate, Utc};
 use polars::datatypes::AnyValue;
 use std::fmt::{Debug, Display, Formatter};
 
-pub mod dataset;
 pub mod config;
 pub mod errors;
 

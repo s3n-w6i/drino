@@ -4,7 +4,7 @@ use common::types::config::Config;
 use common::util::logging;
 use log::{info, LevelFilter};
 use std::str::FromStr;
-use common::types::dataset::{DataSource, Dataset, DatasetConsistency, DatasetFormat, DatasetGroup, GeoPointConsistency, IdConsistency, License};
+use common::types::config::dataset::{DataSource, Dataset, DatasetConsistency, DatasetFormat, DatasetGroup, GeoPointConsistency, IdConsistency, License};
 use url::Url;
 use common::util::distance::Distance;
 use drino_visualization::build_server;
@@ -51,6 +51,7 @@ async fn main() -> std::io::Result<()> {
                     }
                 }
             ],
+            features: Default::default(),
         },
         "../data".into(),
         false

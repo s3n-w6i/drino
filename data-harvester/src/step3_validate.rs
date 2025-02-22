@@ -1,7 +1,7 @@
 use std::fmt::Display;
 use std::io::{BufRead, ErrorKind};
 use std::process::Command;
-use common::types::dataset::{DataSource, Dataset, DatasetFormat};
+use common::types::config::dataset::{DataSource, Dataset, DatasetFormat};
 use log::{debug, error, warn};
 use crate::step2_import::{ImportStepExtra, ImportStepOutput};
 use crate::step3_validate::ValidateError::{GtfsTidy, UnknownFormat, UnsupportedDatasetSource};
@@ -57,7 +57,7 @@ async fn validate_gtfs(dataset: &Dataset) -> Result<(), ValidateError> {
     };
 
     let gtfstidy_out = Command::new("gtfstidy")
-        .arg("-v")
+        .arg("-v") // Validate only
         .arg(filepath)
         .output()?;
     

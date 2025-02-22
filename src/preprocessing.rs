@@ -5,7 +5,7 @@ use log::{debug, info};
 use polars::prelude::IntoLazy;
 use tempfile::TempPath;
 use tokio::runtime::Runtime;
-use common::types::dataset::Dataset;
+use common::types::config::dataset::Dataset;
 use common::util::logging;
 use data_harvester::step1_fetch::fetch_dataset;
 use data_harvester::step2_import::{import_data, ImportStepExtra};

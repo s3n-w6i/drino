@@ -2,7 +2,7 @@ mod gtfs;
 
 use crate::step1_fetch::FetchStepOutput;
 use crate::step2_import::gtfs::import_gtfs;
-use common::types::dataset::{Dataset, DatasetFormat};
+use common::types::config::dataset::{Dataset, DatasetFormat};
 use polars::prelude::LazyFrame;
 use std::fmt::Display;
 use std::path::PathBuf;
