@@ -4,7 +4,6 @@ use futures::StreamExt;
 use log::{debug, info};
 use polars::prelude::IntoLazy;
 use tempfile::TempPath;
-use tokio::runtime::Runtime;
 use common::types::config::dataset::Dataset;
 use common::util::logging;
 use data_harvester::step1_fetch::fetch_dataset;

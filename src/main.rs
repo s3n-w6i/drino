@@ -16,10 +16,8 @@ use log::{debug, error, info};
 use polars::error::PolarsError;
 use preprocessing::preprocess;
 use routing::algorithm::PreprocessingError;
-use routing::raptor::RaptorAlgorithm;
 use routing::stp::ScalableTransferPatternsAlgorithm;
 use std::fmt::{Display, Formatter};
-use std::thread;
 use tokio::signal;
 
 type ALGORITHM = ScalableTransferPatternsAlgorithm;
