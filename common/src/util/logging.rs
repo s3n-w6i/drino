@@ -1,3 +1,4 @@
+use std::ops::AsyncFnOnce;
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use indicatif_log_bridge::LogWrapper;
 use log::{info, LevelFilter};
@@ -44,7 +45,35 @@ pub fn run_with_spinner<'a, F, Out>(
 
     pb.finish_and_clear();
     unsafe { MULTI.clone().unwrap().remove(&pb); };
-    
+
+    let elapsed = indicatif::HumanDuration(start_time.elapsed().unwrap());
+    info!(target: target, "{} finished (took {})", task_desc, elapsed);
+
+    out
+}
+
+pub async fn run_with_spinner_async<'a, F, Out>(
+    target: &'a str, task_desc: &'a str, function: F,
+) -> Out where
+    F: AsyncFnOnce() -> Out,
+{
+    let start_time = SystemTime::now();
+
+    let pb = ProgressBar::new_spinner()
+        .with_message(format!("{}...", task_desc))
+        .with_style(ProgressStyle::with_template("{spinner:.white} [{elapsed:.green}] {msg}").unwrap());
+    pb.enable_steady_tick(Duration::from_millis(100));
+
+    // Set up connection with log library so that progress bars don't jump around
+    unsafe {
+        MULTI.clone().unwrap().add(pb.clone());
+    };
+
+    let out = function().await;
+
+    pb.finish_and_clear();
+    unsafe { MULTI.clone().unwrap().remove(&pb); };
+
     let elapsed = indicatif::HumanDuration(start_time.elapsed().unwrap());
     info!(target: target, "{} finished (took {})", task_desc, elapsed);
 

@@ -5,6 +5,8 @@ edition = "2021"
 
 [dependencies]
 actix-web = { workspace = true }
+common = { workspace = true }
 routing = { workspace = true }
 thiserror = { workspace = true }
 log = { workspace = true }
+serde = { workspace = true }

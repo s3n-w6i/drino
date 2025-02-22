@@ -18,17 +18,18 @@ use crate::config::ConfigError;
 
 /// Wrapper for `preprocess_inner` that handles cleaning up temporary files, even if error was
 /// thrown.
-pub fn preprocess(datasets: Vec<Dataset>) -> Result<ALGORITHM, DrinoError> {
+pub async fn preprocess(datasets: Vec<Dataset>) -> Result<ALGORITHM, DrinoError> {
     let mut files_to_clean_up: Vec<PathBuf> = vec![];
 
-    let result = preprocess_inner(datasets, &mut files_to_clean_up);
+    let result = preprocess_inner(datasets, &mut files_to_clean_up)
+        .await;
 
     clean_up(files_to_clean_up);
 
     result
 }
 
-fn preprocess_inner(
+async fn preprocess_inner(
     datasets: Vec<Dataset>,
     files_to_clean_up: &mut Vec<PathBuf>,
 ) -> Result<ALGORITHM, DrinoError> {
@@ -36,50 +37,47 @@ fn preprocess_inner(
     let preprocessing_start_time = SystemTime::now();
 
     let preprocessing_input =
-        logging::run_with_spinner("preprocessing", "Fetching and importing datasets", || {
-            let rt = Runtime::new().unwrap();
-            rt.block_on(async {
-                if datasets.len() > 1 {
+        logging::run_with_spinner_async("preprocessing", "Fetching and importing datasets", async || {
+            if datasets.len() > 1 {
+                todo!("Using multiple datasets is not yet supported")
+            }
+            match datasets.len() {
+                0 => {
+                    Err(DrinoError::Config(ConfigError::NoDatasets()))
+                }
+                2.. => {
                     todo!("Using multiple datasets is not yet supported")
+                },
+                1 => {
+                    let datasets = datasets.into_iter().take(1);
+
+                    let results = futures::stream::iter(datasets)
+                        .then(|dataset| async move {
+                            let fetch_out = fetch_dataset(dataset).await?;
+                            let import_out = import_data(fetch_out).await?;
+                            let validated = validate_data(import_out).await?;
+                            Ok::<ValidateStepOutput, DrinoError>(validated)
+                        })
+                        .collect::<Vec<Result<ValidateStepOutput, DrinoError>>>()
+                        .await
+                        .into_iter()
+                        .collect::<Result<Vec<ValidateStepOutput>, DrinoError>>()?;
+
+                    results.iter().for_each(|result| match &result.extra {
+                        ImportStepExtra::Gtfs {
+                            temporary_files, ..
+                        } => temporary_files
+                            .iter()
+                            .for_each(|f| files_to_clean_up.push(f.clone())),
+                    });
+
+                    let merged = merge(results).await?;
+                    let simplified = simplify(merged).await?;
+
+                    Ok::<PreprocessingInput, DrinoError>(simplified)
                 }
-                match datasets.len() {
-                    0 => {
-                        Err(DrinoError::Config(ConfigError::NoDatasets()))
-                    }
-                    2.. => {
-                        todo!("Using multiple datasets is not yet supported")
-                    },
-                    1 => {
-                        let datasets = datasets.into_iter().take(1);
-
-                        let results = futures::stream::iter(datasets)
-                            .then(|dataset| async move {
-                                let fetch_out = fetch_dataset(dataset).await?;
-                                let import_out = import_data(fetch_out).await?;
-                                let validated = validate_data(import_out).await?;
-                                Ok::<ValidateStepOutput, DrinoError>(validated)
-                            })
-                            .collect::<Vec<Result<ValidateStepOutput, DrinoError>>>()
-                            .await
-                            .into_iter()
-                            .collect::<Result<Vec<ValidateStepOutput>, DrinoError>>()?;
-
-                        results.iter().for_each(|result| match &result.extra {
-                            ImportStepExtra::Gtfs {
-                                temporary_files, ..
-                            } => temporary_files
-                                .iter()
-                                .for_each(|f| files_to_clean_up.push(f.clone())),
-                        });
-
-                        let merged = merge(results).await?;
-                        let simplified = simplify(merged).await?;
-
-                        Ok::<PreprocessingInput, DrinoError>(simplified)
-                    }
-                }
-            })
-        })?;
+            }
+        }).await?;
 
     // TODO: Merge datasets (with deduplication) and frequency reduce calender times
 

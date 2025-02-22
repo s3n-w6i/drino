@@ -9,16 +9,18 @@ use common::util::logging;
 use common::util::speed::Speed;
 use data_harvester::step1_fetch::FetchError;
 use data_harvester::step2_import::ImportError;
+use data_harvester::step3_validate::ValidateError;
 use data_harvester::step4_merge::MergeError;
 use data_harvester::step5_simplify::SimplifyError;
 use log::{debug, error, info};
 use polars::error::PolarsError;
+use preprocessing::preprocess;
 use routing::algorithm::PreprocessingError;
+use routing::raptor::RaptorAlgorithm;
 use routing::stp::ScalableTransferPatternsAlgorithm;
 use std::fmt::{Display, Formatter};
 use std::thread;
-use data_harvester::step3_validate::ValidateError;
-use preprocessing::preprocess;
+use tokio::signal;
 
 type ALGORITHM = ScalableTransferPatternsAlgorithm;
 
@@ -26,11 +28,14 @@ type ALGORITHM = ScalableTransferPatternsAlgorithm;
 // This must be high enough, otherwise wrong routes might be calculated
 pub const MAX_SPEED: Speed = Speed(500.0);
 
-fn main() {
-    let _ = run().inspect_err(|err| error!(target: "main", "{}", err));
+#[tokio::main]
+async fn main() {
+    let _ = run()
+        .await
+        .inspect_err(|err| error!(target: "main", "{}", err));
 }
 
-fn run() -> Result<(), DrinoError> {
+async fn run() -> Result<(), DrinoError> {
     let bootstrap_config = BootstrapConfig::read();
 
     logging::init(bootstrap_config.clone().log_level.into());
@@ -39,34 +44,32 @@ fn run() -> Result<(), DrinoError> {
     debug!(target: "main", "Using temporary folder at {}", std::env::temp_dir().to_str().unwrap());
 
     let config = load_config(bootstrap_config)?;
-    
+
     info!(target: "visualization", "Launching visualization server");
-    let vis_server_config = config.clone();
-    let vis_server_thread = thread::spawn(move || {
-        let vis_server_rt = actix_web::rt::Runtime::new()
-            .expect("Could not create actix runtime");
-        let vis_server_handle = vis_server_rt.spawn(async move {
-            let vis_server = visualization::build_server(
-                vis_server_config, "./data".into(), true
-            ).await.expect("Error building visualization server");
-            
-            vis_server.await.expect("Error running visualization server");
-        });
-        
-        vis_server_rt.block_on(vis_server_handle).unwrap();
-        
-        info!(target: "visualization", "Visualization server shut down");
-    });
+    let vis_server = visualization::build_server(config.clone(), "./data".into(), true).await?;
+    let vis_server_handle = vis_server.handle();
+    tokio::spawn(vis_server);
 
-    match config {
+    let api_server = match config {
         Config::Version1 { datasets, .. } => {
-            let algorithm = preprocess(datasets)?;
+            let algorithm = preprocess(datasets).await?;
 
-            server::serve(algorithm)?;
+            server::build(algorithm).await?
         }
     };
-    
-    vis_server_thread.join().expect("Visualization server thread join error");
+    let api_server_handle = api_server.handle();
+    tokio::spawn(api_server);
+
+    signal::ctrl_c().await?;
+    info!(target: "main", "Received shutdown signal");
+
+    logging::run_with_spinner_async("main", "Shutting down servers", async || {
+        vis_server_handle.stop(true).await;
+        debug!(target: "main", "Visualization server stopped");
+        api_server_handle.stop(true).await;
+        debug!(target: "main", "API server stopped");
+    })
+    .await;
 
     Ok(())
 }

@@ -1,36 +1,35 @@
+mod api;
+
+use actix_web::dev::{Server, ServerHandle};
 use actix_web::rt::task::JoinHandle;
 use actix_web::web::Data;
 use actix_web::{App, HttpServer};
+use log::info;
 use routing::algorithm::RoutingAlgorithm;
 use std::fmt::Display;
+use std::future::Future;
+use std::io;
+use std::process::Output;
 use std::sync::Arc;
-use log::info;
 
-pub fn serve<A: RoutingAlgorithm + Clone + Send + 'static>(
+pub async fn build<A: RoutingAlgorithm + Clone + Send + 'static>(
     algorithm: A,
-) -> Result<(), ServerError> {
+) -> Result<Server, ServerError> {
     info!(target: "server", "Starting API server");
-    
-    let rt = actix_web::rt::Runtime::new()?;
 
-    let server_handle: JoinHandle<Result<(), ServerError>> = rt.spawn(async move {
-        HttpServer::new(move || {
-            let data = Data::new(Arc::new(algorithm.clone()));
+    let server = HttpServer::new(move || {
+        let data = Data::new(Arc::new(algorithm.clone()));
 
-            App::new()
-                .app_data(Data::clone(&data))
-        })
-            .bind("127.0.0.1:8080")?
-            .run().await?;
+        App::new().app_data(Data::clone(&data))
+            //.service(api::v1::earliest_arrival::earliest_arrival)
+    })
+    .bind("127.0.0.1:8080")?
+    .disable_signals() // We'll handle shutdown ourselves
+    .run();
 
-        Ok(())
-    });
+    info!(target: "server", "Started API server");
 
-    rt.block_on(server_handle).unwrap()?;
-
-    info!(target: "server", "Shut down API server");
-    
-    Ok(())
+    Ok(server)
 }
 
 #[derive(thiserror::Error, Debug)]
