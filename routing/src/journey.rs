@@ -1,6 +1,5 @@
 use chrono::{DateTime, Duration, TimeDelta, Utc};
 use common::types::{StopId, TripId};
-use itertools::Itertools;
 use std::fmt::{Debug, Formatter};
 use std::slice::Iter;
 

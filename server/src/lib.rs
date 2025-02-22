@@ -1,15 +1,11 @@
 mod api;
 
-use actix_web::dev::{Server, ServerHandle};
-use actix_web::rt::task::JoinHandle;
+use actix_web::dev::Server;
 use actix_web::web::Data;
 use actix_web::{App, HttpServer};
 use log::info;
 use routing::algorithm::RoutingAlgorithm;
 use std::fmt::Display;
-use std::future::Future;
-use std::io;
-use std::process::Output;
 use std::sync::Arc;
 
 pub async fn build<A: RoutingAlgorithm + Clone + Send + 'static>(

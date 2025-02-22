@@ -9,11 +9,13 @@ use crate::raptor::{
 use crate::transfers::crow_fly::CrowFlyTransferProvider;
 use chrono::DateTime;
 use common::types::{LineId, StopId, TripId};
-use common::util::time::INFINITY;
-use itertools::{izip, Itertools};
+use itertools::izip;
 use polars::error::PolarsError;
 use polars::prelude::*;
-use std::ops::{BitAnd, BitOr};
+#[cfg(debug_assertions)] use common::util::time::INFINITY;
+#[cfg(debug_assertions)] use std::ops::{BitAnd, BitOr};
+#[cfg(debug_assertions)] use itertools::Itertools;
+
 
 impl PreprocessInit for RaptorAlgorithm {
     fn preprocess(
