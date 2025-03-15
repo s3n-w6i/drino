@@ -13,6 +13,7 @@ pub enum Config {
         datasets: Vec<Dataset>,
         #[serde(default)]
         dataset_groups: Vec<DatasetGroup>,
+        #[serde(default)]
         features: FeatureConfig,
     }
 }
