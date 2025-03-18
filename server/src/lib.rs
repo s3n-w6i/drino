@@ -1,7 +1,6 @@
 mod api;
 
 use axum::routing::get;
-use axum::serve::Listener;
 use axum::Router;
 use common::types::config::Config;
 use routing::raptor::RaptorAlgorithm;
