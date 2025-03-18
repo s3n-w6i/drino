@@ -1,7 +1,8 @@
-use crate::algorithm::{PreprocessingResult, RangeOutput};
 use crate::journey::Journey;
 use common::types::StopId;
 use hashbrown::HashSet;
+use crate::algorithms::initialization::PreprocessingResult;
+use crate::algorithms::queries::range::RangeOutput;
 
 /// columns:
 /// - "start" (stop id)
@@ -53,7 +54,7 @@ impl TransferPatternsTable {
     }
 }*/
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub(crate) struct TransferPatternsTable(pub(crate) HashSet<(StopId, Vec<StopId>, StopId)>);
 
 impl TransferPatternsTable {

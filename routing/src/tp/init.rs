@@ -1,4 +1,4 @@
-use crate::algorithm::{AllRange, PreprocessInit, PreprocessingInput, PreprocessingResult, Range};
+use crate::algorithms::initialization::{ByPreprocessing, PreprocessingInput, PreprocessingResult};
 use crate::direct_connections::DirectConnections;
 use crate::raptor::RaptorAlgorithm;
 use crate::tp::transfer_pattern_ds::graph::TransferPatternsGraphs;
@@ -9,16 +9,21 @@ use chrono::{DateTime, Duration};
 use common::util::logging::run_with_pb;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use std::sync::{Arc, Mutex};
+use log::warn;
+use crate::algorithms::queries::cardinality::All;
+use crate::algorithms::queries::Queryable;
+use crate::algorithms::queries::range::{Range, RangeInput};
 
 #[async_trait]
-impl PreprocessInit for TransferPatternsAlgorithm {
+impl ByPreprocessing for TransferPatternsAlgorithm {
     fn preprocess(input: PreprocessingInput, save_to_disk: bool) -> PreprocessingResult<Self> {
         if save_to_disk {
-            unimplemented!()
+            warn!(target: "preprocessing", "Saving to disk is not yet implemented, ignoring");
         }
 
         let direct_connections = DirectConnections::try_from(input.clone())?;
-        let raptor = Arc::new(RaptorAlgorithm::preprocess(input.clone(), direct_connections.clone())?);
+        let raptor = RaptorAlgorithm::preprocess_with_direct_connections(input.clone(), direct_connections.clone())?;
+        let raptor = Arc::new(raptor);
 
         let tp_table = Arc::new(Mutex::new(TransferPatternsTable::new()));
 
@@ -30,12 +35,16 @@ impl PreprocessInit for TransferPatternsAlgorithm {
         let total = raptor.num_stops() as u64;
         run_with_pb("preprocessing", "Calculating local transfers in a single cluster", total, false, |pb| {
             raptor.stop_mapping.0.par_iter()
-                .map(|stop| {
-                    Arc::clone(&raptor).query_range_all(Range {
-                        earliest_departure: DateTime::from_timestamp_millis(0).unwrap(),
-                        start: *stop,
-                        range: Duration::weeks(1),
-                    })
+                .map(|stop| {                   
+                    Queryable::<Range, All>::query(
+                        &*Arc::clone(&raptor), // TODO: This looks bad
+                        RangeInput {
+                            earliest_departure: DateTime::from_timestamp_millis(0).unwrap(),
+                            start: *stop,
+                            range: Duration::weeks(1),
+                        },
+                        All {}
+                    )
                 })
                 .filter_map(|result| result.ok())
                 .map(|range_out| {

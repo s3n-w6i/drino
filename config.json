@@ -1,0 +1,19 @@
+{
+  "version": "1",
+  "datasets": [
+    {
+      "id": "eu:flix:gtfs",
+      "format": "gtfs",
+      "src": { "path": "./dummy-data/gtfs/eu-flix.zip" },
+      "groups": [ "eu:flix" ]
+    }
+  ],
+  "dataset_groups": [
+    {
+      "id": "eu:flix",
+      "consistency": {
+        "stop_ids": true
+      }
+    }
+  ]
+}

@@ -3,9 +3,9 @@ use common::util::df::{write_df_to_file, FileType};
 use polars::frame::DataFrame;
 use polars::prelude::{col, Column, IntoLazy, JoinArgs, JoinType};
 use polars::series::Series;
-use routing::algorithm::PreprocessingInput;
 use std::fmt;
 use std::fmt::Display;
+use routing::algorithms::initialization::PreprocessingInput;
 
 fn assign_new_ids(
     mut frame: DataFrame,

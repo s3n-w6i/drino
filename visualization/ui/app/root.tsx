@@ -4,6 +4,7 @@ import type {Route} from "./+types/root";
 import stylesheet from "./app.css?url";
 import {TooltipProvider} from "~/components/ui/tooltip";
 import * as React from "react";
+import {Toaster} from "~/components/ui/sonner";
 
 export const links: Route.LinksFunction = () => [
     {rel: "stylesheet", href: stylesheet},
@@ -20,6 +21,7 @@ export function Layout({children}: { children: React.ReactNode }) {
         </head>
         <body>
         {children}
+        <Toaster richColors closeButton />
         <ScrollRestoration/>
         <Scripts/>
         </body>

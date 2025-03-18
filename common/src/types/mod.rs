@@ -1,6 +1,7 @@
 use chrono::{DateTime, NaiveDate, Utc};
 use polars::datatypes::AnyValue;
 use std::fmt::{Debug, Display, Formatter};
+use serde::{Deserialize, Serialize};
 
 pub mod config;
 pub mod errors;
@@ -26,7 +27,7 @@ pub fn f64_from_any_value(value: AnyValue) -> Result<f64, ()> {
 // a continuous stop id
 // "continuous" means that if we have n stops, all ids are from 0,...,n-1 and no number in that range
 // is unused
-#[derive(Clone, Copy, Hash, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Serialize, Deserialize, Clone, Copy, Hash, Eq, PartialEq, Ord, PartialOrd)]
 pub struct StopId(pub u32);
 
 impl Display for StopId {
@@ -86,7 +87,7 @@ impl From<u32> for LineId {
 }
 
 
-#[derive(Debug, Clone, Copy, Hash, Eq, PartialEq)]
+#[derive(Serialize, Debug, Clone, Copy, Hash, Eq, PartialEq)]
 pub struct TripId(pub u32);
 
 impl<'a> From<TripId> for AnyValue<'a> {

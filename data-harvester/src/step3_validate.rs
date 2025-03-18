@@ -6,9 +6,9 @@ use log::{debug, error, warn};
 use crate::step2_import::{ImportStepExtra, ImportStepOutput};
 use crate::step3_validate::ValidateError::{GtfsTidy, UnknownFormat, UnsupportedDatasetSource};
 
-pub async fn validate_data(
-    ImportStepOutput { dataset, extra }: ImportStepOutput
-) -> Result<ValidateStepOutput, ValidateError> {
+pub async fn validate_data<'a>(
+    ImportStepOutput { dataset, extra }: ImportStepOutput<'a>
+) -> Result<ValidateStepOutput<'a>, ValidateError> {
     check_existence_of_tools()?;
 
     let result = match dataset.format {
@@ -108,8 +108,8 @@ impl Display for ValidateError {
     }
 }
 
-pub struct ValidateStepOutput {
-    pub(crate) dataset: Dataset,
+pub struct ValidateStepOutput<'a> {
+    pub(crate) dataset: &'a Dataset,
     pub extra: ImportStepExtra,
     pub(crate) skip: bool
 }

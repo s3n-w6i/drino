@@ -1,6 +1,3 @@
-use crate::algorithm::{
-    PreprocessInit, PreprocessingError, PreprocessingInput, PreprocessingResult,
-};
 use crate::direct_connections::{DirectConnections, LineProgressionFrame};
 use crate::stp::preprocessing::clustering::filter_for_cluster;
 use crate::stp::preprocessing::clustering::k_means::cluster;
@@ -19,12 +16,13 @@ use geo::{coord, point, Distance, Haversine};
 use hashbrown::HashSet;
 use log::debug;
 use common::types::StopId;
+use crate::algorithms::initialization::{ByPreprocessing, PreprocessingError, PreprocessingInput, PreprocessingResult};
 
 // The minimum average distance between stations for a line to be considered long-distance. In
 // meters.
 const LONG_DISTANCE_AVG_DISTANCE: u32 = 10_000;
 
-impl PreprocessInit for ScalableTransferPatternsAlgorithm {
+impl ByPreprocessing for ScalableTransferPatternsAlgorithm {
     fn preprocess(input: PreprocessingInput, save_to_disk: bool) -> PreprocessingResult<Self> {
         let direct_connections = run_with_spinner("preprocessing", "Calculating direct connections", || {
             let direct_connections = DirectConnections::try_from(input.clone())?;
@@ -99,6 +97,11 @@ impl PreprocessInit for ScalableTransferPatternsAlgorithm {
                 )
             })?;
         debug!(target: "preprocessing", "Found {} border stations", border_stations.len());
+        
+        let long_distance_transfer_patterns =
+            run_with_spinner("preprocessing", "Calculating long-distance transfer patterns", || {
+                
+            });
 
         // TODO
         Ok(Self {})

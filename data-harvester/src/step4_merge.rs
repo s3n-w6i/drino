@@ -4,13 +4,13 @@ use polars::prelude::{lit, LazyFrame};
 use std::fmt;
 use std::fmt::Display;
 
-pub async fn merge(input: Vec<ValidateStepOutput>) -> Result<DatasetMergeOutput, MergeError> {
+pub async fn merge<'a>(input: Vec<ValidateStepOutput<'a>>) -> Result<DatasetMergeOutput, MergeError> {
     // TODO: Actually merge datasets
     let first = input.into_iter()
         .filter(|data| !data.skip)
         .next()
         .ok_or(MergeError::NoDatasets())?;
-    let dataset_id = first.dataset.id;
+    let dataset_id = &first.dataset.id;
 
     match first.extra.clone() { ImportStepExtra::Gtfs {
         calendar, stops, trips, stop_times, ..

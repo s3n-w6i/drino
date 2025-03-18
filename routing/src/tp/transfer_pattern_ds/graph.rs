@@ -1,4 +1,3 @@
-use crate::algorithm::RangeOutput;
 use crate::journey::Journey;
 use common::types::StopId;
 use hashbrown::HashMap;
@@ -9,6 +8,7 @@ use petgraph::dot::{Config, Dot};
 use petgraph::graph::NodeIndex;
 use petgraph::{Directed, Graph, Incoming};
 use std::fmt::Debug;
+use crate::algorithms::queries::range::RangeOutput;
 
 /// https://ad.informatik.uni-freiburg.de/files/transferpatterns.pdf
 /// This graph only exists for debugging purposes. In the real world, we use the transfer pattern

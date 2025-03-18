@@ -8,9 +8,9 @@ use std::fmt::Display;
 use std::path::PathBuf;
 use std::{fmt, io};
 
-pub async fn import_data(
-    prev_step_out: FetchStepOutput
-) -> Result<ImportStepOutput, ImportError> {
+pub async fn import_data<'a>(
+    prev_step_out: FetchStepOutput<'a>
+) -> Result<ImportStepOutput<'a>, ImportError> {
     match prev_step_out.dataset.format {
         DatasetFormat::Gtfs => {
             let result = import_gtfs(prev_step_out).await?;
@@ -44,8 +44,8 @@ impl Display for ImportError {
     }
 }
 
-pub struct ImportStepOutput {
-    pub(crate) dataset: Dataset,
+pub struct ImportStepOutput<'a> {
+    pub(crate) dataset: &'a Dataset,
     pub(crate) extra: ImportStepExtra,
 }
 

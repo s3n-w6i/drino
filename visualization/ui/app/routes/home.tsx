@@ -87,7 +87,7 @@ export default function Home() {
     let [statsLoading, setStatsLoading] = useState<boolean>(true);
 
     useEffect(() => {
-        fetch("https://localhost:3001/api/v1/stats")
+        fetch("http://localhost:3001/api/v1/stats")
             .then(response => {
                 if (response.ok) {
                     return response.json();
@@ -99,7 +99,7 @@ export default function Home() {
     }, []);
 
     useEffect(() => {
-        const sse = new EventSource('https://localhost:3001/api/v1/status');
+        const sse = new EventSource('http://localhost:3001/api/v1/status');
 
         sse.onerror = () => {
             console.error("sse error");

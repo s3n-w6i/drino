@@ -1,4 +1,4 @@
-use crate::algorithm::{PreprocessingError, PreprocessingInput};
+use crate::algorithms::initialization::{PreprocessingInput, PreprocessingResult};
 use polars::frame::UniqueKeepStrategy;
 use polars::prelude::*;
 
@@ -9,7 +9,7 @@ pub fn filter_for_cluster(
     PreprocessingInput {
         stops, stop_times, trips, services
     }: &PreprocessingInput,
-) -> Result<PreprocessingInput, PreprocessingError> {
+) -> PreprocessingResult<PreprocessingInput> {
     let stop_ids_in_this_cluster = stop_ids_with_cluster_ids.clone().lazy()
         .filter(col("cluster_id").eq(lit(cluster_id)))
         .select([col("stop_id")])

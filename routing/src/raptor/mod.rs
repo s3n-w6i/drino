@@ -1,4 +1,4 @@
-use crate::algorithm::{QueryResult, RoutingAlgorithm};
+use crate::algorithms::RoutingAlgorithm;
 use crate::journey::Journey;
 use crate::transfers::TransferProvider;
 use chrono::{DateTime, Duration, Utc};
@@ -8,7 +8,8 @@ use hashbrown::{HashMap, HashSet};
 mod preprocessing;
 mod routing;
 mod state;
-#[cfg(test)] mod tests;
+#[cfg(test)]
+mod tests;
 
 type GlobalStopId = StopId;
 type LocalStopId = StopId;
@@ -16,8 +17,7 @@ type LocalStopId = StopId;
 /// <(trip_id, stop_id, visit_idx), time>
 /// the visit_idx is there, since a trip could visit the same stop multiple times (think round trips)
 pub type TripAtStopTimeMap = HashMap<(TripId, LocalStopId, u32), DateTime<Utc>>;
-pub type TripsByLineAndStopMap =
-    HashMap<(LineId, LocalStopId), Vec<(DateTime<Utc>, TripId)>>;
+pub type TripsByLineAndStopMap = HashMap<(LineId, LocalStopId), Vec<(DateTime<Utc>, TripId)>>;
 
 pub type StopsByLineMap = HashMap<LineId, Vec<(LocalStopId, u32)>>;
 pub type LinesByStopMap = HashMap<LocalStopId, HashSet<(LineId, SeqNum)>>;

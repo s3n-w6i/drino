@@ -1,5 +1,8 @@
 version: 1
 datasets:
+  - id: eu:flix:gtfs
+    format: gtfs
+    src: { path: ./dummy-data/gtfs/eu-flix.zip }
 #  - id: de:vvs:gtfs
 #    format: gtfs
 #    license: CC-BY-4.0
@@ -14,10 +17,9 @@ datasets:
 #    format: gtfs
 #    src:
 #      url: https://gtfs.gis.flix.tech/gtfs_generic_eu.zip
-#  - id: eu:flix:gtfs
+#  - id: google:transitfeed:good_feed
 #    format: gtfs
-#    src:
-#      path: ./dummy-data/gtfs/eu-flix.zip
+#    src: { path: ./dummy-data/gtfs/good_feed_google-transitfeed.zip }
 #  - id: de:gtfs
 #    format: gtfs
 #    license: CC-BY-4.0
@@ -25,19 +27,18 @@ datasets:
 #      path: ./dummy-data/gtfs/germany.zip
 #  - id: no:gtfs
 #    format: gtfs
-#    src:
-#      path: ./dummy-data/gtfs/norway.zip
+#    src: { path: ./dummy-data/gtfs/norway.zip }
 #  - id: de:bw:gtfs
 #    format: gtfs
 #    license: DL-DE-BY-2.0
 #    src:
 #      path: ./dummy-data/gtfs/bw.zip
-  - id: de:vvs:gtfs
-    format: gtfs
-    license: CC-BY-4.0
-    groups: [de:vvs]
-    src:
-      path: ./dummy-data/gtfs/vvs.zip
+#  - id: de:vvs:gtfs
+#    format: gtfs
+#    license: CC-BY-4.0
+#    groups: [de:vvs]
+#    src:
+#      path: ./dummy-data/gtfs/vvs.zip
 
 dataset_groups:
   - id: de:vvs

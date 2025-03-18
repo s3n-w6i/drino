@@ -7,7 +7,7 @@ use std::fs::{create_dir_all, File};
 use std::path::{Path, PathBuf};
 
 pub async fn fetch_dataset(
-    dataset: Dataset
+    dataset: &Dataset
 ) -> Result<FetchStepOutput, FetchError> {
     match dataset.clone().src {
         DataSource::URL { url, .. } => {
@@ -53,7 +53,7 @@ impl Display for FetchError {
 
 
 
-pub struct FetchStepOutput {
-    pub(crate) dataset: Dataset,
+pub struct FetchStepOutput<'a> {
+    pub(crate) dataset: &'a Dataset,
     pub(crate) path: PathBuf
 }

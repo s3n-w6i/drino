@@ -15,12 +15,14 @@ use data_harvester::step5_simplify::SimplifyError;
 use log::{debug, error, info};
 use polars::error::PolarsError;
 use preprocessing::preprocess;
-use routing::algorithm::PreprocessingError;
 use routing::stp::ScalableTransferPatternsAlgorithm;
 use std::fmt::{Display, Formatter};
 use tokio::signal;
+use routing::algorithms::initialization::PreprocessingError;
+use routing::raptor::RaptorAlgorithm;
+use routing::tp::TransferPatternsAlgorithm;
 
-type ALGORITHM = ScalableTransferPatternsAlgorithm;
+type ALGORITHM = RaptorAlgorithm;
 
 // The maximum speed in km/h that any vehicle can travel
 // This must be high enough, otherwise wrong routes might be calculated
@@ -48,11 +50,11 @@ async fn run() -> Result<(), DrinoError> {
     let vis_server_handle = vis_server.handle();
     tokio::spawn(vis_server);
 
-    let api_server = match config {
+    let api_server = match &config {
         Config::Version1 { datasets, .. } => {
             let algorithm = preprocess(datasets).await?;
 
-            server::build(algorithm).await?
+            server::build(algorithm, config).await?
         }
     };
     let api_server_handle = api_server.handle();

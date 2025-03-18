@@ -1,4 +1,4 @@
-use crate::algorithm::PreprocessingInput;
+use crate::algorithms::initialization::PreprocessingInput;
 use chrono::NaiveDate;
 use polars::datatypes::{AnyValue, TimeUnit};
 use polars::df;

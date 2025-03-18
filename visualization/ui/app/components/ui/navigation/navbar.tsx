@@ -2,7 +2,7 @@ import * as React from "react"
 
 import {Tooltip, TooltipContent, TooltipTrigger} from "~/components/ui/tooltip";
 
-import {Database, Home, Map, Settings} from "lucide-react"
+import {Database, Home, Map, Route, Settings} from "lucide-react"
 import Drino from "~/components/ui/icon/drino";
 import {NavLink, useNavigation} from "react-router";
 
@@ -17,6 +17,11 @@ const NAV_BAR_ITEMS = [
         link: "map",
         icon: <Map/>,
         title: "Map"
+    },
+    {
+        link: "routing",
+        icon: <Route />,
+        title: "Routing",
     },
     {
         link: "datasets",

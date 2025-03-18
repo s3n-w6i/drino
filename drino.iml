@@ -2,7 +2,7 @@
 <module type="GENERAL_MODULE" version="4">
   <component name="FacetManager">
     <facet type="Python" name="Python">
-      <configuration sdkName="Python 3.11" />
+      <configuration sdkName="Python 3.12 (3)" />
     </facet>
   </component>
   <component name="NewModuleRootManager" inherit-compiler-output="true">
@@ -14,6 +14,7 @@
       <sourceFolder url="file://$MODULE_DIR$/drino-visualization/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/common/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/routing/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/server/src" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/data" />
       <excludeFolder url="file://$MODULE_DIR$/dummy-data/gtfs/bw" />
       <excludeFolder url="file://$MODULE_DIR$/dummy-data/gtfs/eu-flix" />
@@ -27,6 +28,6 @@
       <excludeFolder url="file://$MODULE_DIR$/dummy-data/gtfs/germany" />
     </content>
     <orderEntry type="sourceFolder" forTests="false" />
-    <orderEntry type="library" name="Python 3.11 interpreter library" level="application" />
+    <orderEntry type="library" name="Python 3.12 (3) interpreter library" level="application" />
   </component>
 </module>

@@ -4,10 +4,10 @@ use polars::frame::DataFrame;
 use polars::prelude::*;
 use polars::series::IntoSeries;
 
-use crate::algorithm::{PreprocessingError, PreprocessingInput};
 use common::types::StopId;
 use common::util::df;
 use common::util::geoarrow_lines::build_geoarrow_lines;
+use crate::algorithms::initialization::{PreprocessingError, PreprocessingInput};
 
 /// In the transfer patterns paper, lines are represented like this:
 ///

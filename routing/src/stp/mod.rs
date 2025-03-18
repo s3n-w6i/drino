@@ -1,6 +1,6 @@
-pub(crate) mod preprocessing;
+use crate::algorithms::RoutingAlgorithm;
 
-use crate::algorithm::RoutingAlgorithm;
+pub(crate) mod preprocessing;
 
 #[derive(Clone)]
 pub struct ScalableTransferPatternsAlgorithm;

@@ -6,6 +6,7 @@ import type {Route} from "../../.react-router/types/app/routes/+types/home";
 import {useEffect, useState} from "react";
 import {LoadingSpinner} from "~/components/ui/spinner";
 import {Skeleton} from "~/components/ui/skeleton";
+import {fetchData} from "~/lib/utils";
 
 export function meta({}: Route.MetaArgs) {
     return [
@@ -36,24 +37,19 @@ export default function DatasetsPage() {
     let [datasetGroups, setDatasetGroups] = useState<DatasetGroup[]>([]);
 
     useEffect(() => {
-        fetch("https://localhost:3001/api/v1/config")
-            .then(response => {
-                if (response.ok) {
-                    return response.json();
-                }
-
-                throw response;
-            })
+        fetchData<Config>("http://localhost:3001/api/v1/config")
             .then(data => {
-                setDatasets(data.datasets);
-                setDatasetGroups(data.dataset_groups);
+                if (data) {
+                    setDatasets(data.datasets);
+                    setDatasetGroups(data.dataset_groups);
+                }
             })
             .finally(() => setConfigLoaded(true));
     }, []);
 
     return (
         <>
-            <div className="grid flex-1 items-_start gap-4 p-4 sm:p-6 md:gap-8">
+            <div className="grid flex-1 items-_start gap-4 px-4 sm:px-6 md:gap-8">
                 <Card>
                     <CardHeader>
                         <CardTitle>Imported Datasets</CardTitle>
@@ -65,6 +61,9 @@ export default function DatasetsPage() {
                                 <TableRow>
                                     <TableHead>
                                         ID
+                                    </TableHead>
+                                    <TableHead>
+                                        Groups
                                     </TableHead>
                                     <TableHead>
                                         Format
@@ -83,6 +82,11 @@ export default function DatasetsPage() {
                                             {dataset.id}
                                         </TableCell>
                                         <TableCell>
+                                            {(dataset.groups || []).map(group => (
+                                                <Badge variant="outline">{group}</Badge>
+                                            ))}
+                                        </TableCell>
+                                        <TableCell>
                                             <Badge variant="secondary">{dataset.format}</Badge>
                                         </TableCell>
                                         <TableCell>
@@ -93,18 +97,18 @@ export default function DatasetsPage() {
                                 {!configLoaded &&
                                     <>
                                         <TableRow>
-                                            <TableCell colSpan={3} className="p-0">
-                                                <Skeleton className="w-full h-9 rounded-none delay-0" />
+                                            <TableCell colSpan={4} className="p-0">
+                                                <Skeleton className="w-full h-9 rounded-none delay-0 bg-gray-100" />
                                             </TableCell>
                                         </TableRow>
                                         <TableRow>
-                                            <TableCell colSpan={3} className="p-0">
-                                                <Skeleton className="w-full h-9 rounded-none delay-200" />
+                                            <TableCell colSpan={4} className="p-0">
+                                                <Skeleton className="w-full h-9 rounded-none delay-200 bg-gray-100" />
                                             </TableCell>
                                         </TableRow>
                                         <TableRow>
-                                            <TableCell colSpan={3} className="p-0">
-                                                <Skeleton className="w-full h-9 rounded-none delay-400" />
+                                            <TableCell colSpan={4} className="p-0">
+                                                <Skeleton className="w-full h-9 rounded-none delay-400 bg-gray-100" />
                                             </TableCell>
                                         </TableRow>
                                     </>
@@ -114,7 +118,7 @@ export default function DatasetsPage() {
                     </CardContent>
                     <CardFooter>
                         <div className="text-xs text-muted-foreground">
-                            <b>{datasets.length} datasets</b> imported from config.yaml
+                            <b>{datasets.length} datasets</b> imported from config file
                         </div>
                     </CardFooter>
                 </Card>
@@ -152,7 +156,7 @@ export default function DatasetsPage() {
                     </CardContent>
                     <CardFooter>
                         <div className="text-xs text-muted-foreground">
-                            <b>{datasetGroups.length} dataset groups</b> imported from config.yaml
+                            <b>{datasetGroups.length} dataset groups</b> imported from config file
                         </div>
                     </CardFooter>
                 </Card>

@@ -11,13 +11,13 @@ use data_harvester::step2_import::{import_data, ImportStepExtra};
 use data_harvester::step3_validate::{validate_data, ValidateStepOutput};
 use data_harvester::step4_merge::merge;
 use data_harvester::step5_simplify::simplify;
-use routing::algorithm::{PreprocessInit, PreprocessingInput};
+use routing::algorithms::initialization::{ByPreprocessing, PreprocessingInput};
 use crate::{DrinoError, ALGORITHM};
 use crate::config::ConfigError;
 
 /// Wrapper for `preprocess_inner` that handles cleaning up temporary files, even if error was
 /// thrown.
-pub async fn preprocess(datasets: Vec<Dataset>) -> Result<ALGORITHM, DrinoError> {
+pub async fn preprocess(datasets: &Vec<Dataset>) -> Result<ALGORITHM, DrinoError> {
     let mut files_to_clean_up: Vec<PathBuf> = vec![];
 
     let result = preprocess_inner(datasets, &mut files_to_clean_up)
@@ -29,7 +29,7 @@ pub async fn preprocess(datasets: Vec<Dataset>) -> Result<ALGORITHM, DrinoError>
 }
 
 async fn preprocess_inner(
-    datasets: Vec<Dataset>,
+    datasets: &Vec<Dataset>,
     files_to_clean_up: &mut Vec<PathBuf>,
 ) -> Result<ALGORITHM, DrinoError> {
     info!(target: "preprocessing", "Starting preprocessing");

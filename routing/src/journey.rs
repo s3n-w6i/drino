@@ -1,13 +1,30 @@
 use chrono::{DateTime, Duration, TimeDelta, Utc};
+use chrono::serde::ts_seconds;
 use common::types::{StopId, TripId};
+#[cfg(debug_assertions)] use itertools::Itertools;
 use std::fmt::{Debug, Formatter};
 use std::slice::Iter;
-#[cfg(debug_assertions)] use itertools::Itertools;
+use serde::Serialize;
+use serde_with::serde_as;
 
-#[derive(Clone, Eq, PartialEq, Hash)]
+#[serde_as]
+#[derive(Serialize, Clone, Eq, PartialEq, Hash)]
 pub enum Leg {
-    Ride { trip: TripId, boarding_stop: StopId, alight_stop: StopId, boarding_time: DateTime<Utc>, alight_time: DateTime<Utc> },
-    Transfer { start: StopId, end: StopId, duration: Duration },
+    Ride {
+        trip: TripId,
+        boarding_stop: StopId,
+        alight_stop: StopId,
+        #[serde(with = "ts_seconds")]
+        boarding_time: DateTime<Utc>,
+        #[serde(with = "ts_seconds")]
+        alight_time: DateTime<Utc>,
+    },
+    Transfer {
+        start: StopId,
+        end: StopId,
+        #[serde_as(as = "serde_with::DurationSeconds<i64>")]
+        duration: Duration,
+    },
 }
 
 impl Leg {
@@ -59,9 +76,9 @@ impl Debug for Leg {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Hash)]
+#[derive(Serialize, Clone, Debug, Eq, PartialEq, Hash)]
 pub struct Journey {
-    legs: Vec<Leg>,
+    pub legs: Vec<Leg>,
 }
 
 impl Journey {

@@ -11,7 +11,7 @@ import {
 import {NavLink, useLocation} from "react-router";
 
 const PATH_TITLES: Record<string, string>[] = [
-    { "map": "Map", "datasets": "Datasets" }
+    { "": "Home", "map": "Map", "datasets": "Datasets", "routing": "Routing" },
 ]
 
 export default function ReactRouterBreadcrumbs() {

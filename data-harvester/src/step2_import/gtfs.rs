@@ -12,12 +12,12 @@ use crate::gtfs_file::*;
 use crate::step1_fetch::FetchStepOutput;
 use crate::step2_import::{ImportError, ImportStepExtra, ImportStepOutput};
 
-pub(crate) async fn import_gtfs(
+pub(crate) async fn import_gtfs<'a>(
     FetchStepOutput {
         path,
         dataset
-    }: FetchStepOutput
-) -> Result<ImportStepOutput, ImportError> {
+    }: FetchStepOutput<'a>
+) -> Result<ImportStepOutput<'a>, ImportError> {
     let mut zip_archive_file = File::open(path)?;
     let mut zip_archive = ZipArchive::new(&mut zip_archive_file)?;
 

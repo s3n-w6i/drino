@@ -3,21 +3,30 @@ mod api;
 use actix_web::dev::Server;
 use actix_web::web::Data;
 use actix_web::{App, HttpServer};
+use common::types::config::Config;
 use log::info;
-use routing::algorithm::RoutingAlgorithm;
+use routing::raptor::RaptorAlgorithm;
 use std::fmt::Display;
 use std::sync::Arc;
 
-pub async fn build<A: RoutingAlgorithm + Clone + Send + 'static>(
-    algorithm: A,
-) -> Result<Server, ServerError> {
+type ALGORITHM = RaptorAlgorithm;
+
+struct AppData {
+    algorithm: ALGORITHM,
+    config: Config,
+}
+
+pub async fn build<'a>(algorithm: ALGORITHM, config: Config) -> Result<Server, ServerError> {
     info!(target: "server", "Starting API server");
 
-    let server = HttpServer::new(move || {
-        let data = Data::new(Arc::new(algorithm.clone()));
+    let app_data = Arc::new(AppData { algorithm, config });
 
-        App::new().app_data(Data::clone(&data))
-            //.service(api::v1::earliest_arrival::earliest_arrival)
+    let server = HttpServer::new(move || {
+        let data = Data::new(app_data.clone());
+        
+        App::new()
+            .app_data(data)
+            .service(api::v1::routing::endpoint)
     })
     .bind("127.0.0.1:8080")?
     .disable_signals() // We'll handle shutdown ourselves

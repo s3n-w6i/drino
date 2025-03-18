@@ -5,5 +5,7 @@ export default [
         index("routes/home.tsx"),
         route("map", "routes/map.tsx"),
         route("datasets", "routes/datasets.tsx"),
+        route("live-map", "routes/live-map.tsx"),
+        route("routing", "routes/routing.tsx"),
     ]),
 ] satisfies RouteConfig;

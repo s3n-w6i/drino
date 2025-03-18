@@ -1,6 +1,4 @@
-use crate::algorithm::{
-    PreprocessInit, PreprocessingError, PreprocessingInput, PreprocessingResult,
-};
+use crate::algorithms::initialization::{ByPreprocessing, PreprocessingError, PreprocessingInput, PreprocessingResult};
 use crate::direct_connections::DirectConnections;
 use crate::raptor::{
     GlobalStopId, LinesByStopMap, RaptorAlgorithm, StopMapping, StopsByLineMap, TripAtStopTimeMap,
@@ -9,30 +7,33 @@ use crate::raptor::{
 use crate::transfers::crow_fly::CrowFlyTransferProvider;
 use chrono::DateTime;
 use common::types::{LineId, StopId, TripId};
+#[cfg(debug_assertions)]
+use common::util::time::INFINITY;
 use itertools::izip;
+#[cfg(debug_assertions)]
+use itertools::Itertools;
 use polars::error::PolarsError;
 use polars::prelude::*;
-#[cfg(debug_assertions)] use common::util::time::INFINITY;
-#[cfg(debug_assertions)] use std::ops::{BitAnd, BitOr};
-#[cfg(debug_assertions)] use itertools::Itertools;
+#[cfg(debug_assertions)]
+use std::ops::{BitAnd, BitOr};
+use log::warn;
 
-
-impl PreprocessInit for RaptorAlgorithm {
+impl ByPreprocessing for RaptorAlgorithm {
     fn preprocess(
         input: PreprocessingInput,
         save_to_disk: bool,
     ) -> PreprocessingResult<RaptorAlgorithm> {
         if save_to_disk {
-            unimplemented!()
+            warn!(target: "preprocessing", "Saving to disk is not yet implemented, ignoring");
         }
 
         let direct_connections = DirectConnections::try_from(input.clone())?;
-        Self::preprocess(input, direct_connections)
+        Self::preprocess_with_direct_connections(input, direct_connections)
     }
 }
 
 impl RaptorAlgorithm {
-    pub fn preprocess(
+    pub fn preprocess_with_direct_connections(
         PreprocessingInput { stops, .. }: PreprocessingInput,
         DirectConnections {
             expanded_lines,
@@ -320,7 +321,7 @@ mod tests {
         };
 
         let preprocessing_out =
-            <RaptorAlgorithm as PreprocessInit>::preprocess(preprocessing_in, false).unwrap();
+            <RaptorAlgorithm as ByPreprocessing>::preprocess(preprocessing_in, false).unwrap();
 
         assert!(list_eq(
             &preprocessing_out.stop_mapping.0,

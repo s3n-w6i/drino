@@ -11,6 +11,7 @@ use api::v1::{config_api, stats_api, status_api};
 use common::types::config::Config;
 use std::sync::Arc;
 use std::time::Duration;
+use actix_web::middleware::Logger;
 use tokio::time::interval;
 
 // Import the statically built dashboard files
@@ -59,6 +60,7 @@ pub async fn build_server(
         });
 
         App::new()
+            .wrap(Logger::default().log_target("visualization"))
             .wrap(cors)
             // Make config available in all handlers
             .app_data(web::Data::new(config.clone()))

@@ -1,4 +1,5 @@
-use crate::algorithm::QueryError::NoRouteFound;
+use crate::algorithms::errors::QueryError::NoRouteFound;
+use crate::algorithms::errors::QueryResult;
 use crate::journey::Leg;
 
 use super::*;

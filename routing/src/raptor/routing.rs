@@ -1,4 +1,8 @@
-use crate::algorithm::*;
+use crate::algorithms::errors::{MultiQueryResult, QueryError, QueryResult};
+use crate::algorithms::queries::cardinality::All;
+use crate::algorithms::queries::earliest_arrival::{EarliestArrival, EarliestArrivalInput, EarliestArrivalOutput};
+use crate::algorithms::queries::range::{Range, RangeInput, RangeOutput};
+use crate::algorithms::queries::Queryable;
 use crate::journey::Journey;
 use crate::raptor::state::RaptorState;
 use crate::raptor::{LocalStopId, RaptorAlgorithm};
@@ -115,6 +119,8 @@ impl RaptorAlgorithm {
                                 "Expected arrival for stop {b_stop:?} (visit {b_visit_idx}) to exist on trip {trip:?}"
                             ));
                         let best_b_arrival = state.best_arrival(b_stop);
+                        
+                        //println!("b arrival: {b_arrival} (best: {best_b_arrival:?}) on {trip:?}");
 
                         // taking the trip to b it is faster than not taking it
                         // ...and arr(t, pᵢ) < τ*(pᵢ)
@@ -124,6 +130,8 @@ impl RaptorAlgorithm {
                                 .unwrap_or_else(|| panic!(
                                     "Expected departure for stop {a_stop:?} (visit {boarding_visit_idx}) to exist on trip {trip:?}"
                                 ));
+                            
+                            //println!("boarding departure: {boarding_departure:?}");
 
                             state.set_ride(boarding_stop, *b_stop, *boarding_departure, *b_arrival, trip);
                             marked_stops.insert(*b_stop);
@@ -211,6 +219,7 @@ impl RaptorAlgorithm {
 
         let mut departure = earliest_departure;
         while departure <= last_departure {
+            //println!("departure: {}", departure);
             let res_after_departure = self.run(start, departure);
 
             match res_after_departure {
@@ -228,6 +237,7 @@ impl RaptorAlgorithm {
                         .min();
 
                     if let Some(earliest_departure) = earliest_departure {
+                        debug_assert!(departure <= earliest_departure);
                         departure = earliest_departure + Duration::seconds(1);
                     } else {
                         // There is no earliest departure, so there is no departure at all
@@ -266,8 +276,12 @@ impl RaptorAlgorithm {
     }
 }
 
-impl AllEarliestArrival for RaptorAlgorithm {
-    fn query_ea_all(&self, EarliestArrival { start, earliest_departure }: EarliestArrival) -> MultiQueryResult<EarliestArrivalOutput> {
+impl Queryable<EarliestArrival, All> for RaptorAlgorithm {
+    fn query(
+        &self,
+        EarliestArrivalInput { earliest_departure, start }: EarliestArrivalInput,
+        _: All
+    ) -> MultiQueryResult<EarliestArrivalOutput> {
         let start = self.stop_mapping.translate_to_local(start);
 
         let res_state = self.run(start, earliest_departure)?;
@@ -275,15 +289,19 @@ impl AllEarliestArrival for RaptorAlgorithm {
         let result = journeys.into_iter()
             .map(|journey| EarliestArrivalOutput { journey })
             .collect();
+
         Ok(result)
     }
 }
 
-impl AllRange for RaptorAlgorithm {
-    fn query_range_all(&self, Range { earliest_departure, range, start }: Range) -> QueryResult<RangeOutput> {
+impl Queryable<Range, All> for RaptorAlgorithm {
+    fn query(
+        &self,
+        RangeInput { earliest_departure, range, start }: RangeInput,
+        _: All
+    ) -> QueryResult<RangeOutput> {
         let start = self.stop_mapping.translate_to_local(start);
-
-        self.run_range(start, earliest_departure, range)
+        Ok(self.run_range(start, earliest_departure, range)?)
     }
 }
 
@@ -479,20 +497,26 @@ mod tests {
         let raptor = case1();
 
         // Query a too short range starting from 0
-        let res = raptor.query_range_all(
-            Range { earliest_departure: DateTime::UNIX_EPOCH, range: Duration::seconds(98), start: StopId(0) },
+        let res = Queryable::<Range, All>::query(
+            &raptor,
+            RangeInput { earliest_departure: DateTime::UNIX_EPOCH, range: Duration::seconds(98), start: StopId(0) },
+            All {}
         );
         assert!(matches!(res, Err(QueryError::NoRouteFound)));
 
         // Query a longer range starting from 0
-        let res = raptor.query_range_all(
-            Range { earliest_departure: DateTime::UNIX_EPOCH, range: Duration::seconds(101), start: StopId(0) },
+        let res = Queryable::<Range, All>::query(
+            &raptor,
+            RangeInput { earliest_departure: DateTime::UNIX_EPOCH, range: Duration::seconds(101), start: StopId(0) },
+            All {}
         ).unwrap();
         assert_eq!(res.journeys, HashSet::from([Journey::from( vec![case1_trip0_leg0()] )]));
 
         // query later, after missing the only connection there is
-        let res = raptor.query_range_all(
-            Range { earliest_departure: DateTime::<Utc>::from_timestamp(300, 0).unwrap(), range: Duration::weeks(42), start: StopId(0) },
+        let res = Queryable::<Range, All>::query(
+            &raptor,
+            RangeInput { earliest_departure: DateTime::<Utc>::from_timestamp(300, 0).unwrap(), range: Duration::weeks(42), start: StopId(0) },
+            All {}
         );
         assert!(matches!(res, Err(QueryError::NoRouteFound)));
     }
@@ -503,8 +527,10 @@ mod tests {
     async fn test_query_range_all_2() {
         let raptor = case2();
 
-        let actual = raptor.query_range_all(
-            Range { start: StopId(0), earliest_departure: DateTime::UNIX_EPOCH, range: Duration::seconds(100) },
+        let actual = Queryable::<Range, All>::query(
+            &raptor,
+            RangeInput { start: StopId(0), earliest_departure: DateTime::UNIX_EPOCH, range: Duration::seconds(100) },
+            All {}
         ).unwrap();
 
         let case2_trip0_leg0 = Leg::Ride {
@@ -577,8 +603,10 @@ mod tests {
             }),
         };
 
-        let actual = raptor.query_range_all(
-            Range { start: StopId(0), earliest_departure: DateTime::UNIX_EPOCH, range: Duration::seconds(101) },
+        let actual = Queryable::<Range, All>::query(
+            &raptor,
+            RangeInput { start: StopId(0), earliest_departure: DateTime::UNIX_EPOCH, range: Duration::seconds(101) },
+            All {}
         ).unwrap();
 
         let case3_journey0_leg0 = Leg::Ride {
@@ -634,12 +662,14 @@ mod tests {
         let arr700 = DateTime::<Utc>::from_timestamp(700, 0).unwrap();
         let arr250 = DateTime::<Utc>::from_timestamp(250, 0).unwrap();
 
-        let raptor = generate_case_4();
+        let raptor: RaptorAlgorithm = generate_case_4();
 
         // 0 ---Ride(130_1)--> 3 ---Transfer--> 4
         // Takes 250s + 410s = 660s
-        let actual = raptor.query_range_all(
-            Range { start: StopId(0), earliest_departure: dep0, range: Duration::seconds(1) },
+        let actual = Queryable::<Range, All>::query(
+            &raptor,
+            RangeInput { start: StopId(0), earliest_departure: dep0, range: Duration::seconds(1) },
+            All {}
         ).unwrap();
 
         let case4_journey_0_leg0 = Leg::Ride {
@@ -669,8 +699,10 @@ mod tests {
         // 0@20s   ---Ride(100_1)-->   2@100s, 2@490s   ---Ride(120_2)-->   4@700s
         // this connection arrives before the following, which would arrive at 710s instead of 700s:
         // 0@20s   ---Ride(100_1)-->   3@300s   ---Transfer-->   4@710s
-        let actual = raptor.query_range_all(
-            Range { start: StopId(0), earliest_departure: DateTime::<Utc>::from_timestamp(1, 0).unwrap(), range: Duration::seconds(20) },
+        let actual = Queryable::<Range, All>::query(
+            &raptor,
+            RangeInput { start: StopId(0), earliest_departure: DateTime::<Utc>::from_timestamp(1, 0).unwrap(), range: Duration::seconds(20) },
+            All {}
         ).unwrap();
 
         let case4_journey1_leg0 = Leg::Ride {

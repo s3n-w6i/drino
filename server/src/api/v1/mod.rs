@@ -1,2 +1,1 @@
-pub(crate) mod earliest_arrival;
-mod types;
+pub(crate) mod routing;
