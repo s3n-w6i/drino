@@ -1,13 +1,13 @@
-use crate::{AppData, ALGORITHM};
-use actix_web::{get, web, HttpRequest, HttpResponse, Responder};
-use routing::algorithms::errors::{QueryError, QueryResult};
+use crate::AppData;
+use axum::extract::State;
+use axum::http::StatusCode;
+use routing::algorithms::errors::QueryResult;
 use routing::algorithms::queries;
-use routing::algorithms::queries::cardinality::{All, Single, TargetCardinality};
-use routing::algorithms::queries::earliest_arrival::EarliestArrival;
+use routing::algorithms::queries::cardinality::{All, TargetCardinality};
+use routing::algorithms::queries::range::Range;
 use routing::algorithms::queries::{Query, QueryType, Queryable};
 use serde::{Deserialize, Serialize};
-use common::types::config::Config;
-use routing::algorithms::queries::range::Range;
+use std::sync::Arc;
 
 // TODO: This feels like it should not need to be defined manually. Macro?
 #[derive(Deserialize)]
@@ -24,12 +24,11 @@ enum AnyQuery {
     RangeAll(Query<Range, All>),
 }
 
-#[get("/api/v1/routing")]
 pub(crate) async fn endpoint(
-    app_data: web::Data<AppData>,
+    State(app_data): State<Arc<AppData>>,
     //query: web::Query<AnyQuery>,
-) -> actix_web::Result<impl Responder> {
-    //let algorithm = &app_data.algorithm;
+) -> Result<String, StatusCode> {
+    let algorithm = &app_data.algorithm;
 
     /*let result = match query.0 {
         //AnyQuery::EaSingle(q) => to_responder(run::<EarliestArrival, Single, _>(algorithm, q)),
@@ -47,22 +46,14 @@ pub(crate) async fn endpoint(
     println!("AppData address: {:?}", std::ptr::addr_of!(app_data));
 
     //Ok(result)
-    Ok(HttpResponse::Ok().body("Hi"))
+    Ok("Hi".into())
 }
 
 fn run<QT, TC, R>(algorithm: &impl Queryable<QT, TC>, query: Query<QT, TC>) -> QueryResult<R>
 where
     QT: QueryType,
     TC: TargetCardinality<QT, Output = R>,
-    R: Serialize
+    R: Serialize,
 {
     queries::run(algorithm, query)
-}
-
-fn to_responder<A: Serialize>(result: Result<A, QueryError>) -> HttpResponse {
-    match result {
-        Ok(data) => HttpResponse::Ok().json(data),
-        Err(QueryError::NoRouteFound) => HttpResponse::NotFound().body("No route found"),
-        Err(err) => HttpResponse::InternalServerError().body(err.to_string()),
-    }
 }

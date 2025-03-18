@@ -49,16 +49,25 @@ async fn run() -> Result<(), DrinoError> {
     let vis_server = visualization::build_server(config.clone(), "./data".into(), true).await?;
     let vis_server_handle = vis_server.handle();
     tokio::spawn(vis_server);
+    
+    let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel();
 
-    let api_server = match &config {
+    let (api_listener, api_app) = match &config {
         Config::Version1 { datasets, .. } => {
             let algorithm = preprocess(datasets).await?;
 
             server::build(algorithm, config).await?
         }
     };
-    let api_server_handle = api_server.handle();
-    tokio::spawn(api_server);
+    let api_server_handle = tokio::spawn(async {
+        info!(target: "server", "Launching API server");
+        axum::serve(api_listener, api_app)
+            .with_graceful_shutdown(async move { 
+                _ = shutdown_rx.await;
+            })
+            .await
+            .unwrap();
+    });
 
     signal::ctrl_c().await?;
     info!(target: "main", "Received shutdown signal");
@@ -66,7 +75,8 @@ async fn run() -> Result<(), DrinoError> {
     logging::run_with_spinner_async("main", "Shutting down servers", async || {
         vis_server_handle.stop(true).await;
         debug!(target: "main", "Visualization server stopped");
-        api_server_handle.stop(true).await;
+        _ = shutdown_tx.send(());
+        _ = api_server_handle.await;
         debug!(target: "main", "API server stopped");
     })
     .await;

@@ -1,13 +1,13 @@
 mod api;
 
-use actix_web::dev::Server;
-use actix_web::web::Data;
-use actix_web::{App, HttpServer};
+use axum::routing::get;
+use axum::serve::Listener;
+use axum::Router;
 use common::types::config::Config;
-use log::info;
 use routing::raptor::RaptorAlgorithm;
 use std::fmt::Display;
 use std::sync::Arc;
+use tokio::net::TcpListener;
 
 type ALGORITHM = RaptorAlgorithm;
 
@@ -16,25 +16,19 @@ struct AppData {
     config: Config,
 }
 
-pub async fn build<'a>(algorithm: ALGORITHM, config: Config) -> Result<Server, ServerError> {
-    info!(target: "server", "Starting API server");
-
+pub async fn build<'a>(
+    algorithm: ALGORITHM,
+    config: Config,
+) -> Result<(TcpListener, Router), ServerError> {
     let app_data = Arc::new(AppData { algorithm, config });
 
-    let server = HttpServer::new(move || {
-        let data = Data::new(app_data.clone());
-        
-        App::new()
-            .app_data(data)
-            .service(api::v1::routing::endpoint)
-    })
-    .bind("127.0.0.1:8080")?
-    .disable_signals() // We'll handle shutdown ourselves
-    .run();
+    let app = Router::new()
+        .route("/api/v1/routing", get(api::v1::routing::endpoint))
+        .with_state(app_data);
 
-    info!(target: "server", "Started API server");
+    let listener = TcpListener::bind("0.0.0.0:8080").await?;
 
-    Ok(server)
+    Ok((listener, app))
 }
 
 #[derive(thiserror::Error, Debug)]

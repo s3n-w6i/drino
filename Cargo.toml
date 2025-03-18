@@ -30,6 +30,7 @@ futures = { version = "0.3.30", features = [] }
 log = { workspace = true }
 indicatif = { workspace = true }
 clap = { version = "4.5.18", features = ["env", "derive"] }
+axum = { workspace = true }
 
 [workspace.dependencies]
 common = { path = "common", package = "drino-common" }
@@ -50,6 +51,7 @@ geoarrow = { version = "0.4.0-beta.3", features = ["parquet"] }
 # arrow-schema, arrow-array need to have matching version for geoarrow
 arrow-schema = "53.3.0"
 arrow-array = "53.3.0"
+axum = { version = "0.8.1", features = ["tokio"] }
 # pyo3 = { version = "0.23.3", features = ["auto-initialize"] }
 
 [workspace.dependencies.polars]
