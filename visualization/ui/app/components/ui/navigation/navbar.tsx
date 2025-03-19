@@ -4,7 +4,7 @@ import {Tooltip, TooltipContent, TooltipTrigger} from "~/components/ui/tooltip";
 
 import {Database, Home, Map, Route, Settings} from "lucide-react"
 import Drino from "~/components/ui/icon/drino";
-import {NavLink, useNavigation} from "react-router";
+import {NavLink, useLocation} from "react-router";
 
 
 const NAV_BAR_ITEMS = [
@@ -14,17 +14,17 @@ const NAV_BAR_ITEMS = [
         title: "Home"
     },
     {
-        link: "map",
+        link: "/map",
         icon: <Map/>,
         title: "Map"
     },
     {
-        link: "routing",
+        link: "/routing",
         icon: <Route />,
         title: "Routing",
     },
     {
-        link: "datasets",
+        link: "/datasets",
         icon: <Database/>,
         title: "Datasets"
     }
@@ -34,7 +34,7 @@ const NavBar = React.forwardRef<
     HTMLDivElement,
     React.HTMLAttributes<HTMLDivElement>
 >(() => {
-        const {location} = useNavigation();
+        const location = useLocation();
 
         return (
             <aside className="fixed inset-y-0 left-0 z-10 hidden w-14 flex-col border-r bg-background sm:flex">
