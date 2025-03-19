@@ -33,7 +33,7 @@ pub struct Query<'a, QT: QueryType> {
 }
 
 #[derive(Deserialize)]
-#[serde(untagged)]
+#[serde(tag = "target_type", rename_all = "snake_case")]
 pub enum AnyTargetCardinality<'a> {
     Single(Single),
     Multiple(Multiple<'a>),
@@ -67,7 +67,7 @@ impl<'a> TryFrom<AnyTargetCardinality<'a>> for All {
 
     fn try_from(value: AnyTargetCardinality<'a>) -> Result<Self, Self::Error> {
         match value {
-            AnyTargetCardinality::All(a) => Ok(a),
+            AnyTargetCardinality::All => Ok(All),
             _ => Err(QueryError::InvalidTargetCardinality),
         }
     }
