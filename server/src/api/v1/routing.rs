@@ -67,7 +67,7 @@ impl<'a> TryFrom<AnyTargetCardinality<'a>> for All {
 
     fn try_from(value: AnyTargetCardinality<'a>) -> Result<Self, Self::Error> {
         match value {
-            AnyTargetCardinality::All => Ok(All),
+            AnyTargetCardinality::All(a) => Ok(a),
             _ => Err(QueryError::InvalidTargetCardinality),
         }
     }
