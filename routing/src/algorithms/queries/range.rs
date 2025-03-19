@@ -1,4 +1,4 @@
-use crate::algorithms::errors::{MultiQueryResult, QueryResult};
+use serde_with::DisplayFromStr;
 use crate::algorithms::queries::cardinality::{All, Multiple, Single, TargetCardinality};
 use crate::algorithms::queries::QueryType;
 use crate::journey::Journey;
@@ -6,8 +6,9 @@ use chrono::{DateTime, TimeDelta, Utc};
 use common::types::StopId;
 use hashbrown::HashSet;
 use serde::Deserialize;
-use serde_with::serde_derive::Serialize;
+use serde_with::formats::Flexible;
 use serde_with::serde_as;
+use serde_with::serde_derive::Serialize;
 
 /// A range query asks for all optimal journeys between stations in a specified time range
 
@@ -19,14 +20,16 @@ impl QueryType for Range {
 #[serde_as]
 #[derive(Deserialize)]
 pub struct RangeInput {
+    #[serde_as(as = "serde_with::TimestampSeconds<String, Flexible>")]
     pub(crate) earliest_departure: DateTime<Utc>,
-    #[serde_as(as = "serde_with::DurationSeconds<i64>")]
+    #[serde_as(as = "serde_with::DurationSeconds<String>")]
     pub(crate) range: TimeDelta,
+    #[serde_as(as = "DisplayFromStr")]
     pub(crate) start: StopId,
 }
 
 impl RangeInput {
-    fn from_absolute(earliest: DateTime<Utc>, latest: DateTime<Utc>, start: StopId) -> Self {
+    pub fn from_absolute(earliest: DateTime<Utc>, latest: DateTime<Utc>, start: StopId) -> Self {
         Self {
             earliest_departure: earliest,
             range: latest - earliest,

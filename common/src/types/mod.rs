@@ -1,6 +1,8 @@
 use chrono::{DateTime, NaiveDate, Utc};
 use polars::datatypes::AnyValue;
 use std::fmt::{Debug, Display, Formatter};
+use std::num::ParseIntError;
+use std::str::FromStr;
 use serde::{Deserialize, Serialize};
 
 pub mod config;
@@ -59,6 +61,14 @@ impl<'a> TryFrom<AnyValue<'a>> for StopId {
 impl From<u32> for StopId {
     fn from(value: u32) -> Self {
         Self(value)
+    }
+}
+
+impl FromStr for StopId {
+    type Err = ParseIntError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(Self(s.parse::<u32>()?))
     }
 }
 

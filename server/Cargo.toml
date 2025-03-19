@@ -7,7 +7,7 @@ edition = "2021"
 common = { workspace = true }
 routing = { workspace = true }
 thiserror = { workspace = true }
-log = { workspace = true }
 serde = { workspace = true }
 axum = { workspace = true }
-tokio = {workspace = true}
+tokio = { workspace = true }
+chrono = { workspace = true }

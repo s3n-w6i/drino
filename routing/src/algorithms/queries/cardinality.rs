@@ -18,4 +18,4 @@ pub struct Multiple<'a> {
 }
 
 #[derive(Deserialize)]
-pub struct All();
+pub struct All;

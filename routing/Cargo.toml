@@ -27,4 +27,3 @@ arrow-schema = { workspace = true }
 arrow-array = { workspace = true }
 serde = { workspace = true }
 serde_with = { version = "3.12.0", features = ["chrono"] }
-erased-serde = "0.4.5"

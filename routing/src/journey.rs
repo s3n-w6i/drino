@@ -10,6 +10,7 @@ use serde_with::serde_as;
 #[serde_as]
 #[derive(Serialize, Clone, Eq, PartialEq, Hash)]
 pub enum Leg {
+    #[serde(rename = "ride")]
     Ride {
         trip: TripId,
         boarding_stop: StopId,
@@ -19,6 +20,7 @@ pub enum Leg {
         #[serde(with = "ts_seconds")]
         alight_time: DateTime<Utc>,
     },
+    #[serde(rename = "transfer")]
     Transfer {
         start: StopId,
         end: StopId,

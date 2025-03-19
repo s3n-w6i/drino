@@ -11,6 +11,7 @@ pub enum QueryError {
     Polars(#[from] polars::error::PolarsError),
     NoRouteFound,
     TransferError(#[from] TransferError),
+    InvalidTargetCardinality,
 }
 
 impl Display for QueryError {
@@ -19,6 +20,7 @@ impl Display for QueryError {
             QueryError::Polars(err) => err,
             QueryError::NoRouteFound => &"No route found",
             QueryError::TransferError(err) => err,
+            &QueryError::InvalidTargetCardinality => &"Target cardinality incompatible with query type",
         };
         write!(f, "{}", err)
     }
