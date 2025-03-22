@@ -132,7 +132,7 @@ const NavBar = () => {
                             <SidebarMenu>
                                 {group.items.map((item) => (
                                     <SidebarMenuItem key={item.link}>
-                                        <SidebarMenuButton asChild>
+                                        <SidebarMenuButton isActive={location?.pathname === item.link} asChild>
                                             <NavLink to={item.link}>
                                                 <item.icon />
                                                 {item.title}

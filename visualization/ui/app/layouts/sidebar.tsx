@@ -16,7 +16,7 @@ export default function SidebarLayout() {
             defaultOpen={true}>
             <NavBar/>
             <SidebarInset className="flex-col">
-                <header className="p-4 sm:p-6 flex flex-row items-center gap-2">
+                <header className="p-4 sm:p-5 flex flex-row items-center gap-2">
                     <SidebarTrigger/>
                     <Separator orientation="vertical" className="mr-2 h-4"/>
                     <ReactRouterBreadcrumbs/>
