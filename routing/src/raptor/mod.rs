@@ -2,7 +2,8 @@ use crate::algorithms::RoutingAlgorithm;
 use crate::journey::Journey;
 use crate::transfers::TransferProvider;
 use chrono::{DateTime, Duration, Utc};
-use common::types::{LineId, SeqNum, StopId, TripId};
+use common::types::trip::{AnyTripId, OneOff, Recurring, TripType};
+use common::types::{LineId, SeqNum, StopId};
 use hashbrown::{HashMap, HashSet};
 
 mod preprocessing;
@@ -14,10 +15,8 @@ mod tests;
 type GlobalStopId = StopId;
 type LocalStopId = StopId;
 
-/// <(trip_id, stop_id, visit_idx), time>
-/// the visit_idx is there, since a trip could visit the same stop multiple times (think round trips)
-pub type TripAtStopTimeMap = HashMap<(TripId, LocalStopId, u32), DateTime<Utc>>;
-pub type TripsByLineAndStopMap = HashMap<(LineId, LocalStopId), Vec<(DateTime<Utc>, TripId)>>;
+pub type TripsByLineAndStopMap<TT: TripType> =
+    HashMap<(LineId, LocalStopId), Vec<(DateTime<Utc>, TT::Id)>>;
 
 pub type StopsByLineMap = HashMap<LineId, Vec<(LocalStopId, u32)>>;
 pub type LinesByStopMap = HashMap<LocalStopId, HashSet<(LineId, SeqNum)>>;
@@ -25,20 +24,47 @@ pub type LinesByStopMap = HashMap<LocalStopId, HashSet<(LineId, SeqNum)>>;
 pub struct RaptorAlgorithm {
     pub(crate) stop_mapping: StopMapping,
 
-    /// <line_id, [stop_id, visit_idx]>
+    // STOPS AND LINES
+    // <line_id, [stop_id, visit_idx]>
     pub(crate) stops_by_line: StopsByLineMap,
     pub(crate) lines_by_stops: LinesByStopMap,
 
-    // <(trip_id, stop_id, visit_idx), departure_time>
-    pub(crate) departures: TripAtStopTimeMap,
-    // <(trip_id, stop_id, visit_idx), arrival_time>
-    pub(crate) arrivals: TripAtStopTimeMap,
+    // ARRIVALS & DEPARTURES
+    pub(crate) arrivals: AnyTripAtStopTime,
+    pub(crate) departures: AnyTripAtStopTime,
 
+    // TRIPS
     // Vec has to be sorted from earliest to latest
-    // DateTime is departure
-    pub(crate) trips_by_line_and_stop: TripsByLineAndStopMap,
+    // DateTime is departure at the stop
+    pub(crate) one_off_trips_by_line_and_stop: TripsByLineAndStopMap<OneOff>,
+    pub(crate) recurring_trips_by_line_and_stop: TripsByLineAndStopMap<Recurring>,
 
+    // TRANSFERS
     pub(crate) transfer_provider: Box<dyn TransferProvider + Send + Sync>,
+}
+
+/// <(trip_id, stop_id, visit_idx), time>
+/// - visit_idx is there, since a trip could visit the same stop multiple times (think round trips)
+/// - time: is either arrival or departure
+pub type TripAtStopTimeMap<TT: TripType> = HashMap<(TT::Id, LocalStopId, u32), DateTime<Utc>>;
+
+pub struct AnyTripAtStopTime {
+    one_off: TripAtStopTimeMap<OneOff>,
+    recurring: TripAtStopTimeMap<Recurring>,
+}
+
+impl AnyTripAtStopTime {
+    fn get(
+        &self,
+        trip_id: &AnyTripId,
+        stop_id: &LocalStopId,
+        visit_idx: &u32,
+    ) -> Option<&DateTime<Utc>> {
+        match trip_id {
+            AnyTripId::Recurring(trip_id) => self.recurring.get(&(*trip_id, *stop_id, *visit_idx)),
+            AnyTripId::OneOff(trip_id) => self.one_off.get(&(*trip_id, *stop_id, *visit_idx)),
+        }
+    }
 }
 
 impl RoutingAlgorithm for RaptorAlgorithm {}

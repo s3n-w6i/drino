@@ -1,9 +1,10 @@
 use chrono::{DateTime, Duration, Utc};
 use hashbrown::{HashMap, HashSet};
 use ndarray::array;
-use common::types::{LineId, SeqNum, StopId, TripId};
+use common::types::{LineId, SeqNum, StopId};
+use common::types::trip::OneOffTripId;
 use common::util::duration::INFINITY;
-use crate::raptor::{RaptorAlgorithm, StopMapping};
+use crate::raptor::{AnyTripAtStopTime, RaptorAlgorithm, StopMapping};
 use crate::transfers::fixed_time::FixedTimeTransferProvider;
 
 #[allow(clippy::inconsistent_digit_grouping)]
@@ -50,53 +51,60 @@ pub(crate) fn generate_case_4() -> RaptorAlgorithm {
             (StopId(3), HashSet::from([(LineId(100), SeqNum(2)), (LineId(101), SeqNum(0)), (LineId(130), SeqNum(1))])),
             (StopId(4), HashSet::from([(LineId(120), SeqNum(2))])),
         ]),
-        departures: HashMap::from([
-            // Line 100
-            ((TripId(100_1), StopId(0), 0), dep20),
-            ((TripId(100_1), StopId(2), 0), dep110),
-            ((TripId(100_2), StopId(0), 0), dep220),
-            ((TripId(100_2), StopId(2), 0), dep310),
-            // Line 101
-            ((TripId(101_1), StopId(3), 0), dep20),
-            ((TripId(101_1), StopId(2), 0), dep110),
-            ((TripId(101_2), StopId(3), 0), dep220),
-            ((TripId(101_2), StopId(2), 0), dep310),
-            // Line 120
-            ((TripId(120_1), StopId(1), 0), dep0),
-            ((TripId(120_1), StopId(2), 0), dep90),
-            ((TripId(120_2), StopId(1), 0), dep400),
-            ((TripId(120_2), StopId(2), 0), dep490),
-            // Line 130
-            ((TripId(130_1), StopId(0), 0), dep0),
+        arrivals: AnyTripAtStopTime {
+            one_off: HashMap::from([
+                // Line 100
+                ((OneOffTripId(100_1), StopId(2), 0), arr100),
+                ((OneOffTripId(100_1), StopId(3), 0), arr300),
+                ((OneOffTripId(100_2), StopId(2), 0), arr250),
+                ((OneOffTripId(100_2), StopId(3), 0), arr350),
+                // Line 101
+                ((OneOffTripId(101_1), StopId(2), 0), arr100),
+                ((OneOffTripId(101_1), StopId(1), 0), arr150),
+                ((OneOffTripId(101_2), StopId(2), 0), arr300),
+                ((OneOffTripId(101_2), StopId(1), 0), arr350),
+                // Line 120
+                ((OneOffTripId(120_1), StopId(2), 0), arr80),
+                ((OneOffTripId(120_1), StopId(4), 0), arr300),
+                ((OneOffTripId(120_2), StopId(2), 0), arr480),
+                ((OneOffTripId(120_2), StopId(4), 0), arr700),
+                // Line 130
+                ((OneOffTripId(130_1), StopId(3), 0), arr250),
+            ]),
+            recurring: HashMap::new()
+        },
+        departures: AnyTripAtStopTime {
+            one_off: HashMap::from([
+                // Line 100
+                ((OneOffTripId(100_1), StopId(0), 0), dep20),
+                ((OneOffTripId(100_1), StopId(2), 0), dep110),
+                ((OneOffTripId(100_2), StopId(0), 0), dep220),
+                ((OneOffTripId(100_2), StopId(2), 0), dep310),
+                // Line 101
+                ((OneOffTripId(101_1), StopId(3), 0), dep20),
+                ((OneOffTripId(101_1), StopId(2), 0), dep110),
+                ((OneOffTripId(101_2), StopId(3), 0), dep220),
+                ((OneOffTripId(101_2), StopId(2), 0), dep310),
+                // Line 120
+                ((OneOffTripId(120_1), StopId(1), 0), dep0),
+                ((OneOffTripId(120_1), StopId(2), 0), dep90),
+                ((OneOffTripId(120_2), StopId(1), 0), dep400),
+                ((OneOffTripId(120_2), StopId(2), 0), dep490),
+                // Line 130
+                ((OneOffTripId(130_1), StopId(0), 0), dep0),
+            ]),
+            recurring: HashMap::new(),
+        },
+        one_off_trips_by_line_and_stop: HashMap::from([
+            ((LineId(100), StopId(0)), vec![(dep20, OneOffTripId(100_1)), (dep220, OneOffTripId(100_2))]),
+            ((LineId(100), StopId(2)), vec![(dep110, OneOffTripId(100_1)), (dep310, OneOffTripId(100_2))]),
+            ((LineId(101), StopId(3)), vec![(dep20, OneOffTripId(101_1)), (dep220, OneOffTripId(101_2))]),
+            ((LineId(101), StopId(2)), vec![(dep110, OneOffTripId(101_1)), (dep310, OneOffTripId(101_2))]),
+            ((LineId(120), StopId(1)), vec![(dep0, OneOffTripId(120_1)), (dep400, OneOffTripId(120_2))]),
+            ((LineId(120), StopId(2)), vec![(dep90, OneOffTripId(120_1)), (dep490, OneOffTripId(120_2))]),
+            ((LineId(130), StopId(0)), vec![(dep0, OneOffTripId(130_1))]),
         ]),
-        arrivals: HashMap::from([
-            // Line 100
-            ((TripId(100_1), StopId(2), 0), arr100),
-            ((TripId(100_1), StopId(3), 0), arr300),
-            ((TripId(100_2), StopId(2), 0), arr250),
-            ((TripId(100_2), StopId(3), 0), arr350),
-            // Line 101
-            ((TripId(101_1), StopId(2), 0), arr100),
-            ((TripId(101_1), StopId(1), 0), arr150),
-            ((TripId(101_2), StopId(2), 0), arr300),
-            ((TripId(101_2), StopId(1), 0), arr350),
-            // Line 120
-            ((TripId(120_1), StopId(2), 0), arr80),
-            ((TripId(120_1), StopId(4), 0), arr300),
-            ((TripId(120_2), StopId(2), 0), arr480),
-            ((TripId(120_2), StopId(4), 0), arr700),
-            // Line 130
-            ((TripId(130_1), StopId(3), 0), arr250),
-        ]),
-        trips_by_line_and_stop: HashMap::from([
-            ((LineId(100), StopId(0)), vec![(dep20, TripId(100_1)), (dep220, TripId(100_2))]),
-            ((LineId(100), StopId(2)), vec![(dep110, TripId(100_1)), (dep310, TripId(100_2))]),
-            ((LineId(101), StopId(3)), vec![(dep20, TripId(101_1)), (dep220, TripId(101_2))]),
-            ((LineId(101), StopId(2)), vec![(dep110, TripId(101_1)), (dep310, TripId(101_2))]),
-            ((LineId(120), StopId(1)), vec![(dep0, TripId(120_1)), (dep400, TripId(120_2))]),
-            ((LineId(120), StopId(2)), vec![(dep90, TripId(120_1)), (dep490, TripId(120_2))]),
-            ((LineId(130), StopId(0)), vec![(dep0, TripId(130_1))]),
-        ]),
+        recurring_trips_by_line_and_stop: HashMap::new(),
         transfer_provider: Box::new(FixedTimeTransferProvider {
             duration_matrix: array![
                 [Duration::zero(), INFINITY, INFINITY,  INFINITY, INFINITY],

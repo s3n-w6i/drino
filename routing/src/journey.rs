@@ -1,18 +1,19 @@
 use chrono::{DateTime, Duration, TimeDelta, Utc};
 use chrono::serde::ts_seconds;
-use common::types::{StopId, TripId};
+use common::types::StopId;
 #[cfg(debug_assertions)] use itertools::Itertools;
 use std::fmt::{Debug, Formatter};
 use std::slice::Iter;
 use serde::Serialize;
 use serde_with::serde_as;
+use common::types::trip::AnyTripId;
 
 #[serde_as]
 #[derive(Serialize, Clone, Eq, PartialEq, Hash)]
 pub enum Leg {
     #[serde(rename = "ride")]
     Ride {
-        trip: TripId,
+        trip: AnyTripId,
         boarding_stop: StopId,
         alight_stop: StopId,
         #[serde(with = "ts_seconds")]

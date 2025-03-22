@@ -1,3 +1,4 @@
+use common::types::trip::AnyTripId;
 use crate::algorithms::errors::QueryError::NoRouteFound;
 use crate::algorithms::errors::QueryResult;
 use crate::journey::Leg;
@@ -95,7 +96,7 @@ impl <'a> RaptorState<'a> {
         alight_stop: LocalStopId,
         boarding_time: DateTime<Utc>,
         new_arrival: DateTime<Utc>,
-        trip: TripId,
+        trip: AnyTripId,
     ) {
         let alight_idx = alight_stop.0 as usize;
 

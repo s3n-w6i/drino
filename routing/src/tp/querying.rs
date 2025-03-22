@@ -23,7 +23,8 @@ mod tests {
     use crate::tests::*;
     use crate::tp::TransferPatternsAlgorithm;
     use chrono::DateTime;
-    use common::types::{StopId, TripId};
+    use common::types::StopId;
+    use common::types::trip::OneOffTripId;
     use crate::algorithms::initialization::ByPreprocessing;
     use crate::algorithms::queries::earliest_arrival::{EarliestArrivalInput, EarliestArrivalOutput};
     use crate::algorithms::queries::{cardinality, Queryable};
@@ -44,7 +45,7 @@ mod tests {
             .unwrap();
         let expected = EarliestArrivalOutput {
             journey: Journey::from(vec![Leg::Ride {
-                trip: TripId(0),
+                trip: OneOffTripId(0).into(),
                 boarding_stop: StopId(0),
                 alight_stop: StopId(1),
                 boarding_time: DateTime::from_timestamp_millis(100).unwrap(),

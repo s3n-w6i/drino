@@ -1,10 +1,9 @@
-use crate::algorithms::errors::{MultiQueryResult, QueryResult};
 use crate::algorithms::queries::cardinality::{All, Multiple, Single, TargetCardinality};
 use crate::algorithms::queries::QueryType;
 use crate::journey::Journey;
 use chrono::{DateTime, Utc};
-use serde::Deserialize;
 use common::types::StopId;
+use serde::Deserialize;
 use serde_with::serde_derive::Serialize;
 
 /// The earliest arrival query asks for the one optimal journey when departing at or after a

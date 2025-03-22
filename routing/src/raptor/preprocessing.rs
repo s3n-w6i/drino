@@ -1,12 +1,9 @@
 use crate::algorithms::initialization::{ByPreprocessing, PreprocessingError, PreprocessingInput, PreprocessingResult};
 use crate::direct_connections::DirectConnections;
-use crate::raptor::{
-    GlobalStopId, LinesByStopMap, RaptorAlgorithm, StopMapping, StopsByLineMap, TripAtStopTimeMap,
-    TripsByLineAndStopMap,
-};
+use crate::raptor::{AnyTripAtStopTime, GlobalStopId, LinesByStopMap, RaptorAlgorithm, StopMapping, StopsByLineMap, TripAtStopTimeMap, TripsByLineAndStopMap};
 use crate::transfers::crow_fly::CrowFlyTransferProvider;
 use chrono::DateTime;
-use common::types::{LineId, StopId, TripId};
+use common::types::{LineId, StopId};
 #[cfg(debug_assertions)]
 use common::util::time::INFINITY;
 use itertools::izip;
@@ -16,7 +13,9 @@ use polars::error::PolarsError;
 use polars::prelude::*;
 #[cfg(debug_assertions)]
 use std::ops::{BitAnd, BitOr};
+use hashbrown::HashMap;
 use log::warn;
+use common::types::trip::{OneOff, OneOffTripId};
 
 impl ByPreprocessing for RaptorAlgorithm {
     fn preprocess(
@@ -51,8 +50,8 @@ impl RaptorAlgorithm {
         let stop_mapping = StopMapping(stops_vec);
 
         let (stops_by_line, lines_by_stops) = {
-            let mut stops_by_line = hashbrown::HashMap::default();
-            let mut lines_by_stops = hashbrown::HashMap::default();
+            let mut stops_by_line = HashMap::default();
+            let mut lines_by_stops = HashMap::default();
 
             let [line_ids, global_stop_ids, sequence_numbers] = line_progressions.get_columns()
             else {
@@ -101,7 +100,7 @@ impl RaptorAlgorithm {
             "departure_time",
         ])?;
 
-        let (arrivals, departures) = {
+        let (one_off_arrivals, one_off_departures) = {
             let sorted_lines = lines.clone().sort(
                 ["line_id", "trip_id", "stop_sequence"],
                 SortMultipleOptions::default()
@@ -123,12 +122,12 @@ impl RaptorAlgorithm {
             debug_assert!(arrival_times.time_unit() == TimeUnit::Milliseconds);
             debug_assert!(departure_times.time_unit() == TimeUnit::Milliseconds);
 
-            let mut arrivals = hashbrown::HashMap::default();
-            let mut departures = hashbrown::HashMap::default();
+            let mut arrivals = HashMap::default();
+            let mut departures = HashMap::default();
             for (trip_id, global_stop_id, arrival_time, departure_time) in
                 izip!(trip_ids, global_stop_ids, arrival_times.iter(), departure_times.iter())
             {
-                let trip_id = TripId(trip_id.unwrap());
+                let trip_id = OneOffTripId(trip_id.unwrap());
                 let global_stop_id = StopId(global_stop_id.unwrap());
                 let local_stop_id = stop_mapping.translate_to_local(global_stop_id);
                 let arrival_time = arrival_time.unwrap();
@@ -171,8 +170,18 @@ impl RaptorAlgorithm {
                     });
             }
 
-            Ok::<(TripAtStopTimeMap, TripAtStopTimeMap), PreprocessingError>((arrivals, departures))
+            Ok::<(TripAtStopTimeMap<OneOff>, TripAtStopTimeMap<OneOff>), PreprocessingError>((arrivals, departures))
         }?;
+        
+        let arrivals = AnyTripAtStopTime {
+            one_off: one_off_arrivals,
+            recurring: HashMap::new(), // TODO
+        };
+        
+        let departures = AnyTripAtStopTime {
+            one_off: one_off_departures,
+            recurring: HashMap::new(), // TODO
+        };
 
         let trips_by_line_and_stop_df = lines.clone().lazy()
             .sort(
@@ -194,7 +203,7 @@ impl RaptorAlgorithm {
         let trips_ids = trips_ids.list()?;
         let departures_times = departures_times.list()?;
 
-        let mut trips_by_line_and_stop: TripsByLineAndStopMap = hashbrown::HashMap::default();
+        let mut trips_by_line_and_stop: TripsByLineAndStopMap<OneOff> = HashMap::default();
 
         for (line_id, global_stop_id, trips, departures) in
             izip!(line_ids, global_stop_ids, trips_ids, departures_times)
@@ -209,7 +218,7 @@ impl RaptorAlgorithm {
                         // TODO: Fix date conversion
                         (
                             DateTime::from_timestamp_millis(departure).unwrap(),
-                            TripId(trip.unwrap()),
+                            OneOffTripId(trip.unwrap()),
                         )
                     })
                 })
@@ -276,7 +285,8 @@ impl RaptorAlgorithm {
             lines_by_stops,
             arrivals,
             departures,
-            trips_by_line_and_stop,
+            one_off_trips_by_line_and_stop: trips_by_line_and_stop,
+            recurring_trips_by_line_and_stop: HashMap::new(), // TODO
             transfer_provider: Box::new(CrowFlyTransferProvider::from_stops(stops)?),
         })
     }

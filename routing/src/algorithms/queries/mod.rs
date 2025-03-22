@@ -1,8 +1,7 @@
-use crate::algorithms::errors::{QueryError, QueryResult};
-use crate::algorithms::queries::cardinality::{All, Multiple, Single, TargetCardinality};
+use crate::algorithms::errors::QueryResult;
+use crate::algorithms::queries::cardinality::TargetCardinality;
 use crate::algorithms::RoutingAlgorithm;
-use serde::de::{DeserializeOwned, Visitor};
-use serde::Deserialize;
+use serde::de::DeserializeOwned;
 
 pub mod cardinality;
 pub mod earliest_arrival;

@@ -8,20 +8,21 @@ use crate::raptor::state::RaptorState;
 use crate::raptor::{LocalStopId, RaptorAlgorithm};
 use crate::transfers::TransferError;
 use chrono::{DateTime, Duration, TimeDelta, Utc};
-use common::types::{LineId, SeqNum, StopId, TripId};
+use common::types::trip::AnyTripId;
+use common::types::{LineId, SeqNum, StopId};
 use common::util::time::INFINITY;
 use hashbrown::HashSet;
 use itertools::Itertools;
 
 impl RaptorAlgorithm {
     /// Selects the earliest trip of a line, that departs at `stop` after a given time
-    fn earliest_trip(&self, line: LineId, stop: StopId, after: DateTime<Utc>) -> Option<TripId> {
-        self.trips_by_line_and_stop
+    fn earliest_trip(&self, line: LineId, stop: StopId, after: DateTime<Utc>) -> Option<AnyTripId> {
+        self.one_off_trips_by_line_and_stop
             .get(&(line, stop))
             .and_then(|trips| {
                 trips.iter().find_map(|(departure, trip)| {
                     if *departure >= after {
-                        Some(*trip)
+                        Some(AnyTripId::OneOff(*trip))
                     } else { None }
                 })
             })
@@ -108,13 +109,13 @@ impl RaptorAlgorithm {
             for (line, (a_stop, a_visit_idx)) in queue.iter() {
                 // Option<(stop_id, visit_idx)>
                 let mut boarding: Option<(StopId, u32)> = None;
-                let mut trip: Option<TripId> = None;
+                let mut trip: Option<AnyTripId> = None;
 
                 for (b_stop, b_visit_idx) in self.stops_on_line_after(line, a_stop, a_visit_idx) {
                     // TODO: Fix funky date problems
                     // if t != ⊥ and ...
                     if let Some(trip) = trip {
-                        let b_arrival = self.arrivals.get(&(trip, *b_stop, *b_visit_idx))
+                        let b_arrival = self.arrivals.get(&trip, b_stop, b_visit_idx)
                             .unwrap_or_else(|| panic!(
                                 "Expected arrival for stop {b_stop:?} (visit {b_visit_idx}) to exist on trip {trip:?}"
                             ));
@@ -126,20 +127,20 @@ impl RaptorAlgorithm {
                         // ...and arr(t, pᵢ) < τ*(pᵢ)
                         if b_arrival < best_b_arrival {
                             let (boarding_stop, boarding_visit_idx) = boarding.expect("Boarding stop must not be None");
-                            let boarding_departure = self.departures.get(&(trip, boarding_stop, boarding_visit_idx))
+                            let boarding_departure = self.departures.get(&trip, &boarding_stop, &boarding_visit_idx)
                                 .unwrap_or_else(|| panic!(
                                     "Expected departure for stop {a_stop:?} (visit {boarding_visit_idx}) to exist on trip {trip:?}"
                                 ));
                             
                             //println!("boarding departure: {boarding_departure:?}");
 
-                            state.set_ride(boarding_stop, *b_stop, *boarding_departure, *b_arrival, trip);
+                            state.set_ride(boarding_stop, *b_stop, *boarding_departure, *b_arrival, trip.clone());
                             marked_stops.insert(*b_stop);
                         }
                     }
 
                     let b_departure = trip.and_then(|trip| {
-                        self.departures.get(&(trip, *b_stop, *b_visit_idx))
+                        self.departures.get(&trip, b_stop, b_visit_idx)
                     }).unwrap_or(&INFINITY);
 
                     let prev_b_arrival = state.previous_tau(b_stop);
@@ -311,11 +312,12 @@ mod tests {
     use super::*;
     use crate::journey::Leg;
     use crate::raptor::tests::generate_case_4;
-    use crate::raptor::StopMapping;
+    use crate::raptor::{AnyTripAtStopTime, StopMapping};
     use crate::transfers::fixed_time::FixedTimeTransferProvider;
     use common::util::duration;
     use hashbrown::{HashMap, HashSet};
     use ndarray::array;
+    use common::types::trip::OneOffTripId;
 
     fn case1() -> RaptorAlgorithm {
         RaptorAlgorithm {
@@ -327,15 +329,22 @@ mod tests {
                 (StopId(0), HashSet::from([(LineId(0), SeqNum(0))])),
                 (StopId(1), HashSet::from([(LineId(0), SeqNum(1))])),
             ]),
-            arrivals: HashMap::from([
-                ((TripId(0), StopId(1), 0), DateTime::<Utc>::from_timestamp(500, 0).unwrap())
+            arrivals: AnyTripAtStopTime {
+                one_off: HashMap::from([
+                    ((OneOffTripId(0), StopId(1), 0), DateTime::<Utc>::from_timestamp(500, 0).unwrap())
+                ]),
+                recurring: HashMap::new(),
+            },
+            departures: AnyTripAtStopTime {
+                one_off: HashMap::from([
+                    ((OneOffTripId(0), StopId(0), 0), DateTime::<Utc>::from_timestamp(100, 0).unwrap())
+                ]),
+                recurring: HashMap::new(),
+            },
+            one_off_trips_by_line_and_stop: HashMap::from([
+                ((LineId(0), StopId(0)), vec![(DateTime::<Utc>::from_timestamp(100, 0).unwrap(), OneOffTripId(0))]),
             ]),
-            departures: HashMap::from([
-                ((TripId(0), StopId(0), 0), DateTime::<Utc>::from_timestamp(100, 0).unwrap())
-            ]),
-            trips_by_line_and_stop: HashMap::from([
-                ((LineId(0), StopId(0)), vec![(DateTime::<Utc>::from_timestamp(100, 0).unwrap(), TripId(0))]),
-            ]),
+            recurring_trips_by_line_and_stop: HashMap::new(),
             transfer_provider: Box::new(FixedTimeTransferProvider {
                 duration_matrix: array![
                     [Duration::zero(), Duration::max_value(),],
@@ -357,18 +366,25 @@ mod tests {
                 (StopId(1), HashSet::from([(LineId(0), SeqNum(1)), (LineId(1), SeqNum(0))])),
                 (StopId(2), HashSet::from([(LineId(1), SeqNum(1))])),
             ]),
-            departures: HashMap::from([
-                ((TripId(0), StopId(0), 0), DateTime::<Utc>::from_timestamp(100, 0).unwrap()),
-                ((TripId(1), StopId(1), 0), DateTime::<Utc>::from_timestamp(1000, 0).unwrap()),
+            arrivals: AnyTripAtStopTime {
+                one_off: HashMap::from([
+                    ((OneOffTripId(0), StopId(1), 0), DateTime::<Utc>::from_timestamp(500, 0).unwrap()),
+                    ((OneOffTripId(1), StopId(2), 0), DateTime::<Utc>::from_timestamp(1500, 0).unwrap()),
+                ]),
+                recurring: HashMap::new(),
+            },
+            departures: AnyTripAtStopTime {
+                one_off: HashMap::from([
+                    ((OneOffTripId(0), StopId(0), 0), DateTime::<Utc>::from_timestamp(100, 0).unwrap()),
+                    ((OneOffTripId(1), StopId(1), 0), DateTime::<Utc>::from_timestamp(1000, 0).unwrap()),
+                ]),
+                recurring: HashMap::new(),
+            },
+            one_off_trips_by_line_and_stop: HashMap::from([
+                ((LineId(0), StopId(0)), vec![(DateTime::<Utc>::from_timestamp(100, 0).unwrap(), OneOffTripId(0))]),
+                ((LineId(1), StopId(1)), vec![(DateTime::<Utc>::from_timestamp(1000, 0).unwrap(), OneOffTripId(1))]),
             ]),
-            arrivals: HashMap::from([
-                ((TripId(0), StopId(1), 0), DateTime::<Utc>::from_timestamp(500, 0).unwrap()),
-                ((TripId(1), StopId(2), 0), DateTime::<Utc>::from_timestamp(1500, 0).unwrap()),
-            ]),
-            trips_by_line_and_stop: HashMap::from([
-                ((LineId(0), StopId(0)), vec![(DateTime::<Utc>::from_timestamp(100, 0).unwrap(), TripId(0))]),
-                ((LineId(1), StopId(1)), vec![(DateTime::<Utc>::from_timestamp(1000, 0).unwrap(), TripId(1))]),
-            ]),
+            recurring_trips_by_line_and_stop: HashMap::new(),
             transfer_provider: Box::new(FixedTimeTransferProvider {
                 duration_matrix: array![
                     [Duration::zero(), duration::INFINITY, duration::INFINITY,],
@@ -381,7 +397,7 @@ mod tests {
 
     fn case1_trip0_leg0() -> Leg {
         Leg::Ride {
-            trip: TripId(0),
+            trip: OneOffTripId(0).into(),
             boarding_stop: StopId(0),
             alight_stop: StopId(1),
             boarding_time: DateTime::<Utc>::from_timestamp(100, 0).unwrap(),
@@ -395,11 +411,11 @@ mod tests {
 
         assert_eq!(
             raptor.earliest_trip(LineId(0), StopId(0), DateTime::<Utc>::from_timestamp(0, 0).unwrap()),
-            Some(TripId(0))
+            Some(OneOffTripId(0).into())
         );
         assert_eq!(
             raptor.earliest_trip(LineId(0), StopId(0), DateTime::<Utc>::from_timestamp(100, 0).unwrap()),
-            Some(TripId(0))
+            Some(OneOffTripId(0).into())
         );
         assert_eq!(
             raptor.earliest_trip(LineId(0), StopId(0), DateTime::<Utc>::from_timestamp(100, 1).unwrap()),
@@ -538,7 +554,7 @@ mod tests {
             alight_stop: StopId(1),
             boarding_time: DateTime::<Utc>::from_timestamp(100, 0).unwrap(),
             alight_time: DateTime::<Utc>::from_timestamp(500, 0).unwrap(),
-            trip: TripId(0),
+            trip: OneOffTripId(0).into(),
         };
 
         let expected = RangeOutput {
@@ -550,7 +566,7 @@ mod tests {
                         alight_stop: StopId(2),
                         boarding_time: DateTime::<Utc>::from_timestamp(1000, 0).unwrap(),
                         alight_time: DateTime::<Utc>::from_timestamp(1500, 0).unwrap(),
-                        trip: TripId(1),
+                        trip: OneOffTripId(1).into(),
                     },
                 ]),
                 Journey::from(vec![
@@ -581,18 +597,25 @@ mod tests {
                 (StopId(2), HashSet::from([(LineId(1), SeqNum(0))])),
                 (StopId(3), HashSet::from([(LineId(1), SeqNum(1))])),
             ]),
-            departures: HashMap::from([
-                ((TripId(0), StopId(0), 0), DateTime::<Utc>::from_timestamp(100, 0).unwrap()),
-                ((TripId(1), StopId(2), 0), DateTime::<Utc>::from_timestamp(1000, 0).unwrap()),
+            arrivals: AnyTripAtStopTime {
+                one_off: HashMap::from([
+                    ((OneOffTripId(0), StopId(1), 0), DateTime::<Utc>::from_timestamp(500, 0).unwrap()),
+                    ((OneOffTripId(1), StopId(3), 0), DateTime::<Utc>::from_timestamp(1500, 0).unwrap()),
+                ]),
+                recurring: HashMap::new(),
+            },
+            departures: AnyTripAtStopTime {
+                one_off: HashMap::from([
+                    ((OneOffTripId(0), StopId(0), 0), DateTime::<Utc>::from_timestamp(100, 0).unwrap()),
+                    ((OneOffTripId(1), StopId(2), 0), DateTime::<Utc>::from_timestamp(1000, 0).unwrap()),
+                ]),
+                recurring: HashMap::new(),
+            },
+            one_off_trips_by_line_and_stop: HashMap::from([
+                ((LineId(0), StopId(0)), vec![(DateTime::<Utc>::from_timestamp(100, 0).unwrap(), OneOffTripId(0))]),
+                ((LineId(1), StopId(2)), vec![(DateTime::<Utc>::from_timestamp(1000, 0).unwrap(), OneOffTripId(1))]),
             ]),
-            arrivals: HashMap::from([
-                ((TripId(0), StopId(1), 0), DateTime::<Utc>::from_timestamp(500, 0).unwrap()),
-                ((TripId(1), StopId(3), 0), DateTime::<Utc>::from_timestamp(1500, 0).unwrap()),
-            ]),
-            trips_by_line_and_stop: HashMap::from([
-                ((LineId(0), StopId(0)), vec![(DateTime::<Utc>::from_timestamp(100, 0).unwrap(), TripId(0))]),
-                ((LineId(1), StopId(2)), vec![(DateTime::<Utc>::from_timestamp(1000, 0).unwrap(), TripId(1))]),
-            ]),
+            recurring_trips_by_line_and_stop: HashMap::new(),
             transfer_provider: Box::new(FixedTimeTransferProvider {
                 duration_matrix: array![
                         [Duration::zero(),   duration::INFINITY, duration::INFINITY, duration::INFINITY],
@@ -614,7 +637,7 @@ mod tests {
             alight_stop: StopId(1),
             boarding_time: DateTime::<Utc>::from_timestamp(100, 0).unwrap(),
             alight_time: DateTime::<Utc>::from_timestamp(500, 0).unwrap(),
-            trip: TripId(0),
+            trip: OneOffTripId(0).into(),
         };
         let case3_journey0_leg1 = Leg::Transfer {
             start: StopId(1),
@@ -633,7 +656,7 @@ mod tests {
                     alight_stop: StopId(3),
                     boarding_time: DateTime::<Utc>::from_timestamp(1000, 0).unwrap(),
                     alight_time: DateTime::<Utc>::from_timestamp(1500, 0).unwrap(),
-                    trip: TripId(1),
+                    trip: OneOffTripId(1).into(),
                 },
             ])
         ]) };
@@ -644,21 +667,13 @@ mod tests {
     #[tokio::test]
     async fn test_query_range_all_4() {
         let dep20 = DateTime::<Utc>::from_timestamp(20, 0).unwrap();
-        let dep220 = DateTime::<Utc>::from_timestamp(220, 0).unwrap();
         let dep110 = DateTime::<Utc>::from_timestamp(110, 0).unwrap();
-        let dep310 = DateTime::<Utc>::from_timestamp(310, 0).unwrap();
         let dep0 = DateTime::<Utc>::from_timestamp(0, 0).unwrap();
-        let dep400 = DateTime::<Utc>::from_timestamp(400, 0).unwrap();
         let dep490 = DateTime::<Utc>::from_timestamp(490, 0).unwrap();
-        let dep150 = DateTime::<Utc>::from_timestamp(150, 0).unwrap();
-        let dep550 = DateTime::<Utc>::from_timestamp(550, 0).unwrap();
 
         let arr100 = DateTime::<Utc>::from_timestamp(100, 0).unwrap();
         let arr300 = DateTime::<Utc>::from_timestamp(300, 0).unwrap();
         let arr150 = DateTime::<Utc>::from_timestamp(150, 0).unwrap();
-        let arr350 = DateTime::<Utc>::from_timestamp(350, 0).unwrap();
-        let arr200 = DateTime::<Utc>::from_timestamp(200, 0).unwrap();
-        let arr600 = DateTime::<Utc>::from_timestamp(600, 0).unwrap();
         let arr700 = DateTime::<Utc>::from_timestamp(700, 0).unwrap();
         let arr250 = DateTime::<Utc>::from_timestamp(250, 0).unwrap();
 
@@ -673,7 +688,7 @@ mod tests {
         ).unwrap();
 
         let case4_journey_0_leg0 = Leg::Ride {
-            trip: TripId(130_1),
+            trip: OneOffTripId(130_1).into(),
             boarding_stop: StopId(0),
             alight_stop: StopId(3),
             boarding_time: dep0,
@@ -706,7 +721,7 @@ mod tests {
         ).unwrap();
 
         let case4_journey1_leg0 = Leg::Ride {
-            trip: TripId(100_1),
+            trip: OneOffTripId(100_1).into(),
             boarding_stop: StopId(0), alight_stop: StopId(2),
             boarding_time: dep20, alight_time: arr100,
         };
@@ -716,7 +731,7 @@ mod tests {
             Journey::from(vec![
                 case4_journey1_leg0.clone(),
                 Leg::Ride {
-                    trip: TripId(101_1),
+                    trip: OneOffTripId(101_1).into(),
                     boarding_stop: StopId(2), alight_stop: StopId(1),
                     boarding_time: dep110, alight_time: arr150,
                 }
@@ -726,7 +741,7 @@ mod tests {
             // 0 to 3
             Journey::from(vec![
                 Leg::Ride {
-                    trip: TripId(100_1),
+                    trip: OneOffTripId(100_1).into(),
                     boarding_stop: StopId(0), alight_stop: StopId(3),
                     boarding_time: dep20, alight_time: arr300,
                 }
@@ -735,7 +750,7 @@ mod tests {
             Journey::from(vec![
                 case4_journey1_leg0,
                 Leg::Ride {
-                    trip: TripId(120_2),
+                    trip: OneOffTripId(120_2).into(),
                     boarding_stop: StopId(2), alight_stop: StopId(4),
                     boarding_time: dep490, alight_time: arr700,
                 },

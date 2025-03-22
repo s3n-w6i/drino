@@ -201,10 +201,11 @@ mod tests {
     use crate::journey::Leg::Ride;
     use chrono::{DateTime, TimeDelta};
     use common::types::errors::UnknownStopIdError;
-    use common::types::{StopId, TripId};
+    use common::types::StopId;
     use itertools::{assert_equal, Itertools};
     use petgraph::{Directed, Graph};
     use petgraph::dot::Dot;
+    use common::types::trip::OneOffTripId;
 
     impl TransferPatternsGraphs {
         
@@ -256,21 +257,21 @@ mod tests {
 
 
         let ab = Ride {
-            trip: TripId(41),
+            trip: OneOffTripId(41).into(),
             boarding_stop: a,
             alight_stop: b,
             boarding_time: DateTime::UNIX_EPOCH,
             alight_time: DateTime::UNIX_EPOCH + TimeDelta::seconds(1),
         };
         let bc = Ride {
-            trip: TripId(43),
+            trip: OneOffTripId(43).into(),
             boarding_stop: b,
             alight_stop: c,
             boarding_time: DateTime::UNIX_EPOCH,
             alight_time: DateTime::UNIX_EPOCH + TimeDelta::days(1),
         };
         let de = Ride {
-            trip: TripId(45),
+            trip: OneOffTripId(45).into(),
             boarding_stop: d,
             alight_stop: e,
             boarding_time: DateTime::UNIX_EPOCH,
@@ -280,7 +281,7 @@ mod tests {
         // A -> E
         tp.add_journey(Journey::from(vec![
             Ride {
-                trip: TripId(42),
+                trip: OneOffTripId(42).into(),
                 boarding_stop: a,
                 alight_stop: e,
                 boarding_time: DateTime::UNIX_EPOCH,
@@ -292,7 +293,7 @@ mod tests {
         tp.add_journey(Journey::from(vec![
             ab.clone(),
             Ride {
-                trip: TripId(42),
+                trip: OneOffTripId(42).into(),
                 boarding_stop: b,
                 alight_stop: e,
                 boarding_time: DateTime::UNIX_EPOCH,
@@ -310,7 +311,7 @@ mod tests {
         tp.add_journey(Journey::from(vec![
             ab.clone(),
             Ride {
-                trip: TripId(44),
+                trip: OneOffTripId(44).into(),
                 boarding_stop: b,
                 alight_stop: d,
                 boarding_time: DateTime::UNIX_EPOCH,
@@ -324,7 +325,7 @@ mod tests {
             ab.clone(),
             bc.clone(),
             Ride {
-                trip: TripId(31),
+                trip: OneOffTripId(31).into(),
                 boarding_stop: c,
                 alight_stop: d,
                 boarding_time: DateTime::UNIX_EPOCH,
@@ -346,7 +347,7 @@ mod tests {
         for _ in 0..2 {
             tp.add_journey(Journey::from(vec![
                 Ride {
-                    trip: TripId(0),
+                    trip: OneOffTripId(0).into(),
                     boarding_stop: StopId(0),
                     alight_stop: StopId(1),
                     boarding_time: DateTime::UNIX_EPOCH,
@@ -356,14 +357,14 @@ mod tests {
 
             tp.add_journey(Journey::from(vec![
                 Ride {
-                    trip: TripId(0),
+                    trip: OneOffTripId(0).into(),
                     boarding_stop: StopId(0),
                     alight_stop: StopId(1),
                     boarding_time: DateTime::UNIX_EPOCH,
                     alight_time: DateTime::UNIX_EPOCH + TimeDelta::seconds(42),
                 },
                 Ride {
-                    trip: TripId(2),
+                    trip: OneOffTripId(2).into(),
                     boarding_stop: StopId(1),
                     alight_stop: StopId(2),
                     boarding_time: DateTime::UNIX_EPOCH,

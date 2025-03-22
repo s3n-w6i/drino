@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 
 pub mod config;
 pub mod errors;
+pub mod trip;
 
 pub fn u32_from_any_value(value: AnyValue) -> Result<u32, ()> {
     match value {
@@ -94,36 +95,6 @@ impl From<u32> for LineId {
     fn from(value: u32) -> Self {
         Self(value)
     }
-}
-
-
-#[derive(Serialize, Debug, Clone, Copy, Hash, Eq, PartialEq)]
-pub struct TripId(pub u32);
-
-impl<'a> From<TripId> for AnyValue<'a> {
-    fn from(value: TripId) -> AnyValue<'a> {
-        AnyValue::UInt32(value.0)
-    }
-}
-
-impl<'a> TryFrom<AnyValue<'a>> for TripId {
-    type Error = ();
-
-    fn try_from(value: AnyValue<'a>) -> Result<Self, Self::Error> {
-        u32_from_any_value(value).map(Self)
-    }
-}
-
-impl From<u32> for TripId {
-    fn from(value: u32) -> Self {
-        Self(value)
-    }
-}
-
-#[derive(Debug, Clone, Copy, Hash, Eq, PartialEq)]
-pub enum IndividualTrip {
-    Calendar { id: TripId, start_day_utc: NaiveDate },
-    Frequency { id: TripId, start_time: DateTime<Utc> },
 }
 
 
