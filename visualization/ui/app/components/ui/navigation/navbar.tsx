@@ -26,7 +26,7 @@ const NAV_BAR_ITEMS = [
     },
     {
         link: "/routing",
-        icon: <Route />,
+        icon: <Route/>,
         title: "Routing",
     },
     {

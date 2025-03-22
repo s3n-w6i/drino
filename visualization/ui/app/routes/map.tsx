@@ -278,7 +278,7 @@ export default function MapPage() {
     };
 
     return (
-        <div className="flex items-_start flex-row">
+        <div className="h-full flex items-_start flex-row gap-4 xl:gap-6 mr-4 xl:mr-8 my-3">
             <div className="relative flex-1 rounded-r-xl overflow-hidden">
                 <Map
                     initialViewState={{
@@ -287,7 +287,7 @@ export default function MapPage() {
                         zoom: 1
                     }}
                     mapStyle="https://basemaps.cartocdn.com/gl/positron-gl-style/style.json"
-                    style={{width: "100%", height: "80vh"}}>
+                    style={{width: "100%", height: "100%"}}>
 
                     <NavigationControl position="top-right"/>
                     <FullscreenControl position="top-right"/>
@@ -315,7 +315,7 @@ export default function MapPage() {
                     )}
                 </div>
             </div>
-            <Card className="w-96 mx-4">
+            <Card className="w-96 self-start">
                 <CardHeader className="bg-muted/50">
                     <CardTitle>Layers</CardTitle>
                     <CardDescription>Select data to display on the map</CardDescription>

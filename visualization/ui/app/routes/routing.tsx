@@ -1,5 +1,5 @@
 "use client"
-import {Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle} from "~/components/ui/card";
+import {Card, CardContent, CardDescription, CardHeader, CardTitle} from "~/components/ui/card";
 import {EmptyState} from "~/components/ui/empty-state";
 import type {Route} from "../../.react-router/types/app/routes/+types/home";
 import {useState} from "react";
@@ -13,8 +13,10 @@ import {Form, FormControl, FormField, FormItem, FormLabel} from "~/components/ui
 import {Tabs, TabsList, TabsTrigger} from "~/components/ui/tabs";
 import {LoadingSpinner} from "~/components/ui/spinner";
 import {Skeleton} from "~/components/ui/skeleton";
-import {toast} from "sonner";
 import {fetchData} from "~/lib/utils";
+import {TabsContent} from "@radix-ui/react-tabs";
+import {Checkbox} from "~/components/ui/checkbox";
+import {DatePicker} from "~/components/ui/date-picker";
 
 export function meta({}: Route.MetaArgs) {
     return [
@@ -22,27 +24,67 @@ export function meta({}: Route.MetaArgs) {
     ];
 }
 
-type Query = {
-    origin: string;
-    destination: string;
-    datetime: Date;
+
+enum QueryType {
+    EarliestArrival = "earliest-arrival",
+    LatestDeparture = "latest-departure",
+    Range = "range"
 }
 
-interface State {}
+const EarliestArrivalQuerySchema = z.object({
+    origin: z.string(),
+    destination: z.string(),
+    datetime: z.coerce.date(), // Ensures proper date parsing
+});
 
-class EnterQueryState implements State {}
-class LoadingState implements State {}
-class ResultState implements State {}
+const RangeQuerySchema = z.object({
+    start: z.number(),
+    target: z.number(),
+    earliest_departure: z.coerce.date(), // Ensures proper date parsing
+    range: z.number(),
+});
+
+const AnyQuerySchema = z.union([RangeQuerySchema, EarliestArrivalQuerySchema]);
+
+
+type Result = {
+    journeys: Journey[];
+}
+
+type Journey = {
+    legs: Leg[];
+}
+
+interface Leg {
+    leg: LegType;
+}
+
+enum LegType {
+    RIDE = "ride",
+    TRANSFER = "transfer",
+}
+
+interface State {
+}
+
+class EnterQueryState implements State {
+}
+
+class LoadingState implements State {
+}
+
+class ResultState implements State {
+    result: Result;
+
+    constructor(result: Result) {
+        this.result = result;
+    }
+}
 
 export default function RoutingPage() {
-    const formSchema = z.object({
-        origin: z.string(),
-        destination: z.string(),
-        datetime: z.date()
-    });
 
-    const form = useForm<z.infer<typeof formSchema>>({
-        resolver: zodResolver(formSchema),
+    const form = useForm<z.infer<typeof AnyQuerySchema>>({
+        resolver: zodResolver(AnyQuerySchema),
         defaultValues: {
             origin: "",
             destination: "",
@@ -50,19 +92,26 @@ export default function RoutingPage() {
         }
     });
 
-    const onSubmit = async (query: z.infer<typeof formSchema>) => {
+    const onSubmit = async (query: z.infer<typeof AnyQuerySchema>) => {
         setState(new LoadingState());
 
-        const res = await fetchData("http://localhost:8080")
+        const res = await fetchData<Result>("http://localhost:8080/api/v1/routing?" + new URLSearchParams({
+            start: query.origin.toString(),
+            target_type: "all",
+            earliest_departure: new Date().getUTCSeconds().toString(),
+            range: String(70_000),
+        }));
 
         if (res) {
-            setState(new ResultState());
+            console.log(res);
+            setState(new ResultState(res));
         } else {
             setState(new EnterQueryState());
         }
     }
 
     const [state, setState] = useState<State>(new EnterQueryState());
+    const [queryType, setQueryType] = useState<QueryType>(QueryType.EarliestArrival);
 
     return (
         <div className="flex items-start flex-row mx-4 sm:mx-6 gap-4 mb-6">
@@ -73,56 +122,74 @@ export default function RoutingPage() {
                 </CardHeader>
                 <CardContent>
                     <Form {...form}>
-                        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                            <div className="space-y-2">
-                                <FormField
-                                    control={form.control}
-                                    name="origin"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>From</FormLabel>
-                                            <FormControl>
-                                                <Input {...field} placeholder="Departure Station" />
-                                            </FormControl>
-                                        </FormItem>
-                                    )}/>
-                                <FormField
-                                    control={form.control}
-                                    name="destination"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>To</FormLabel>
-                                            <FormControl>
-                                                <Input {...field} placeholder="Destination Station" />
-                                            </FormControl>
-                                        </FormItem>
-                                    )}/>
-                            </div>
-                            <FormField
-                                control={form.control}
-                                name="datetime"
-                                render={({ field }) => (
-                                    <FormItem className="grow">
-                                        <FormLabel>Date & Time</FormLabel>
-                                        <FormControl>
-                                            <Input {...field} />
-                                        </FormControl>
-                                    </FormItem>
-                                )}/>
-                            <div className="flex w-full items-end justify-between space-x-2">
-                                <Tabs defaultValue="depart-at">
-                                    <TabsList>
-                                        <TabsTrigger value="depart-at">Departure</TabsTrigger>
-                                        <TabsTrigger value="arrive-at">Arrival</TabsTrigger>
-                                    </TabsList>
-                                </Tabs>
-                                <Button type="submit" className="min-w-24">
-                                    {!(state instanceof LoadingState) ?
-                                        <>Search</> :
-                                        <LoadingSpinner />
-                                    }
-                                </Button>
-                            </div>
+                        <form
+                            onSubmit={form.handleSubmit(onSubmit)}
+                            className="space-y-4">
+                            <Tabs
+                                className="space-y-4"
+                                defaultValue={QueryType.EarliestArrival}
+                                onValueChange={(value) => setQueryType(value as QueryType)}>
+                                <TabsList>
+                                    <TabsTrigger value={QueryType.EarliestArrival}>Earliest Arrival</TabsTrigger>
+                                    <TabsTrigger value={QueryType.LatestDeparture}>Latest Departure</TabsTrigger>
+                                    <TabsTrigger value={QueryType.Range}>Range</TabsTrigger>
+                                </TabsList>
+
+                                <TabsContent value={QueryType.EarliestArrival} className="space-y-4">
+                                    <div className="space-y-2">
+                                        <FormField
+                                            control={form.control}
+                                            name="origin"
+                                            render={({field}) => (
+                                                <FormItem>
+                                                    <FormLabel>From</FormLabel>
+                                                    <FormControl>
+                                                        <Input {...field} placeholder="Departure Station"/>
+                                                    </FormControl>
+                                                </FormItem>
+                                            )}/>
+                                        <div className="flex flex-row gap-2 items-center">
+                                            <FormField
+                                                control={form.control}
+                                                name="destination"
+                                                render={({field}) => (
+                                                    <FormItem>
+                                                        <FormLabel>To</FormLabel>
+                                                        <FormControl>
+                                                            <Input {...field} placeholder="Destination Station"/>
+                                                        </FormControl>
+                                                    </FormItem>
+                                                )}/>
+                                            <Checkbox id="all"/>
+                                            <label
+                                                htmlFor="all"
+                                                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                                            >
+                                                All
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <FormField
+                                        control={form.control}
+                                        name="datetime"
+                                        render={({field}) => (
+                                            <FormItem className="grow">
+                                                <FormLabel>Departure</FormLabel>
+                                                <FormControl>
+                                                    <DatePicker className="w-full" />
+                                                </FormControl>
+                                            </FormItem>
+                                        )}/>
+                                </TabsContent>
+
+                            </Tabs>
+
+                            <Button type="submit" className="w-full">
+                                {!(state instanceof LoadingState) ?
+                                    <>Search</> :
+                                    <LoadingSpinner/>
+                                }
+                            </Button>
                         </form>
                     </Form>
                 </CardContent>
@@ -130,25 +197,36 @@ export default function RoutingPage() {
             <div className="grow">
                 {state instanceof EnterQueryState && (
                     <EmptyState
-                        icon={<Ellipsis />}
+                        icon={<Ellipsis/>}
                         title={"No query"}
-                        description={"Enter a query to get started"} />
+                        description={"Enter a query to get started"}/>
                 )}
                 {(state instanceof LoadingState || state instanceof ResultState) && (
                     <div className="flex flex-col gap-2 w-full max-w-screen-md mx-auto">
                         {(state instanceof LoadingState) && (
                             <>
-                                <Skeleton className="h-24 w-full delay-0" />
-                                <Skeleton className="h-24 w-full delay-100" />
-                                <Skeleton className="h-24 w-full delay-200" />
+                                <Skeleton className="h-24 w-full delay-0"/>
+                                <Skeleton className="h-24 w-full delay-100"/>
+                                <Skeleton className="h-24 w-full delay-200"/>
                             </>
                         )}
                         {(state instanceof ResultState) && (
-                            <Card className="w-full">
-                                <CardHeader>
-                                    <CardTitle>Hi</CardTitle>
-                                </CardHeader>
-                            </Card>
+                            (state as ResultState).result.journeys.map((journey) => (
+                                <Card key={journey} className="w-full">
+                                    <CardHeader>
+                                        <CardTitle>
+                                            {(journey.legs).map((leg) => {
+                                                switch (leg.leg) {
+                                                    case LegType.RIDE:
+                                                        return leg.start;
+                                                    case LegType.TRANSFER:
+                                                        return "Transfer";
+                                                }
+                                            })}
+                                        </CardTitle>
+                                    </CardHeader>
+                                </Card>
+                            ))
                         )}
                     </div>
                 )}

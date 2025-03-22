@@ -10,10 +10,10 @@ const EmptyState = React.forwardRef<
     HTMLDivElement,
     EmptyStateProps
 >((
-    { className, icon, title, description, ...props }
+    { className, icon, title, description, ...props }, ref
 ) => {
     return (
-        <div className="flex flex-col items-center justify-center h-[50vh] gap-6" {...props}>
+        <div className="flex flex-col items-center justify-center h-[50vh] gap-6" ref={ref} {...props}>
             <div className="flex items-center justify-center w-20 h-20 bg-gray-200 rounded-full dark:bg-gray-800">
                 {icon}
             </div>
